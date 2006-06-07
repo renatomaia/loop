@@ -48,7 +48,7 @@ function BaseType:__new(...)
 end
 
 function BaseType:__build(comp)
-	for port, class in oo.members(oo.classof(self)) do
+	for port, class in oo.allmembers(oo.classof(self)) do
 		if port:find("^%a") then
 			class(comp, port, comp)
 		end
