@@ -19,13 +19,12 @@
 -------------------------------------------------------------------------------
 
 local rawget         = rawget
-local loop           = require "loop"
 local oo             = require "loop.simple"
 local UnorderedArray = require "loop.collection.UnorderedArray"
 
-module("loop.collection.UnorderedArraySet",
-	loop.define( oo.class({}, UnorderedArray) )
-)
+module "loop.collection.UnorderedArraySet"
+
+oo.class(_M, UnorderedArray)
 
 valueat = rawget
 indexof = rawget

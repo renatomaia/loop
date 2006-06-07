@@ -22,10 +22,9 @@ local loadstring = loadstring
 
 local table = require "table"
 local debug = require "debug"
-local loop  = require "loop"
 local oo    = require "loop.base"
 
-module("loop.compiler.Conditional", loop.define(oo.class()))
+module("loop.compiler.Conditional", oo.class)
 
 function add(self, ...)
 	table.insert(self, arg)

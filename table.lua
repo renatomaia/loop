@@ -4,19 +4,15 @@
 -- These functions are used in many package implementations and may also be
 -- usefull in applications.
 
---------------------------------------------------------------------------------
--- Packs all arguments into a table.
+local next = next
+local pairs = pairs
+local setmetatable = setmetatable
 
--- All parameters values are stored in a table using numerical indices,
--- including nil values.
+local table = require "table"
 
--- @return Array-like table containing parameter values.
+module "loop.table"
 
--- @see unpack.
-
--- @usage results = pack(SQL.getRecords "select * from Clients")
-
-function pack(...) return arg end
+setmetatable(_M, { __index = table })
 
 --------------------------------------------------------------------------------
 -- Copies all elements stored in a table into another.
@@ -30,10 +26,10 @@ function pack(...) return arg end
 
 -- @return Table containing copied elements.
 
--- @usage copied = table.copy(results)
--- @usage table.copy(results, newcopy)
+-- @usage copied = loop.table.copy(results)
+-- @usage loop.table.copy(results, newcopy)
 
-function table.copy(source, destiny)
+function copy(source, destiny)
 	if source then
 		if not destiny then destiny = {} end
 		for field, value in pairs(source) do
@@ -50,9 +46,9 @@ end
 -- setting nil to each key used to store values in table 'source'.
 
 -- @param tab Table which must be cleared.
--- @usage return table.clear(results)
+-- @usage return loop.table.clear(results)
 
-function table.clear(tab)
+function clear(tab)
 	local elem = next(tab)
 	while elem do
 		tab[elem] = nil

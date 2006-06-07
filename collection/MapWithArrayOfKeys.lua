@@ -19,13 +19,12 @@
 -------------------------------------------------------------------------------
 
 local rawget         = rawget
-local loop           = require "loop"
 local oo             = require "loop.simple"
 local UnorderedArray = require "loop.collection.UnorderedArray"
 
-module("loop.collection.MapWithKeyArray",
-	loop.define( oo.class({}, UnorderedArray) )
-)
+module "loop.collection.MapWithArrayOfKeys"
+
+oo.class(_M, UnorderedArray)
 
 keyat = rawget
 
@@ -38,7 +37,7 @@ end
 
 function add(self, key, value)
 	UnorderedArray.add(self, key)
-	self[key] = value or self:size()
+	self[key] = value or true
 end
 
 function remove(self, key)

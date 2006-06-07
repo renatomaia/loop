@@ -17,11 +17,10 @@
 --   Storage of strings equal to the name of one method prevents its usage.  --
 -------------------------------------------------------------------------------
 
-local loop       = require "loop"
 local oo         = require "loop.base"
 local OrderedSet = require "loop.collection.OrderedSet"
 
-module("loop.collection.PriorityQueue", loop.define(oo.class()))
+module("loop.collection.PriorityQueue", oo.class)
 
 ------------------------------------------------------------------------------
 -- internal constants --------------------------------------------------------

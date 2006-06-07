@@ -15,10 +15,9 @@
 -------------------------------------------------------------------------------
 
 local table = require "table"
-local loop  = require "loop"
 local oo    = require "loop.base"
 
-module("loop.collection.UnorderedArray", loop.define(oo.class()))
+module("loop.collection.UnorderedArray", oo.class)
 
 local rawremove = table.remove
 

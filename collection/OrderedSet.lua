@@ -17,11 +17,10 @@
 --   Storage of strings equal to the name of one method prevents its usage.  --
 -------------------------------------------------------------------------------
 
-local table = require "table"
-local loop  = require "loop"
-local oo    = require "loop.base"
+local oo     = require "loop.base"
+local rawnew = oo.rawnew
 
-module("loop.collection.OrderedSet", loop.define(oo.class()), loop.seeapi(oo))
+module("loop.collection.OrderedSet", oo.class)
 
 ------------------------------------------------------------------------------
 -- key constants -------------------------------------------------------------
@@ -37,7 +36,7 @@ local LAST = {}
 function __init(class, elems)
 	local self = {}
 	if elems then
-		local size = table.getn(elems)
+		local size = #elems
 		if size > 0 then
 			self[FIRST] = elems[1]
 			self[LAST] = elems[1]
@@ -78,11 +77,12 @@ function empty(self)
 end
 
 function insert(self, element, previous)
-	if previous == nil
-		then previous = self[LAST] or FIRST
-		else if not contains(self, previous) then return end
-	end
 	if not contains(self, element) then
+		if previous == nil then
+			previous = self[LAST] or FIRST
+		elseif not contains(self, previous) then
+			return
+		end
 		if self[previous] == nil
 			then self[LAST] = element
 			else self[element] = self[previous]
@@ -93,13 +93,15 @@ function insert(self, element, previous)
 end
 
 function previous(self, element, start)
-	local previous = start or FIRST
-	repeat
-		if self[previous] == element then
-			return previous
-		end
-		previous = self[previous]
-	until previous == nil
+	if contains(self, element) then
+		local previous = start or FIRST
+		repeat
+			if self[previous] == element then
+				return previous
+			end
+			previous = self[previous]
+		until previous == nil
+	end
 end
 
 function remove(self, element, start)

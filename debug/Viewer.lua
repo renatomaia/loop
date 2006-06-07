@@ -1,13 +1,16 @@
 --------------------------------------------------------------------------------
 -- Project: LOOP Debugging Utilities for Lua                                  --
--- Version: 1.0 alpha                                                         --
+-- Release: 2.0 alpha                                                         --
 -- Title  : Visualization of Lua Values                                       --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
--- Date   : 03/08/2005 16:35                                                  --
+-- Date   : 24/02/2006 19:42                                                  --
 --------------------------------------------------------------------------------
 
-local require      = require
+local require = require
+
+local select       = select
 local type         = type
+local next         = next
 local pairs        = pairs
 local ipairs       = ipairs
 local unpack       = unpack
@@ -15,92 +18,120 @@ local rawget       = rawget
 local rawset       = rawset
 local getmetatable = getmetatable
 local luatostring  = tostring
-local luaprint     = print
 
 local string = require "string"
 local table  = require "table"
 local io     = require "io"
-local loop   = require "loop"
 local oo     = require "loop.base"
 
-module("loop.debug.Viewer", loop.define(oo.class()))
+module("loop.debug.Viewer", oo.class)
 
-maxdepth = false
+maxdepth = 2
 identation = "  "
+prefix = ""
 output = io.output()
 
-function viewable(value)
-	local type_name = type(value)
-	return	(type_name ~= "function") and
-					(type_name ~= "userdata") and
-					(type_name ~= "thread")
-end
-
 function rawtostring(value)
-	local result
 	local meta = getmetatable(value)
-	local backup
 	if meta then
-		backup = rawget(meta, "__tostring")
-		if backup ~= nil then rawset(meta, "__tostring", nil) end
-	end
-	result = luatostring(value)
-	if meta and backup ~= nil then
-		rawset(meta, "__tostring", backup)
-	end
-	return result
-end
-
-function tostring(self, value, prefix, maxdepth, history)
-	if not prefix then prefix = "" end
-	if not maxdepth then maxdepth = self.maxdepth end
-	if not history then history = {} end
-	if viewable(value) then
-		if type(value) == "table" then
-			if not history[value] then
-				history[value] = true
-				local serialized = { "{ -- ", rawtostring(value), "\n" }
-				local ident = table.concat{ prefix, self.identation }
-				if not maxdepth or maxdepth > 0 then
-					maxdepth = maxdepth and (maxdepth - 1)
-					for key, field in pairs(value) do
-						table.insert(serialized, ident)
-						table.insert(serialized, "[")
-						table.insert(serialized, self:tostring(key, ident, maxdepth, history))
-						table.insert(serialized, "] = ")
-						table.insert(serialized, self:tostring(field, ident, maxdepth, history))
-						table.insert(serialized, ",\n")
-					end
-				else
-					table.insert(serialized, ident)
-					table.insert(serialized, "...\n")
-				end
-				table.insert(serialized, prefix)
-				table.insert(serialized, "}")
-				return table.concat(serialized)
+		local custom = rawget(meta, "__tostring")
+		if custom then
+			rawset(meta, "__tostring", nil)
+			local raw = luatostring(value)
+			rawset(meta, "__tostring", custom)
+			custom = luatostring(value)
+			if raw == custom
+				then return raw
+				else return raw.." ("..custom..")"
 			end
-		elseif type(value) == "string" then
-			return string.format("%q", value)
-		else
-			return rawtostring(value)
 		end
 	end
-	return "(" .. rawtostring(value) .. ")"
+	return luatostring(value)
 end
 
-function print(self, ...)
-	for index, value in ipairs(arg) do
-		arg[index] = self:tostring(value)
+local function writetable(buffer, table, history, identation, prefix, maxdepth)
+	if history[table] then
+		buffer:write(rawtostring(table))
+	else
+		buffer:write("{ ")
+		buffer:write(rawtostring(table))
+		history[table] = true
+		local key, value = next(table)
+		if key then
+			if maxdepth == 0 then
+				buffer:write(" ... ")
+			else
+				maxdepth = maxdepth - 1
+				repeat
+					local prefix = prefix..identation
+					buffer:write("\n")
+					buffer:write(prefix)
+					
+					local luatype = type(key)
+					if luatype == "string" and key:match("^[%a_][%w_]*$") then
+						buffer:write(key)
+					else
+						buffer:write("[")
+						if luatype == "table" then
+							writetable(buffer, key, history, identation, prefix, maxdepth)
+						elseif luatype == "string" then
+							buffer:write(string.format("%q", key))
+						else
+							buffer:write(rawtostring(key))
+						end
+						buffer:write("]")
+					end
+					
+					buffer:write(" = ")
+
+					luatype = type(value)
+					if luatype == "table" then
+						writetable(buffer, value, history, identation, prefix, maxdepth)
+					elseif luatype == "string" then
+						buffer:write(string.format("%q", value))
+					else
+						buffer:write(rawtostring(value))
+					end
+					buffer:write(",")
+					
+					key, value = next(table, key)
+				until not key
+				buffer:write("\n")
+				buffer:write(prefix)
+			end
+		else
+			buffer:write(" ")
+		end
+		buffer:write("}")
 	end
-	luaprint(unpack(arg, 1, arg.n))
+end
+
+function writeto(self, buffer, value)
+	local luatype = type(value)
+	if luatype == "table" then
+		writetable(buffer, value, {}, self.identation, self.prefix, self.maxdepth)
+	elseif luatype == "string" then
+		buffer:write(string.format("%q", value))
+	else
+		buffer:write(rawtostring(value))
+	end
+	return buffer:flush()
+end
+
+
+function tostring(self, value)
+	local buffer = {
+		write = table.insert,
+		flush = table.concat,
+	}
+	return self:writeto(buffer, value)
 end
 
 function write(self, ...)
-	for index = 1, arg.n do
-		arg[index] = self:tostring(arg[index])
-	end
 	local output = self.output
-	output:write(unpack(arg, 1, arg.n))
+	for i = 1, select("#", ...) do
+		self:writeto(output, select(i, ...))
+	end
 end
 
 --------------------------------------------------------------------------------

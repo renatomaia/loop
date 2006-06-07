@@ -20,10 +20,9 @@
 local rawget = rawget
 local rawset = rawset
 
-local loop = require "loop"
 local oo   = require "loop.base"
 
-module("loop.collection.ObjectCache", loop.define(oo.class()))
+module("loop.collection.ObjectCache", oo.class)
 
 __mode = "k"
 

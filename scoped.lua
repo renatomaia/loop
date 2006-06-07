@@ -10,17 +10,19 @@
 -- Title  : LOOP - Lua Object-Oriented Programming                           --
 -- Name   : Scoped Class Model                                               --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                --
--- Version: 2.1 alpha                                                        --
--- Date   : 19/4/2005 11:24                                                  --
+-- Version: 3.0 alpha                                                        --
+-- Date   : 13/04/2006 23:10                                                 --
 -------------------------------------------------------------------------------
 -- Exported API:                                                             --
---   class(class, super)                                                     --
+--   class(class, ...)                                                       --
 --   new(class, ...)                                                         --
 --   classof(object)                                                         --
 --   isclass(class)                                                          --
+--   instanceof(object, class)                                               --
+--   members(class)                                                          --
 --   superclass(class)                                                       --
 --   subclassof(class, super)                                                --
---   instanceof(object, class)                                               --
+--   supers(class)                                                           --
 --                                                                           --
 --   methodfunction(method)                                                  --
 --   methodclass(method)                                                     --
@@ -29,13 +31,12 @@
 --   prot(object)                                                            --
 -------------------------------------------------------------------------------
 
--- TODO: Solutions to find out...
---	 Enable replace of all members of a scope by ClassProxy[scope] = { ... }
---	 Add static method call.
+-- TODO:
+--	 Test replacement of all members of a scope by ClassProxy[scope] = { ... }
+--	 Test static method call.
 --	 Define a default __eq metamethod that compares the object references.
 --	 Avoid passing in the same class (node) in hierarchy search (see supers and subs)
 --	 The best way to relink member with numeric, string and booelan values.
---	 An efficient delegation approach to execute on delegatee state.
 --	 Replace conditional compiler by static function constructors.
 
 -------------------------------------------------------------------------------
@@ -52,9 +53,9 @@ local getmetatable = getmetatable
 local rawget       = rawget
 
 local debug = require "debug"
-local table = require "table" require "loop.utils"
+local table = require "loop.table"
 
-module "loop.scoped"                                                            --[[VERBOSE]] local verbose = require "loop.debug.verbose"
+module "loop.scoped"                                                            -- [[VERBOSE]] local verbose = require "loop.verbose"
 
 -------------------------------------------------------------------------------
 local ObjectCache = require "loop.collection.ObjectCache"
@@ -68,33 +69,33 @@ table.copy(require "loop.cached", _M)
 -- maps private and protected state objects to the object (public) table
 local Object = setmetatable({}, { __mode = "kv" })
 -------------------------------------------------------------------------------
-local function newprotected(self, object)                                       --[[VERBOSE]] verbose.oo_scoped{"new protected state", object = object, meta = self.class}
+local function newprotected(self, object)                                       -- [[VERBOSE]] verbose:scoped("new 'protected' for 'public' ",object)
 	local protected = self.class()
-	rawset(Object, protected, object)
+	Object[protected] = object
 	return protected
 end
-local function ProtectedPool(members)                                           --[[VERBOSE]] verbose.oo_scoped{"new protected pool", members = members}
+local function ProtectedPool(members)                                           -- [[VERBOSE]] verbose:scoped "new protected pool"
 	return ObjectCache {
 		class = base.class(members),
 		retrieve = newprotected,
 	}
 end
 -------------------------------------------------------------------------------
-local function newprivate(self, outter)                                         --[[VERBOSE]] verbose.oo_scoped{"new private state", reference = outter}
-	local object = rawget(Object, outter)                                         --[[VERBOSE]] verbose.oo_scoped{"public object found", object = object}
+local function newprivate(self, outter)                                         -- [[VERBOSE]] verbose:scoped(true, "retrieving 'private' for reference ",outter)
+	local object = Object[outter]                                                 -- [[VERBOSE]] verbose:scoped("'public' is ",object or outter)
 	local private = rawget(self, object)
-	if not private then                                                           --[[VERBOSE]] verbose.oo_scoped "no private state found"
-		private = self.class()
+	if not private then
+		private = self.class()                                                      -- [[VERBOSE]] verbose:scoped("new 'private' created: ",private)
 		if object then
-			rawset(Object, private, object)                                           --[[VERBOSE]] verbose.oo_scoped{"registering public object for private state", object = object}
-			rawset(self, object, private)                                             --[[VERBOSE]] verbose.oo_scoped{"registering private state for public object", private = private}
+			Object[private] = object                                                  -- [[VERBOSE]] verbose:scoped("'public' ",object," registered for the new 'private' ",private)
+			self[object] = private                                                    -- [[VERBOSE]] verbose:scoped("new 'private' ",private," stored at the pool for 'public' ",object)
 		else
-			rawset(Object, private, outter)                                           --[[VERBOSE]] verbose.oo_scoped{"registering public object for private state", object = outter, private = private}
-		end
-	end
+			Object[private] = outter                                                  -- [[VERBOSE]] verbose:scoped("'public' ",outter," registered for the new 'private' ",private)
+		end                                                                         -- [[VERBOSE]] else verbose:scoped("reusing 'private' ",private," associated to 'public'")
+	end                                                                           -- [[VERBOSE]] verbose:scoped(false, "returning 'private' ",private," for reference ",outter)
 	return private
 end
-local function PrivatePool(members)                                             --[[VERBOSE]] verbose.oo_scoped{"new private pool", members = members}
+local function PrivatePool(members)                                             -- [[VERBOSE]] verbose:scoped{"new private pool", members = members}
 	return ObjectCache {
 		class = base.class(members),
 		retrieve = newprivate,
@@ -102,14 +103,14 @@ local function PrivatePool(members)                                             
 end
 -------------------------------------------------------------------------------
 local function createmember(class, member)
-	if type(member) == "function" then                                            --[[VERBOSE]] verbose.oo_scoped "new method closure"
+	if type(member) == "function" then                                            -- [[VERBOSE]] verbose:scoped("new method closure for ",member)
 		local pool
 		local method = member
 		member = function (self, ...)
-			pool = rawget(class, getmetatable(self))                                  --[[VERBOSE]] verbose.oo_scoped{"method closure on object", object = self, is_instance = (pool ~= nil)}
+			pool = rawget(class, getmetatable(self))                                  -- [[VERBOSE]] verbose:scoped("method call on reference ",self," (pool: ",pool,")")
 			if pool
-				then return method(pool[self], unpack(arg, 1, arg.n))
-				else return method(self, unpack(arg, 1, arg.n))
+				then return method(pool[self], ...)
+				else return method(self, ...)
 			end
 		end
 	end
@@ -207,10 +208,7 @@ function ScopedClass:getmeta(scope)
 end
 
 function ScopedClass:getmembers(scope)
-	if self.registry -- if is a scoped class
-		then return self.members[scope]
-		else return self.members
-	end
+	return self.members[scope]
 end
 
 function ScopedClass:__init(class)
@@ -248,19 +246,20 @@ function ScopedClass:__init(class)
 end
 
 function ScopedClass:addsubclass(class)
-	self.subs[class] = true
+	CachedClass.addsubclass(self, class)
 
 	local public = class.class
 	for super in supers(self) do
-		if super.registry then -- if super is a scoped class
-			rawset(super.registry, public, false)
-			rawset(super, public, super.private)
+		local registry = super.registry
+		if registry then -- if super is a scoped class
+			registry[public] = false
+			super[public] = super.private
 		end
 	end
 end
 
 function ScopedClass:removesubclass(class)
-	self.subs[class] = nil
+	CachedClass.removesubclass(self, class)
 
 	local public = self.class
 	local protected = self:getmeta("protected")
@@ -270,16 +269,16 @@ function ScopedClass:removesubclass(class)
 		local registry = super.registry
 		if registry then -- if super is a scoped class
 			if public then
-				rawset(registry, public, nil)
-				rawset(super, public, nil)
+				registry[public] = nil
+				super[public] = nil
 			end
 			if protected then
-				rawset(registry, protected, nil)
-				rawset(super, protected, nil)
+				registry[protected] = nil
+				super[protected] = nil
 			end
 			if private then
-				rawset(registry, private, nil)
-				rawset(super, private, nil)
+				registry[private] = nil
+				super[private] = nil
 			end
 		end
 	end
@@ -307,14 +306,16 @@ function ScopedClass:updatemembers()
 	--
 	local publicindex, publicnewindex
 	local protectedindex, protectednewindex
-	local count = table.getn(self.supers)
-	for i = count, 1, -1 do
-		-- copy members from superclass metatables
-		public = table.copy(self.supers[i].class, public)
+	local superclasses = self.supers
+	for i = #superclasses, 1, -1 do
+		local super = superclasses[i]
 
-		if base.instanceof(self.supers[i], ScopedClass) then
+		-- copy members from superclass metatables
+		public = table.copy(super.class, public)
+
+		if base.instanceof(super, ScopedClass) then
 			-- copy protected members from superclass metatables
-			protected = table.copy(self.supers[i]:getmeta("protected"), protected)
+			protected = table.copy(super:getmeta("protected"), protected)
 
 			-- extract the __index and __newindex values
 			publicindex    = unwrap(public, "index")    or publicindex
@@ -346,7 +347,7 @@ function ScopedClass:updatemembers()
 	public.__newindex = createindexer(self, "public", "newindex")
 	
 	--
-	-- setup proper protected state features: pool, proxies and indexers
+	-- setup proper protected state features: pool, proxy and indexers
 	--
 	if protected then
 		if not self.protected then
@@ -359,20 +360,20 @@ function ScopedClass:updatemembers()
 					self:updatefield(field, value, "protected")
 				end,
 			}))
-			-- registry new pool in superclasses
+			-- register new pool in superclasses
 			local protected_pool = self.protected
 			for super in supers(self) do
 				local registry = super.registry
 				if registry then
-					rawset(registry, public, protected_pool)
-					rawset(registry, protected, false)
+					registry[public] = protected_pool
+					registry[protected] = false
 	
 					local pool = super.private
 					if pool then
-						rawset(super, public, pool)
-						rawset(super, protected, pool)
+						super[public] = pool
+						super[protected] = pool
 					else
-						rawset(super, public, protected_pool)
+						super[public] = protected_pool
 					end
 				end
 			end
@@ -391,11 +392,11 @@ function ScopedClass:updatemembers()
 		for super in supers(self) do
 			local registry = super.registry
 			if registry then
-				rawset(registry, public, false)
-				rawset(registry, protected_pool.class, nil)
+				registry[public] = false
+				registry[protected_pool.class] = nil
 	
-				rawset(super, public, super.private)
-				rawset(super, protected_pool.class, nil)
+				super[public] = super.private
+				super[protected_pool.class] = nil
 			end
 		end
 		-- remove state object pool and class proxy for protected state
@@ -404,7 +405,7 @@ function ScopedClass:updatemembers()
 	end
 	
 	--
-	-- setup proper private state features: pool, proxies and indexers
+	-- setup proper private state features: pool, proxy and indexers
 	--
 	if private then
 		if not self.private then
@@ -413,19 +414,19 @@ function ScopedClass:updatemembers()
 			rawset(self.proxy, "private", setmetatable({}, {
 				__call = privateproxy_call,
 				__index = private,
-				__newindex = function(proxy, field, value)
+				__newindex = function(_, field, value)
 					self:updatefield(field, value, "private")
 				end
 			}))
 			-- registry new pool in superclasses
 			local private_pool = self.private
 			local pool = self.protected or Object
-			for super in supers(unpack(self.supers)) do
-				rawset(super.registry, private, pool)
-				rawset(super, private, super.private_pool or pool)
+			for super in supers(unpack(superclasses)) do
+				super.registry[private] = pool
+				super[private] = super.private_pool or pool
 			end
 			for meta in pairs(self.registry) do
-				rawset(self, meta, private_pool)
+				self[meta] = private_pool
 			end
 		else
 			-- update current metatable with new members
@@ -439,12 +440,12 @@ function ScopedClass:updatemembers()
 	elseif self.private then
 		-- remove old pool from registry in superclasses
 		local private_pool = self.private
-		for super in supers(unpack(class.supers)) do
-			rawset(super.registry, private_pool.class, nil)
-			rawset(super, private_pool.class, nil)
+		for super in supers(unpack(superclasses)) do
+			super.registry[private_pool.class] = nil
+			super[private_pool.class] = nil
 		end
 		for meta, pool in pairs(self.registry) do
-			rawset(self, meta, pool or nil)
+			self[meta] = pool or nil
 		end
 		-- remove state object pool and class proxy for private state
 		self.private = nil
@@ -452,7 +453,7 @@ function ScopedClass:updatemembers()
 	end
 end
 
-function ScopedClass:updatefield(name, member, scope)                           --[[VERBOSE]] verbose.oo_scoped({"updating field ", name, " on scope ", scope}, true)
+function ScopedClass:updatefield(name, member, scope)                           -- [[VERBOSE]] verbose:scoped(true, "updating field ",name," on scope ",scope," with value ",member)
 	member = createmember(self, member)
 	if not scope then
 		if
@@ -465,9 +466,9 @@ function ScopedClass:updatefield(name, member, scope)                           
 			)
 				and
 			type(member) == "table"
-		then                                                                        --[[VERBOSE]] verbose.oo_scoped("updating scope field", true)
+		then                                                                        -- [[VERBOSE]] verbose:scoped("updating scope field")
 			self.members[name] = member
-			return self:updatemembers()                                               --[[VERBOSE]] , verbose.oo_scoped()
+			return self:updatemembers()                                               -- [[VERBOSE]] , verbose:scoped(false, "whole scope field updated")
 		end
 		scope = "public"
 	end
@@ -506,13 +507,13 @@ function ScopedClass:updatefield(name, member, scope)                           
 				end
 			end
 		end
-	end                                                                           --[[VERBOSE]] verbose.oo_scoped()
+	end                                                                           -- [[VERBOSE]] verbose:scoped(false, "field updated")
 	return old
 end
 -------------------------------------------------------------------------------
 function class(class, ...)
 	class = getclass(class) or ScopedClass(class)
-	class:updatehierarchy(arg)
+	class:updatehierarchy(...)
 	class:updateinheritance()
 	return class.proxy
 end
@@ -535,7 +536,7 @@ function methodclass(method)
 end
 -------------------------------------------------------------------------------
 function this(object)
-	return rawget(Object, object) or object
+	return Object[object] or object
 end
 -------------------------------------------------------------------------------
 function priv(object, class)
@@ -553,7 +554,7 @@ function prot(object)
 	local class = getclass(classof(object))
 	if class and class.protected then
 		if base.classof(object) == class.protected.class
-			then return object                   -- protected object
+			then return object                         -- protected object
 			else return class.protected[this(object)]  -- private or public object
 		end
 	end

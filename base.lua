@@ -10,8 +10,8 @@
 -- Title  : LOOP - Lua Object-Oriented Programming                           --
 -- Name   : Base Class Model                                                 --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                --
--- Version: 2.1 alpha                                                        --
--- Date   : 19/4/2005 11:24                                                  --
+-- Version: 3.0 alpha                                                        --
+-- Date   : 13/04/2006 17:24                                                 --
 -------------------------------------------------------------------------------
 -- Exported API:                                                             --
 --   class(class)                                                            --
@@ -19,13 +19,13 @@
 --   classof(object)                                                         --
 --   isclass(class)                                                          --
 --   instanceof(object, class)                                               --
+--   members(class)                                                          --
 -------------------------------------------------------------------------------
 
 local type         = type
 local setmetatable = setmetatable
 local unpack       = unpack
 local getmetatable = getmetatable
-local rawget       = rawget
 
 module "loop.base"
 
@@ -36,15 +36,14 @@ end
 -------------------------------------------------------------------------------
 function new(class, ...)
 	if type(class.__init) == "function"
-		then return rawnew(class, (class:__init(unpack(arg, 1, arg.n))))
-		else return rawnew(class)
+		then return class:__init(...)
+		else return rawnew(class, ...)
 	end
 end
 -------------------------------------------------------------------------------
 function initclass(class)
 	if class == nil then class = {} end
-	if rawget(class, "__index") == nil then class.__index = class end
-	if class.__init == nil then class.__init = rawnew end
+	if class.__index == nil then class.__index = class end
 	return class
 end
 -------------------------------------------------------------------------------
@@ -62,3 +61,5 @@ end
 function instanceof(object, class)
 	return classof(object) == class
 end
+-------------------------------------------------------------------------------
+members = pairs
