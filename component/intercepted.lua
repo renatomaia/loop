@@ -58,6 +58,7 @@ Wrapper = oo.class()
 
 function Wrapper:__init(object)
 	local name = object.__name
+	object.__init        = false
 	object.__methodkey   = "  method"..name
 	object.__indexkey    = "  index"..name
 	object.__newindexkey = "  newindex"..name
@@ -216,7 +217,7 @@ function Receptacle:__init(state, key, context)
 		__name = tostring(key),
 		__home = state.__home,
 	})
-	wrapper:__bind(state[name])
+	wrapper:__bind(state[key])
 	return wrapper
 end
 
@@ -249,15 +250,14 @@ local ReceptacleWrapper = oo.class()
 
 function ReceptacleWrapper:__init(state, key, context)
 	local wrapper = oo.rawnew(self, state[key])
-	rawset(wrapper, "__new", oo.class(Wrapper:__init({
-		__init    = oo.rawnew,
+	rawset(wrapper, "__new", oo.class(Wrapper:__init{
 		__get     = Receptacle.__get,
 		__state   = state,
 		__context = context,
 		__key     = key,
 		__name    = tostring(key),
 		__home    = state.__home,
-	}), Wrapper))
+	}, Wrapper))
 	return wrapper
 end
 
@@ -272,8 +272,8 @@ function ReceptacleWrapper:__newindex(key, value)
 	end
 end
 
-function ReceptacleWrapper:__bind(port)
-	return self.__receptacle:__bind(self.__new{ __external = port })
+function ReceptacleWrapper:__bind(port, key)
+	return self.__receptacle:__bind(self.__new{ __external = port }, key)
 end
 
 function ReceptacleWrapper:__unbind(key)
@@ -285,9 +285,14 @@ function ReceptacleWrapper:__get(key)
 	if element then return rawget(element, "__external") end
 end
 
---function ReceptacleWrapper:__all()
---	???
---end
+function ReceptacleWrapper:__all()
+	local iterator, state, key = self.__receptacle:__all()
+	local element
+	return function(state, key)
+		key, element = iterator(state, key)
+		if key and element then return key, rawget(element, "__external") end
+	end, state, key
+end
 
 function ReceptacleWrapper:__intercept(interceptor, event, field)
 	return self.__new:__intercept(interceptor, event, field)
@@ -297,9 +302,9 @@ end
 
 MultipleReceptacle = oo.class()
 
-function MultipleReceptacle:__init(recept, context, name)
-	recept = oo.rawnew(self, recept)
-	return recept, ReceptacleWrapper({ __receptacle = recept }, context, name)
+function MultipleReceptacle:__init(segments, name, context)
+	segments[name] = { __receptacle = oo.rawnew(self, segments[name]) }
+	return ReceptacleWrapper(segments, name, context)
 end
 
 --------------------------------------------------------------------------------
