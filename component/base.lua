@@ -117,8 +117,8 @@ function MultipleReceptacle:__newindex(key, value)
 end
 
 function MultipleReceptacle:__unbind(key)
-	local port = self[key]
-	self[key] = nil
+	local port = rawget(self, key)
+	rawset(self, key, nil)
 	return port
 end
 
