@@ -249,7 +249,7 @@ function ScopedClass:addsubclass(class)
 	CachedClass.addsubclass(self, class)
 
 	local public = class.class
-	for super in supers(self) do
+	for _, super in supers(self) do
 		local registry = super.registry
 		if registry then -- if super is a scoped class
 			registry[public] = false
