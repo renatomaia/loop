@@ -79,11 +79,15 @@ function BaseType:__build(segments)
 	local container = self:__container(segments)
 	local state = container.__state
 	local context = container.__internal
-	self:__setcontext(segments.__component, context)
+	for port in pairs(self) do
+		if port == 1
+			then self:__setcontext(segments.__component, context)
+			else self:__setcontext(segments[port], context)
+		end
+	end
 	for port, class in oo.allmembers(oo.classof(self)) do
 		if port:find("^%a") then
 			container[port] = class(state, port, context, self)
-			self:__setcontext(segments[port], context)
 		end
 	end
 	return container.__external
