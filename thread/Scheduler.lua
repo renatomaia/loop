@@ -122,8 +122,8 @@ function resumeall(self, success, ...)
 		end                                                                         --[[VERBOSE]] else verbose:scheduler(true, "resuming running threads")
 	end
 	routine = self.running[self.currentkey] 
-	if routine then                                                               --[[VERBOSE]] verbose:threads(true, "resuming ",routine)
-		self.current = routine
+	if routine then
+		self.current = routine                                                      --[[VERBOSE]] verbose:threads(true, "resuming ",routine)
 		return self:resumeall(coroutine.resume(routine, ...))
 	else                                                                          --[[VERBOSE]] verbose:scheduler(false, "running threads resumed")
 		self.currentkey = OrderedSet.firstkey
