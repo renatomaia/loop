@@ -82,6 +82,10 @@ function iports(component)
 	return portiterator, state, var
 end
 
+function managedby(component, home)
+	return (component.__home == home)
+end
+
 --------------------------------------------------------------------------------
 
 function Facet(segments, name)

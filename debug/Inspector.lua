@@ -104,7 +104,8 @@ function __init(class, self)
 end
 
 function stack(self)
-	self.viewer.output:write(debug.traceback("Current level is "..(self.level + 2)),"\n")
+	local level = self.level + 2
+	self.viewer.output:write(debug.traceback("Current level is "..level, level),"\n")
 end
 
 function up(self)
