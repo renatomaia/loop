@@ -143,6 +143,14 @@ function iports(component)
 	end
 end
 
+function managedby(component, home)
+	local container = component.__container
+	if container
+		then return (container.__state.__home == home)
+		else return base.managedby(component, home)
+	end
+end
+
 --------------------------------------------------------------------------------
 
 function addport(scope, name, port, class)

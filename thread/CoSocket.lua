@@ -42,7 +42,7 @@ end
 --------------------------------------------------------------------------------
 
 local function wrappedsettimeout(self, timeout)
-	self.timeout = timeout
+	self.timeout = timeout or false
 end
 
 --------------------------------------------------------------------------------
@@ -337,7 +337,7 @@ end
 
 function sleep(self, timeout)
 	assert(timeout, "bad argument #1 to `sleep' (number expected)")
-	return self.scheduler:wait(timeout)
+	return self.scheduler:suspend(timeout)
 end
 
 function tcp(self)
@@ -362,6 +362,7 @@ function wrap(self, socket, ...)                                                
 		socket = Wrapper {
 			__object = socket,
 			cosocket = self,
+			timeout = false,
 
 			settimeout = wrappedsettimeout,
 			connect    = wrappedconnect,

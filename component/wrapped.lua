@@ -106,6 +106,11 @@ function iports(component)
 	return base.iports(container and container.__state or component)
 end
 
+function managedby(component, home)
+	local container = component.__container
+	return base.managedby(container and container.__state or component, home)
+end
+
 --[[----------------------------------------------------------------------------
 MyCompType = comp.Type{
 	[<portname>] = <PortClass>,
