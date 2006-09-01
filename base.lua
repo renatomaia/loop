@@ -23,8 +23,9 @@
 -------------------------------------------------------------------------------
 
 local type         = type
-local setmetatable = setmetatable
+local pairs        = pairs
 local unpack       = unpack
+local setmetatable = setmetatable
 local getmetatable = getmetatable
 
 module "loop.base"

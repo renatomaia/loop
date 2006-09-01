@@ -19,7 +19,6 @@
 
 local oo          = require "loop.cached"
 local base        = require "loop.component.base"
-local OrderedSet  = require "loop.collection.OrderedSet"
 
 module("loop.component.wrapped", package.seeall)
 

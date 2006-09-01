@@ -20,33 +20,14 @@
 local oo     = require "loop.base"
 local rawnew = oo.rawnew
 
-module("loop.collection.OrderedSet", oo.class)
-
 ------------------------------------------------------------------------------
 -- key constants -------------------------------------------------------------
 ------------------------------------------------------------------------------
 
-local FIRST = {}
-local LAST = {}
+local FIRST = newproxy()
+local LAST = newproxy()
 
-------------------------------------------------------------------------------
--- constructor ---------------------------------------------------------------
-------------------------------------------------------------------------------
-
-function __init(class, elems)
-	local self = {}
-	if elems then
-		local size = #elems
-		if size > 0 then
-			self[FIRST] = elems[1]
-			self[LAST] = elems[1]
-			for i = 2, size do
-				push_back(self, elems[i])
-			end
-		end
-	end
-	return rawnew(class, self)
-end
+module("loop.collection.OrderedSet", oo.class)
 
 ------------------------------------------------------------------------------
 -- basic functionality -------------------------------------------------------
@@ -118,7 +99,7 @@ end
 
 function replace(self, old, new, start)
 	local prev = previous(self, old, start)
-	if prev then
+	if prev and not contains(self, new) then
 		self[prev] = new
 		self[new] = self[old]
 		if old == self[LAST]
@@ -129,7 +110,7 @@ function replace(self, old, new, start)
 	end
 end
 
-function push_front(self, element)
+function pushfront(self, element)
 	if not contains(self, element) then
 		if self[FIRST] ~= nil
 			then self[element] = self[FIRST]
@@ -140,7 +121,7 @@ function push_front(self, element)
 	end
 end
 
-function pop_front(self)
+function popfront(self)
 	local element = self[FIRST]
 	self[FIRST] = self[element]
 	if self[FIRST] ~= nil
@@ -150,7 +131,7 @@ function pop_front(self)
 	return element
 end
 
-function push_back(self, element)
+function pushback(self, element)
 	if not contains(self, element) then
 		if self[LAST] ~= nil
 			then self[ self[LAST] ] = element
@@ -166,16 +147,16 @@ end
 ------------------------------------------------------------------------------
 
 -- set operations
-add = push_back
+add = pushback
 
 -- stack operations
-push = push_front
-pop = pop_front
+push = pushfront
+pop = popfront
 top = first
 
 -- queue operations
-enqueue = push_back
-dequeue = pop_front
+enqueue = pushback
+dequeue = popfront
 head = first
 tail = last
 

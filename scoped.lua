@@ -35,7 +35,6 @@
 --	 Test replacement of all members of a scope by ClassProxy[scope] = { ... }
 --	 Test static method call.
 --	 Define a default __eq metamethod that compares the object references.
---	 Avoid passing in the same class (node) in hierarchy search (see supers and subs)
 --	 The best way to relink member with numeric, string and booelan values.
 --	 Replace conditional compiler by static function constructors.
 
@@ -120,13 +119,14 @@ end
 local ConditionalCompiler = require "loop.compiler.Conditional"
 
 local indexer = ConditionalCompiler {
-	{[[local meta                                       ]],"not (newindex and public and nilindex)" },
+	{[[local Protected                                  ]],"private" },
+	{[[local Public   = select(1, ...)                  ]],"private or protected" },
+	{[[local meta     = select(2, ...)                  ]],"not (newindex and public and nilindex)" },
+	{[[local registry = select(3, ...)                  ]],"private" },
+	{[[local member   = select(4, ...)                  ]],"newindex" },
+	{[[local newindex = select(5, ...)                  ]],"newindex and not nilindex" },
+	{[[local index    = select(5, ...)                  ]],"index and not nilindex" },
 	{[[local result                                     ]],"index and (private or protected)" },
-	{[[local Public                                     ]],"private or protected" },
-	{[[local Protected, registry                        ]],"private" },
-	{[[local member                                     ]],"newindex" },
-	{[[local newindex                                   ]],"newindex and not nilindex" },
-	{[[local index                                      ]],"index and not nilindex" },
 	{[[return function (state, name, value)             ]],"newindex" },
 	{[[return function (state, name)                    ]],"index" },
 	{[[	result = meta[name]                             ]],"index and (private or protected)" },
@@ -155,18 +155,16 @@ local function createindexer(class, scope, action)
 	local indextype = type(index).."index"
 	local codename = table.concat({scope,action,index and ("with "..indextype)}," ")
 
-	return indexer:compile({
+	return indexer:execute({
 			[action]    = true,
 			[scope]     = true,
 			[indextype] = true,
-		}, {
-			Public   = Object,
-			meta     = meta,
-			registry = class.registry,
-			[action] = index,
-			member   = function(value) return createmember(class, value) end,
 		},
-		codename
+		Object,
+		meta,
+		class.registry,
+		function(value) return createmember(class, value) end,
+		index
 	)
 end
 
@@ -185,15 +183,15 @@ end
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
-function publicproxy_call(_, object)
+local function publicproxy_call(_, object)
 	return this(object)
 end
 
-function protectedproxy_call(_, object)
+local function protectedproxy_call(_, object)
 	return prot(object)
 end
 
-function privateproxy_call(_, object, class)
+local function privateproxy_call(_, object, class)
 	return priv(object, class)
 end
 -------------------------------------------------------------------------------

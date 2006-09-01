@@ -23,7 +23,6 @@
 -------------------------------------------------------------------------------
 
 local oo         = require "loop.cached"
-local OrderedSet = require "loop.collection.OrderedSet"
 
 module("loop.component.base", package.seeall)
 

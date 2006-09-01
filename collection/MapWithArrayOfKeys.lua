@@ -22,9 +22,7 @@ local rawget         = rawget
 local oo             = require "loop.simple"
 local UnorderedArray = require "loop.collection.UnorderedArray"
 
-module "loop.collection.MapWithArrayOfKeys"
-
-oo.class(_M, UnorderedArray)
+module("loop.collection.MapWithArrayOfKeys", oo.class)
 
 keyat = rawget
 
@@ -36,12 +34,12 @@ function value(self, key, value)
 end
 
 function add(self, key, value)
-	UnorderedArray.add(self, key)
+	self[#self + 1] = key
 	self[key] = value or true
 end
 
 function remove(self, key)
-	for i = 1, size(self) do
+	for i = 1, #self do
 		if self[i] == key then
 			return removeat(self, i)
 		end
@@ -49,7 +47,8 @@ function remove(self, key)
 end
 
 function removeat(self, index)
-	self[UnorderedArray.remove(self, index)] = nil
+	self[ self[index] ] = nil
+	return UnorderedArray.remove(self, index)
 end
 
 function valueat(self, index, value)

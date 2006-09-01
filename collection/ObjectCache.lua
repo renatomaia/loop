@@ -27,10 +27,14 @@ module("loop.collection.ObjectCache", oo.class)
 __mode = "k"
 
 function __index(self, key)
-	local retrieve = rawget(self, "retrieve")
-	if key and retrieve then
-		local value = retrieve(self, key)
+	if key ~= nil then
+		local value = rawget(self, "retrieve")
+		if value then
+			value = value(self, key)
+		else
+			value = rawget(self, "default")
+		end
 		rawset(self, key, value)
 		return value
-	else return rawget(self, "default") end
+	end
 end

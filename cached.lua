@@ -45,27 +45,20 @@ local base        = require "loop.multiple"
 -------------------------------------------------------------------------------
 table.copy(base, _M)
 -------------------------------------------------------------------------------
-local function supersiterator(stack)
-	local next = stack:pop()
-	if next then
-		for _, def in ipairs(next.supers) do
-			stack:push(def)
-		end
-	end
-	return next
-end
-function supers(...) return supersiterator, OrderedSet{...} end
-
-local function subsiterator(queue)
-	local next = queue:dequeue()
-	if next then
-		for def in pairs(next.subs) do
+local function subsiterator(queue, elem)
+	elem = queue[elem]
+	if elem then
+		for def in pairs(elem.subs) do
 			queue:enqueue(def)
 		end
+		return elem
 	end
-	return next
 end
-function subs(...) return subsiterator, OrderedSet{...} end
+function subs(class)
+	queue = OrderedSet()
+	queue:enqueue(class)
+	return subsiterator, queue, OrderedSet.firstkey
+end
 -------------------------------------------------------------------------------
 local function proxy_newindex(proxy, field, value)
 	return base.classof(proxy):updatefield(field, value)

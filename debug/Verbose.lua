@@ -65,7 +65,6 @@ local coroutine = require "coroutine"
 
 local oo          = require "loop.base"
 local Viewer      = require "loop.debug.Viewer"
-local ObjectCache = require "loop.collection.ObjectCache"
 
 module("loop.debug.Verbose", oo.class)
 
@@ -75,7 +74,7 @@ module("loop.debug.Verbose", oo.class)
 local firstcol = 8
 
 viewer = Viewer
-tabcount = ObjectCache{ default = 0 }
+tabcount = { default = 0 }
 
 function __init(class, verbose)
 	verbose = oo.rawnew(class, verbose)
@@ -84,7 +83,6 @@ function __init(class, verbose)
 	verbose.custom   = rawget(verbose, "custom")  or {}
 	verbose.inspect  = rawget(verbose, "inspect") or {}
 	verbose.timed    = rawget(verbose, "timed")   or {}
-	verbose.viewer   = rawget(verbose, "viewer")  or Viewer{ identation = "|  " }
 	return verbose
 end
 
@@ -163,7 +161,7 @@ function updatetabs(self, shift)
 	local current = rawget(self, "current")
 	local tabcount = self.tabcount
 	local viewer = self.viewer
-	local tabs = tabcount[current]
+	local tabs = tabcount[current] or tabcount.default
 	if shift then
 		tabs = math.max(tabs + shift, 0)
 		if current
@@ -183,22 +181,32 @@ function addgroup(self, name, group)
 end
 
 function insertlevel(self, level, group)
-	table.insert(self.groups, level, group)
+	if level > #self.groups
+		then table.insert(self.groups, level, group)
+		else self:setlevel(level, group)
+	end
 end
 
-setlevel = addgroup
+function setlevel(self, level, group)
+	for i = 1, level - 1 do
+		if not self.groups[i]
+			self.groups[i] = {}
+		end
+	end
+	self.groups[level] = group
+end
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-function flag(self, name, value)
+function flag(self, name, ...)
 	local group = self.groups[name]
 	if group then
 		for _, name in ipairs(group) do
-			if not self:flag(name, value) then return false end
+			if not self:flag(name, ...) then return false end
 		end
-	elseif value ~= nil then
-		self.flags[name] = value and taggedprint(name) or nil
+	elseif select("#", ...) > 0 then
+		self.flags[name] = (...) and taggedprint(name) or nil
 		local largest = 5
 		for name in pairs(self.flags) do
 			largest = math.max(largest, #name)
@@ -211,15 +219,15 @@ function flag(self, name, value)
 	return true
 end
 
-function level(self, value)
-	if value ~= nil then
-		for level = 1, #self.groups do
-			self:flag(level, level <= value)
-		end
-	else
+function level(self, ...)
+	if select("#", ...) == 0 then
 		for level = 1, #self.groups do
 			if not self:flag(level) then return level - 1 end
 		end
 		return #self.groups
+	else
+		for level = 1, #self.groups do
+			self:flag(level, level <= ...)
+		end
 	end
 end

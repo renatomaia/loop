@@ -19,17 +19,15 @@ local oo    = require "loop.base"
 
 module("loop.collection.UnorderedArray", oo.class)
 
-local rawremove = table.remove
-
-size = table.getn
-add = table.insert
+function add(self, value)
+	self[#self + 1] = value
+end
 
 function remove(self, index)
-	local size = size(self)
-	if (index > 0) and (index < size) then
-		self[index], self[size] = self[size], self[index]
-	elseif index ~= size then
-		return
+	local size = #self
+	if index == size then
+		self[size] = nil
+	elseif (index > 0) and (index < size) then
+		self[index], self[size] = self[size], nil
 	end
-	return rawremove(self)
 end
