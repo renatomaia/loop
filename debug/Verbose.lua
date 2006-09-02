@@ -170,7 +170,7 @@ function updatetabs(self, shift)
 		end
 	end
 	viewer.prefix = string.rep(" ", firstcol)..
-	                viewer.identation:rep(tabs)
+	                viewer.indentation:rep(tabs)
 end
 
 --------------------------------------------------------------------------------
@@ -189,7 +189,7 @@ end
 
 function setlevel(self, level, group)
 	for i = 1, level - 1 do
-		if not self.groups[i]
+		if not self.groups[i] then
 			self.groups[i] = {}
 		end
 	end
