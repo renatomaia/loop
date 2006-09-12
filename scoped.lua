@@ -1,35 +1,35 @@
--------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  ----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## ----------------------
----------------------- ##      ##   ##  ##   ##  ######  ----------------------
----------------------- ##      ##   ##  ##   ##  ##      ----------------------
----------------------- ######   #####    #####   ##      ----------------------
-----------------------                                   ----------------------
------------------------ Lua Object-Oriented Programming -----------------------
--------------------------------------------------------------------------------
--- Title  : LOOP - Lua Object-Oriented Programming                           --
--- Name   : Scoped Class Model                                               --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                --
--- Version: 3.0 alpha                                                        --
--- Date   : 13/04/2006 23:10                                                 --
--------------------------------------------------------------------------------
--- Exported API:                                                             --
---   class(class, ...)                                                       --
---   new(class, ...)                                                         --
---   classof(object)                                                         --
---   isclass(class)                                                          --
---   instanceof(object, class)                                               --
---   members(class)                                                          --
---   superclass(class)                                                       --
---   subclassof(class, super)                                                --
---   supers(class)                                                           --
---                                                                           --
---   methodfunction(method)                                                  --
---   methodclass(method)                                                     --
---   this(object)                                                            --
---   priv(object, [class])                                                   --
---   prot(object)                                                            --
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+---------------------- ##       #####    #####   ######  -----------------------
+---------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
+---------------------- ##      ##   ##  ##   ##  ######  -----------------------
+---------------------- ##      ##   ##  ##   ##  ##      -----------------------
+---------------------- ######   #####    #####   ##      -----------------------
+----------------------                                   -----------------------
+----------------------- Lua Object-Oriented Programming ------------------------
+--------------------------------------------------------------------------------
+-- Title  : LOOP - Lua Object-Oriented Programming                            --
+-- Name   : Scoped Class Model                                                --
+-- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
+-- Version: 2.2 alpha                                                         --
+-- Date   : 13/04/2006 23:10                                                  --
+--------------------------------------------------------------------------------
+-- Exported API:                                                              --
+--   class(class, ...)                                                        --
+--   new(class, ...)                                                          --
+--   classof(object)                                                          --
+--   isclass(class)                                                           --
+--   instanceof(object, class)                                                --
+--   members(class)                                                           --
+--   superclass(class)                                                        --
+--   subclassof(class, super)                                                 --
+--   supers(class)                                                            --
+--                                                                            --
+--   methodfunction(method)                                                   --
+--   methodclass(method)                                                      --
+--   this(object)                                                             --
+--   priv(object, [class])                                                    --
+--   prot(object)                                                             --
+--------------------------------------------------------------------------------
 
 -- TODO:
 --	 Test replacement of all members of a scope by ClassProxy[scope] = { ... }
@@ -38,7 +38,7 @@
 --	 The best way to relink member with numeric, string and booelan values.
 --	 Replace conditional compiler by static function constructors.
 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 local type         = type
 local pairs        = pairs
@@ -56,18 +56,18 @@ local table = require "loop.table"
 
 module "loop.scoped"                                                            -- [[VERBOSE]] local verbose = require "loop.verbose"
 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 local ObjectCache = require "loop.collection.ObjectCache"
 local OrderedSet  = require "loop.collection.OrderedSet"
 local base        = require "loop.multiple"
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 table.copy(require "loop.cached", _M)
--------------------------------------------------------------------------------
---- SCOPED DATA CHAIN ---------------------------------------------------------
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+--- SCOPED DATA CHAIN ----------------------------------------------------------
+--------------------------------------------------------------------------------
 -- maps private and protected state objects to the object (public) table
 local Object = setmetatable({}, { __mode = "kv" })
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 local function newprotected(self, object)                                       -- [[VERBOSE]] verbose:scoped("new 'protected' for 'public' ",object)
 	local protected = self.class()
 	Object[protected] = object
@@ -79,7 +79,7 @@ local function ProtectedPool(members)                                           
 		retrieve = newprotected,
 	}
 end
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 local function newprivate(self, outter)                                         -- [[VERBOSE]] verbose:scoped(true, "retrieving 'private' for reference ",outter)
 	local object = Object[outter]                                                 -- [[VERBOSE]] verbose:scoped("'public' is ",object or outter)
 	local private = rawget(self, object)
@@ -100,7 +100,7 @@ local function PrivatePool(members)                                             
 		retrieve = newprivate,
 	}
 end
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 local function createmember(class, member)
 	if type(member) == "function" then                                            -- [[VERBOSE]] verbose:scoped("new method closure for ",member)
 		local pool
@@ -115,7 +115,7 @@ local function createmember(class, member)
 	end
 	return member
 end
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 local ConditionalCompiler = require "loop.compiler.Conditional"
 
 local indexer = ConditionalCompiler {
@@ -180,9 +180,9 @@ local function unwrap(meta, tag)
 	until name == nil or name == tag
 	return value
 end
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 local function publicproxy_call(_, object)
 	return this(object)
 end
@@ -194,7 +194,7 @@ end
 local function privateproxy_call(_, object, class)
 	return priv(object, class)
 end
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 local ScopedClass = base.class({}, CachedClass)
 
 function ScopedClass:getmeta(scope)
@@ -508,14 +508,14 @@ function ScopedClass:updatefield(name, member, scope)                           
 	end                                                                           -- [[VERBOSE]] verbose:scoped(false, "field updated")
 	return old
 end
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 function class(class, ...)
 	class = getclass(class) or ScopedClass(class)
 	class:updatehierarchy(...)
 	class:updateinheritance()
 	return class.proxy
 end
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 local cached_classof = classof
 function classof(object)
 	return cached_classof(this(object))
@@ -526,17 +526,17 @@ function methodfunction(method)
 	assert(name == "method", "Oops! Got the wrong upvalue in 'methodfunction'")
 	return value
 end
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 function methodclass(method)
 	local name, value = debug.getupvalue(method, 2)
 	assert(name == "class", "Oops! Got the wrong upvalue in 'methodclass'")
 	return value.proxy
 end
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 function this(object)
 	return Object[object] or object
 end
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 function priv(object, class)
 	if not class then class = classof(object) end
 	class = getclass(class)
@@ -547,7 +547,7 @@ function priv(object, class)
 		end
 	end
 end
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 function prot(object)
 	local class = getclass(classof(object))
 	if class and class.protected then

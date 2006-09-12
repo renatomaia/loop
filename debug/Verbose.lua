@@ -1,6 +1,14 @@
 --------------------------------------------------------------------------------
--- Project: LOOP Debugging Utilities for Lua                                  --
--- Release: 2.0 alpha                                                         --
+---------------------- ##       #####    #####   ######  -----------------------
+---------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
+---------------------- ##      ##   ##  ##   ##  ######  -----------------------
+---------------------- ##      ##   ##  ##   ##  ##      -----------------------
+---------------------- ######   #####    #####   ##      -----------------------
+----------------------                                   -----------------------
+----------------------- Lua Object-Oriented Programming ------------------------
+--------------------------------------------------------------------------------
+-- Project: LOOP Class Library                                                --
+-- Release: 2.2 alpha                                                         --
 -- Title  : Verbose/Log Mechanism for Layered Applications                    --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 -- Date   : 24/02/2006 14:26                                                  --
@@ -180,10 +188,15 @@ function addgroup(self, name, group)
 	self.groups[name] = group
 end
 
-function insertlevel(self, level, group)
-	if level > #self.groups
-		then table.insert(self.groups, level, group)
-		else self:setlevel(level, group)
+function newlevel(self, level, group)
+	local groups = self.groups
+	local count = #groups
+	if not group then
+		groups[count+1] = group
+	elseif level > count then
+		table.insert(groups, level, group)
+	else
+		self:setlevel(level, group)
 	end
 end
 

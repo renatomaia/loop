@@ -7,7 +7,7 @@
 ----------------------                                   -----------------------
 ----------------------- Lua Object-Oriented Programming ------------------------
 --------------------------------------------------------------------------------
--- Project: LOOP Compilation Utilities                                        --
+-- Project: LOOP Class Library                                                --
 -- Release: 2.2 alpha                                                         --
 -- Title  : Conditional Compiler for Code Generation                          --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --

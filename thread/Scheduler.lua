@@ -1,6 +1,14 @@
 --------------------------------------------------------------------------------
--- Project: LOOP Cooperative Multithreading Support                           --
--- Version: 3.0 alpha                                                         --
+---------------------- ##       #####    #####   ######  -----------------------
+---------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
+---------------------- ##      ##   ##  ##   ##  ######  -----------------------
+---------------------- ##      ##   ##  ##   ##  ##      -----------------------
+---------------------- ######   #####    #####   ##      -----------------------
+----------------------                                   -----------------------
+----------------------- Lua Object-Oriented Programming ------------------------
+--------------------------------------------------------------------------------
+-- Project: LOOP Class Library                                                --
+-- Release: 2.2 alpha                                                         --
 -- Title  : Cooperative Threads Scheduler based on Coroutines                 --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 -- Date   : 05/03/2006 20:33                                                  --
@@ -20,11 +28,12 @@ local luaerror      = error
 local assert        = assert
 local getmetatable  = getmetatable
 local coroutine     = require "coroutine"
-local debug         = require "debug"
 local os            = require "os"
 local oo            = require "loop.base"
 local OrderedSet    = require "loop.collection.OrderedSet"
 local PriorityQueue = require "loop.collection.PriorityQueue"
+
+local traceback = debug and debug.traceback or function(_, err) return err end
 
 module("loop.thread.Scheduler", oo.class)
 
@@ -162,7 +171,7 @@ function idle(self, timeout)                                                    
 end
 
 function error(self, routine, errmsg)
-	luaerror(debug.traceback(routine, errmsg))
+	luaerror(traceback(routine, errmsg))
 end
 
 --------------------------------------------------------------------------------

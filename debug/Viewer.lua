@@ -1,6 +1,14 @@
 --------------------------------------------------------------------------------
--- Project: LOOP Debugging Utilities for Lua                                  --
--- Release: 2.0 alpha                                                         --
+---------------------- ##       #####    #####   ######  -----------------------
+---------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
+---------------------- ##      ##   ##  ##   ##  ######  -----------------------
+---------------------- ##      ##   ##  ##   ##  ##      -----------------------
+---------------------- ######   #####    #####   ##      -----------------------
+----------------------                                   -----------------------
+----------------------- Lua Object-Oriented Programming ------------------------
+--------------------------------------------------------------------------------
+-- Project: LOOP Class Library                                                --
+-- Release: 2.2 alpha                                                         --
 -- Title  : Visualization of Lua Values                                       --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 -- Date   : 24/02/2006 19:42                                                  --
@@ -186,52 +194,4 @@ if loaded then
 			package(_M, name, pack)
 		end
 	end
-end
-
---------------------------------------------------------------------------------
---------------------------------------------------------------------------------
---------------------------------------------------------------------------------
-
-function equivalent(value, other, history)
-	if not history then history = {} end
-	if value == other then
-		return true
-	elseif type(value) == type(other) then
-		if history[value] == other then
-			return true
-		elseif not history[value] and type(value) == "table" then
-			history[value] = other
-			local keysfound = {}
-			for key, field in pairs(value) do
-				local otherfield = other[key]
-				if otherfield == nil then
-					local success = false
-					for otherkey, otherfield in pairs(other) do
-						if
-							equals(key, otherkey, history) and
-							equals(field, otherfield, history)
-						then
-							keysfound[otherkey] = true
-							success = true
-							break
-						end
-					end
-					if not success then
-						return false
-					end
-				elseif equals(field, otherfield, history) then
-					keysfound[key] = true
-				else
-					return false
-				end
-			end
-			for otherkey, otherfield in pairs(other) do
-				if not keysfound[otherkey] then
-					return false
-				end
-			end
-			return true
-		end
-	end
-	return false
 end
