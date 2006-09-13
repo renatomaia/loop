@@ -1,25 +1,35 @@
 --------------------------------------------------------------------------------
--- Project: LOOP Extra Utilities for Lua                                      --
--- Release: 1.0 alpha                                                         --
+---------------------- ##       #####    #####   ######  -----------------------
+---------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
+---------------------- ##      ##   ##  ##   ##  ######  -----------------------
+---------------------- ##      ##   ##  ##   ##  ##      -----------------------
+---------------------- ######   #####    #####   ##      -----------------------
+----------------------                                   -----------------------
+----------------------- Lua Object-Oriented Programming ------------------------
+--------------------------------------------------------------------------------
+-- Project: LOOP Class Library                                                --
+-- Release: 2.2 alpha                                                         --
 -- Title  : Data structure to hold information about exceptions in Lua        --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 -- Date   : 03/08/2005 16:35                                                  --
 --------------------------------------------------------------------------------
 
-local error = error
-local type  = type
+local error     = error
+local type      = type
+local traceback = debug and debug.traceback
 
 local table = require "table"
-local debug = require "debug"
 local oo    = require "loop.base"
 
-module("loop.extras.Exception", oo.class)
+module("loop.object.Exception", oo.class)
 
 function __init(class, object)
-	if not object then
-		object = { traceback = debug.traceback() }
-	elseif object.traceback == nil then
-		object.traceback = debug.traceback()
+	if traceback then
+		if not object then
+			object = { traceback = traceback() }
+		elseif object.traceback == nil then
+			object.traceback = traceback()
+		end
 	end
 	return oo.rawnew(class, object)
 end

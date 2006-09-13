@@ -158,7 +158,11 @@ function package(self, name, pack)
 	labels[pack] = name
 	for field, member in pairs(pack) do
 		local kind = type(member)
-		if (kind == "function" or kind == "userdata") and labels[member] == nil then
+		if
+ 			labels[member] == nil and
+			(kind == "function" or kind == "userdata") and
+			field:match("^[%a_]+[%w_]*$")
+		then
 			labels[member] = name.."."..field
 		end
 	end

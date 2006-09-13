@@ -39,6 +39,8 @@ local oo = require "loop.base"
 
 module("loop.serial.Serializer", oo.class)
 
+__mode = "k"
+
 namespace = "serial"
 
 ------------------------------------------------------------------------------
@@ -59,9 +61,20 @@ function __init(self, object)
 	self.environment[self.namespace] = self
 	if self.package then
 		for name, pack in pairs(self.package) do
-			self[pack] = "require('"..name.."')"
-			for field, member in pairs(pack) do
-				self[member] = self[pack].."."..field
+			if pack == self.globals then
+				self[pack] = self.namespace..".globals"
+			else
+				self[pack] = "require('"..name.."')"
+				for field, member in pairs(pack) do
+					local kind = type(member)
+					if
+						self[member] == nil and
+						(kind == "function" or kind == "userdata") and
+						field:match("^[%a_]+[%w_]*$")
+					then
+						self[member] = self[pack].."."..field
+					end
+				end
 			end
 		end
 	end

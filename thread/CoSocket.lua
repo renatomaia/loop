@@ -23,7 +23,7 @@ local type         = type
 local next         = next
 local coroutine    = require "coroutine"
 local oo           = require "loop.base"
-local Wrapper      = require "loop.extras.Wrapper"
+local Wrapper      = require "loop.object.Wrapper"
 
 module("loop.thread.CoSocket", oo.class)
 
