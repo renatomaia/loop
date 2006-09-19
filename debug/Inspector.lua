@@ -212,19 +212,19 @@ function Command.curr()
 end
 
 function Command.done()
-	while self[#self] do
+	while #self > 0 do
 		self[#self] = nil
 	end
-	self[".thread"] = nil
-	self[".level"] = nil
-	self[".current"] = nil
+	self[".thread"] = false
+	self[".level"] = false
+	self[".current"] = false
 end
 
 --------------------------------------------------------------------------------
 
 function __index(inspector, field)
-	if _M[field] then
-		return _M[field]
+	if rawget(_M, field) ~= nil then
+		return rawget(_M, field)
 	end
 	
 	if Command[field] then
@@ -249,7 +249,7 @@ function __index(inspector, field)
 	local func = rawget(inspector, ".current")
 	if func then
 		func = func.func
-		index = 1
+		local index = 1
 		repeat
 			name, value = debug.getupvalue(func, index)
 			if name == field
@@ -266,7 +266,7 @@ function __index(inspector, field)
 end
 
 function __newindex(inspector, field, value)
-	if _M[field] then
+	if rawget(_M, field) ~= nil then
 		rawset(inspector, field, value)
 	end
 	
@@ -343,3 +343,5 @@ function stop(self, level)
 		until not rawget(self, ".current")
 	end
 end
+
+oo.rawnew(_M, _M)

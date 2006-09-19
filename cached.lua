@@ -45,13 +45,13 @@ local base        = require "loop.multiple"
 --------------------------------------------------------------------------------
 table.copy(base, _M)
 --------------------------------------------------------------------------------
-local function subsiterator(queue, elem)
-	elem = queue[elem]
-	if elem then
-		for def in pairs(elem.subs) do
-			queue:enqueue(def)
+local function subsiterator(queue, class)
+	class = queue[class]
+	if class then
+		for sub in pairs(class.subs) do
+			queue:enqueue(sub)
 		end
-		return elem
+		return class
 	end
 end
 function subs(class)

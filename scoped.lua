@@ -101,7 +101,7 @@ local function PrivatePool(members)                                             
 	}
 end
 --------------------------------------------------------------------------------
-local function createmember(class, member)
+local function bindto(class, member)
 	if type(member) == "function" then                                            -- [[VERBOSE]] verbose:scoped("new method closure for ",member)
 		local pool
 		local method = member
@@ -119,34 +119,35 @@ end
 local ConditionalCompiler = require "loop.compiler.Conditional"
 
 local indexer = ConditionalCompiler {
-	{[[local Protected                                  ]],"private" },
-	{[[local Public   = select(1, ...)                  ]],"private or protected" },
-	{[[local meta     = select(2, ...)                  ]],"not (newindex and public and nilindex)" },
-	{[[local registry = select(3, ...)                  ]],"private" },
-	{[[local member   = select(4, ...)                  ]],"newindex" },
-	{[[local newindex = select(5, ...)                  ]],"newindex and not nilindex" },
-	{[[local index    = select(5, ...)                  ]],"index and not nilindex" },
-	{[[local result                                     ]],"index and (private or protected)" },
-	{[[return function (state, name, value)             ]],"newindex" },
-	{[[return function (state, name)                    ]],"index" },
-	{[[	result = meta[name]                             ]],"index and (private or protected)" },
-	{[[	return   meta[name]                             ]],"index and public" },
-	{[[	         or index[name]                         ]],"index and tableindex" },
-	{[[	         or index(state, name)                  ]],"index and functionindex" },
-	{[[	if result == nil then                           ]],"index and (private or protected)" },
-	{[[	if meta[name] == nil then                       ]],"newindex and (private or protected or not nilindex)" },
-	{[[		state = Public[state]                         ]],"private or protected" },
-	{[[		Protected = registry[getmetatable(state)]     ]],"private" },
-	{[[		if Protected then state = Protected[state] end]],"private" },
-	{[[		return state[name]                            ]],"index and (private or protected)" },
-	{[[		state[name] = member(value)                   ]],"newindex and (private or protected) and nilindex" },
-	{[[		newindex[name] = member(value)                ]],"newindex and tableindex" },
-	{[[		return newindex(state, name, member(value))   ]],"newindex and functionindex" },
-	{[[	else                                            ]],"newindex and (private or protected or not nilindex)" },
-	{[[		return rawset(state, name, member(value))     ]],"newindex" },
-	{[[	end                                             ]],"private or protected or (newindex and not nilindex)" },
-	{[[	return result                                   ]],"index and (private or protected)" },
-	{[[end                                              ]]},
+	{[[local Protected                                      ]],"private" },
+	{[[local Public   = select(1, ...)                      ]],"private or protected" },
+	{[[local meta     = select(2, ...)                      ]],"not (newindex and public and nilindex)" },
+	{[[local class    = select(3, ...)                      ]],"newindex or private" },
+	{[[local bindto   = select(4, ...)                      ]],"newindex" },
+	{[[local newindex = select(5, ...)                      ]],"newindex and not nilindex" },
+	{[[local index    = select(5, ...)                      ]],"index and not nilindex" },
+	{[[local registry = class.registry                      ]],"private" },
+	{[[local result                                         ]],"index and (private or protected)" },
+	{[[return function (state, name, value)                 ]],"newindex" },
+	{[[return function (state, name)                        ]],"index" },
+	{[[	result = meta[name]                                 ]],"index and (private or protected)" },
+	{[[	return   meta[name]                                 ]],"index and public" },
+	{[[	         or index[name]                             ]],"index and tableindex" },
+	{[[	         or index(state, name)                      ]],"index and functionindex" },
+	{[[	if result == nil then                               ]],"index and (private or protected)" },
+	{[[	if meta[name] == nil then                           ]],"newindex and (private or protected or not nilindex)" },
+	{[[		state = Public[state]                             ]],"private or protected" },
+	{[[		Protected = registry[getmetatable(state)]         ]],"private" },
+	{[[		if Protected then state = Protected[state] end    ]],"private" },
+	{[[		return state[name]                                ]],"index and (private or protected)" },
+	{[[		state[name] = bindto(class, value)                ]],"newindex and (private or protected) and nilindex" },
+	{[[		newindex[name] = bindto(class, value)             ]],"newindex and tableindex" },
+	{[[		return newindex(state, name, bindto(class, value))]],"newindex and functionindex" },
+	{[[	else                                                ]],"newindex and (private or protected or not nilindex)" },
+	{[[		return rawset(state, name, bindto(class, value))  ]],"newindex" },
+	{[[	end                                                 ]],"private or protected or (newindex and not nilindex)" },
+	{[[	return result                                       ]],"index and (private or protected)" },
+	{[[end                                                  ]]},
 }
 
 local function createindexer(class, scope, action)
@@ -162,8 +163,8 @@ local function createindexer(class, scope, action)
 		},
 		Object,
 		meta,
-		class.registry,
-		function(value) return createmember(class, value) end,
+		class,
+		bindto,
 		index
 	)
 end
@@ -182,6 +183,21 @@ local function unwrap(meta, tag)
 end
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+local function supersiterator(stack, class)
+	class = stack[class]
+	if class then
+		for _, super in ipairs(class.supers) do
+			stack:insert(super, class)
+		end
+		return class
+	end
+end
+local function hierarchyof(class)
+	local stack = OrderedSet()
+	stack:push(class)
+	return supersiterator, stack, OrderedSet.firstkey
+end
 --------------------------------------------------------------------------------
 local function publicproxy_call(_, object)
 	return this(object)
@@ -247,7 +263,7 @@ function ScopedClass:addsubclass(class)
 	CachedClass.addsubclass(self, class)
 
 	local public = class.class
-	for _, super in supers(self) do
+	for super in hierarchyof(self) do
 		local registry = super.registry
 		if registry then -- if super is a scoped class
 			registry[public] = false
@@ -263,7 +279,7 @@ function ScopedClass:removesubclass(class)
 	local protected = self:getmeta("protected")
 	local private = self:getmeta("private")
 
-	for super in supers(self) do
+	for super in hierarchyof(self) do
 		local registry = super.registry
 		if registry then -- if super is a scoped class
 			if public then
@@ -286,7 +302,7 @@ local function copymembers(class, source, destiny)
 	if source then
 		if not destiny then destiny = {} end
 		for field, value in pairs(source) do
-			destiny[field] = createmember(class, value)
+			destiny[field] = bindto(class, value)
 		end
 	end
 	return destiny
@@ -360,7 +376,7 @@ function ScopedClass:updatemembers()
 			}))
 			-- register new pool in superclasses
 			local protected_pool = self.protected
-			for super in supers(self) do
+			for super in hierarchyof(self) do
 				local registry = super.registry
 				if registry then
 					registry[public] = protected_pool
@@ -387,7 +403,7 @@ function ScopedClass:updatemembers()
 	elseif self.protected then
 		-- remove old pool from registry in superclasses
 		local protected_pool = self.protected
-		for super in supers(self) do
+		for super in hierarchyof(self) do
 			local registry = super.registry
 			if registry then
 				registry[public] = false
@@ -419,9 +435,14 @@ function ScopedClass:updatemembers()
 			-- registry new pool in superclasses
 			local private_pool = self.private
 			local pool = self.protected or Object
-			for super in supers(unpack(superclasses)) do
-				super.registry[private] = pool
-				super[private] = super.private_pool or pool
+			for _, super in ipairs(superclasses) do
+				for class in hierarchyof(super) do
+					local registry = class.registry
+					if registry then -- if class is a scoped class
+						registry[private] = pool
+						class[private] = class.private_pool or pool
+					end
+				end
 			end
 			for meta in pairs(self.registry) do
 				self[meta] = private_pool
@@ -438,9 +459,14 @@ function ScopedClass:updatemembers()
 	elseif self.private then
 		-- remove old pool from registry in superclasses
 		local private_pool = self.private
-		for super in supers(unpack(superclasses)) do
-			super.registry[private_pool.class] = nil
-			super[private_pool.class] = nil
+		for _, super in ipairs(superclasses) do
+			for class in hierarchyof(super) do
+				local registry = class.registry
+				if registry then -- if class is a scoped class
+					registry[private_pool.class] = nil
+					class[private_pool.class] = nil
+				end
+			end
 		end
 		for meta, pool in pairs(self.registry) do
 			self[meta] = pool or nil
@@ -452,7 +478,7 @@ function ScopedClass:updatemembers()
 end
 
 function ScopedClass:updatefield(name, member, scope)                           -- [[VERBOSE]] verbose:scoped(true, "updating field ",name," on scope ",scope," with value ",member)
-	member = createmember(self, member)
+	member = bindto(self, member)
 	if not scope then
 		if
 			(
@@ -461,9 +487,11 @@ function ScopedClass:updatefield(name, member, scope)                           
 				name == "protected"
 					or
 				name == "private"
+			) and (
+				member == nil
+					or
+				type(member) == "table"
 			)
-				and
-			type(member) == "table"
 		then                                                                        -- [[VERBOSE]] verbose:scoped("updating scope field")
 			self.members[name] = member
 			return self:updatemembers()                                               -- [[VERBOSE]] , verbose:scoped(false, "whole scope field updated")
@@ -522,13 +550,13 @@ function classof(object)
 end
 -------------------------------------------------------------------------------
 function methodfunction(method)
-	local name, value = debug.getupvalue(method, 3)
+	local name, value = debug.getupvalue(method, 5)
 	assert(name == "method", "Oops! Got the wrong upvalue in 'methodfunction'")
 	return value
 end
 --------------------------------------------------------------------------------
 function methodclass(method)
-	local name, value = debug.getupvalue(method, 2)
+	local name, value = debug.getupvalue(method, 3)
 	assert(name == "class", "Oops! Got the wrong upvalue in 'methodclass'")
 	return value.proxy
 end
