@@ -15,6 +15,7 @@
 --------------------------------------------------------------------------------
 
 local assert = assert
+local select = select
 local table = require "table"
 local oo = require "loop.simple"
 local Serializer = require "loop.serial.Serializer"
