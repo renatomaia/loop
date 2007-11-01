@@ -11,6 +11,7 @@ CLASS LIBRARY
   [New Classes]
 - loop.collection.UnorderedArraySet
 - loop.compiler.Arguments
+- loop.object.Publisher
 
   [loop.collection.MapWithArrayOfKeys]
 - Bugfix when mapping key values to 'false'.

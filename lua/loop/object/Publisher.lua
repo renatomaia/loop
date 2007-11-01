@@ -32,3 +32,15 @@ function __index(self, key)
 	event = key
 	return method
 end
+
+function __newindex(self, key, value)
+	for _, object in pairs(self) do
+		object[key] = value
+	end
+end
+
+function __call(self, ...)
+	for _, object in pairs(self) do
+		object(...)
+	end
+end
