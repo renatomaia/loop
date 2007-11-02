@@ -19,7 +19,7 @@ function process(self, label, name, success, ...)
 		self.reporter:ended(name, success, ...)
 	end
 	if label ~= nil then self[#self] = nil end
-	return success
+	return success, ...
 end
 
 function test(self, label, func, ...)
