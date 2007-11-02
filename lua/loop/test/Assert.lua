@@ -59,3 +59,7 @@ AssertionFailure = "Assertion Failure"
 function fail(self, message, level)
 	error(Exception{AssertionFailure, message = message}, (level or 1) + 1)
 end
+
+function isfailure(self, error)
+	return oo.instanceof(error, Exception) and error[1] == self.AssertionFailure
+end
