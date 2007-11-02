@@ -4,7 +4,6 @@ local Component = oo.class()
 
 function Component:context(context)
 	local checks = self.checks
-	if not self.context then self.context = context end
 	
 	checks:assert(context.__component, checks.is(self, "invalid component implementation"))
 	checks:assert(context.__factory,   checks.is(self.factory, "invalid factory"))
