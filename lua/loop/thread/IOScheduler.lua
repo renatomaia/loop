@@ -129,10 +129,10 @@ end
 -- Control Functions -----------------------------------------------------------
 --------------------------------------------------------------------------------
 
-function step(self)                                                             --[[VERBOSE]] local verbose = self.verbose; verbose:scheduler(true, "performing scheduling step")
+function step(self, ...)                                                        --[[VERBOSE]] local verbose = self.verbose; verbose:scheduler(true, "performing scheduling step")
 	local signaled = self:signalall(0)
 	local wokenup = self:wakeupall()
-	local resumed = self:resumeall()                                              --[[VERBOSE]] verbose:scheduler(false, "scheduling step performed")
+	local resumed = self:resumeall(nil, ...)                                      --[[VERBOSE]] verbose:scheduler(false, "scheduling step performed")
 	return signaled or wokenup or resumed
 end
 

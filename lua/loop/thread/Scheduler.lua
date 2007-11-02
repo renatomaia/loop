@@ -231,28 +231,22 @@ end
 -- Control Functions -----------------------------------------------------------
 --------------------------------------------------------------------------------
 
-function step(self)                                                             --[[VERBOSE]] local verbose = self.verbose; verbose:scheduler(true, "performing scheduling step")
+function step(self, ...)                                                        --[[VERBOSE]] local verbose = self.verbose; verbose:scheduler(true, "performing scheduling step")
 	local woken = self:wakeupall()
-	local resumed = self:resumeall()                                              --[[VERBOSE]] verbose:scheduler(false, "scheduling step performed")
+	local resumed = self:resumeall(nil, ...)                                      --[[VERBOSE]] verbose:scheduler(false, "scheduling step performed")
 	return woken or resumed
 end
 
-function run(self, timeout)                                                     --[[VERBOSE]] local verbose = self.verbose; verbose:scheduler(true, "running scheduler until ",timeout)
-	if self:step() and not self.halted then
-		local now = self:time()
-		if not timeout or timeout > now then
-			local running = self.running
+function run(self, ...)                                                         --[[VERBOSE]] local verbose = self.verbose; verbose:scheduler(true, "running scheduler")
+	if self:step(...) and not self.halted then
+		local running = self.running
+		if running:empty() then
 			local sleeping = self.sleeping
-			if running:empty() then
-				local nextwake = sleeping:head()
-				if nextwake then
-					nextwake = sleeping:wakeup(nextwake)
-					if timeout and timeout < nextwake then nextwake = timeout end 
-				end                                                                     --[[VERBOSE]] verbose:scheduler(true, "idle until ",nextwake)
-				self:idle(nextwake)                                                     --[[VERBOSE]] verbose:scheduler(false, "resuming scheduling")
-			end                                                                       --[[VERBOSE]] verbose:scheduler(false, "reissue scheduling")
-			return self:run(timeout)                                                  --[[VERBOSE]] else verbose:scheduler(false, "scheduling timed out")
-		end
+			local nextwake = sleeping:head()
+			if nextwake then nextwake = sleeping:wakeup(nextwake) end                 --[[VERBOSE]] verbose:scheduler(true, "idle until ",nextwake)
+			self:idle(nextwake)                                                       --[[VERBOSE]] verbose:scheduler(false, "resuming scheduling")
+		end                                                                         --[[VERBOSE]] verbose:scheduler(false, "reissue scheduling")
+		return self:run()
 	else                                                                          --[[VERBOSE]] verbose:scheduler(false, "no thread pending scheduling or scheduler halted")
 		self.halted = nil
 	end
