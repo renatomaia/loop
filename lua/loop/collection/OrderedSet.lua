@@ -62,7 +62,7 @@ function insert(self, element, previous)
 			if previous == nil then
 				previous = FIRST
 			end
-		elseif not contains(self, previous) then
+		elseif not contains(self, previous) and previous ~= FIRST then
 			return
 		end
 		if self[previous] == nil
