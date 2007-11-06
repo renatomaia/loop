@@ -76,10 +76,10 @@ function typeisnot(expected, message)
 end
 
 local DidNotMatch = ": %s did not match %s"
-function match(pattern, message)
+function match(expected, message)
 	if not message then message = "pattern expected" end
 	return function(actual)
-		if string.match(actual, expected) then
+		if not string.match(actual, expected) then
 			return false, message..DidNotMatch, actual, expected
 		end
 		return true
@@ -87,7 +87,7 @@ function match(pattern, message)
 end
 
 local DidMatch = ": %s did match %s"
-function notmatch(pattern, message)
+function notmatch(expected, message)
 	if not message then message = "pattern not expected" end
 	return function(actual)
 		if string.match(actual, expected) then
