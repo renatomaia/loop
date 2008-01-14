@@ -100,7 +100,7 @@ Multiple receptacles provides the following operations that may be used to acces
 	<code>for conn_id, object in receptacle:__all() do ... end</code></dd>
 </dl>
 
-<p>There are three diferent types of multiple receptacles, as described below.</p>
+<p>There are three different types of multiple receptacles, as described below.</p>
 
 <dl>
 	<dt><code>ListReceptacle</code></dt>
@@ -114,12 +114,12 @@ Multiple receptacles provides the following operations that may be used to acces
 <h3><a name="templates">Templates</a></h3>
 
 <p>A component is a computational element that provides a set of ports that can be connected to other components or objects in order to assemble a computational system.
-The set of ports provided by a component is defined by its type.
-A component type is realized as an object that maps port names to a specific port type.
-The code below ilustrates the definition of a component type.</p>
+The set of ports provided by a component is defined by a template.
+A component template is realized as an object that maps port names to a specific port type.
+The code below illustrates the definition of a component template.</p>
 
 <pre>
-local ListenerTemplate = component.Template{
+local DispatcherTemplate = component.Template{
   requester = port.Facet,
   scheduler = port.Receptacle,
   objectmap = port.HashReceptacle,
@@ -212,7 +212,8 @@ Additionally, the context object also contains the factory that created the obje
 <p>The context object is provided to the component's implementation and each facet implementation by field <code>context</code>.
 If the implementation object provides the field context with a value different from <code>nil</code>, then this field is changed to hold the context object, like in the <a href="#implexample">example of the section above</a>.</p>
 
-<p>Alternatively, if the field <code>context</code> is a function then this function is called as a method of the implementation object that receives the context object as a parameter and signals that all implementation objects are created.
+<p>Alternatively, if the field <code>context</code> is a function then this function is called as a method of the implementation object that receives the context object as a parameter.
+The invocation of the <code>context</code> function also signals that all implementation objects are created, so it is useful if some part of the component needs to perform some initialization only when the whole component's implementation is created.
 Since the order in which the implementation objects are created is not defined, the <code>context</code> method may also be used to initialize some state of the object that is dependable of the others component's implementation objects, like in the example below.</p>
 
 <pre>
@@ -278,7 +279,7 @@ function assemble(components)
   -- Server side
   RequestReceiver.listener   = RequestListener.listener
   RequestReceiver.dispatcher = RequestDispatcher.dispatcher
-  ServerBroker.objects       = RequestDispatcher.dispatcher
+  ServerBroker.objects       = RequestDispatcher.objects
   ServerBroker.acceptor      = RequestReceiver.acceptor
   ServerBroker.references    = ObjectReferrer.references
 end

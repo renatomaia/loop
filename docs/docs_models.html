@@ -239,7 +239,7 @@ print(Root:search("my_folder/my_file.txt").data)
 
 <p>In order to avoid the search through the complete hierarchy of classes, LOOP provides the <code>cached</code> model which classes copy the fields defined by their super-classes. This cache of inherited fields makes classes with simple or multiple inheritance as efficient as classes of the <code>base</code> model. Another advantage of the cache model is that meta-methods like the <code>__index</code> can be shared across the hierarchy of classes because it is copied to each class <i>i.e.</i> meta-table.</p>
 
-<p>On the other hand, in order to properly update the cache of inherited fields, classes are manipulated by proxies that intercept class operations and update the class hierarchy properly. This indirection makes class operation more expensive than in other models. All functions of the <code>cached</code> model manipulates proxies of actual classes. The <code>cached</code> model introduces the new function <code>allmembers</code> that return an iterator for all members provided by a class, including the inherited ones.</p>
+<p>On the other hand, to properly update the cache of inherited fields, classes are manipulated by proxies that intercept class operations and update the class hierarchy properly. This indirection makes class operation more expensive than in other models. All functions of the <code>cached</code> model manipulates proxies of actual classes. The <code>cached</code> model introduces the new function <code>allmembers</code> that return an iterator for all members provided by a class, including the inherited ones.</p>
 
 <h3>Functions</h3>
 

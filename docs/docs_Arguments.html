@@ -83,7 +83,7 @@ These objects behave like functions that take as parameter a sequence of strings
 	<dd>
 		Table that maps strings that are alias of boolean values to its corresponding boolean value.
 		These aliases may be used as the value of boolean command-line options.
-		If the value of a boolean command-line option is not defined in this table then the value string is as the value of the boolean option.
+		If the value of a boolean command-line option is not defined in this table then it is registered in the processor under the boolean option's name.
 		The default value for this field is a table that defines <code>"true"</code> and <code>"yes"</code> as aliases of <code>true</code> and <code>"false"</code> and <code>"no"</code> as aliases if <code>false</code>.
 	</dd>
 	
@@ -127,7 +127,7 @@ These objects behave like functions that take as parameter a sequence of strings
 	<dt><code><b>__call</b></code></dt>
 	<dd>
 		Receives as arguments a sequence of string values that shall be processed as command-line options by the processor.
-		The values of the processed options are stored in the processor using the option name as key thus replacing the default values provided initially provided.
+		The values of the processed options are stored in the processor using the option name as key thus replacing the default values initially provided.
 		This function returns the index of the last string processed or <code>nil</code> and an error message if some error was detected during the command-line option processing.
 	</dd>
 	
