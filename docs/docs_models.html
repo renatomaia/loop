@@ -41,7 +41,7 @@
 
 <h2><a name="base">Base Model</a></h2>
 
-<p>The LOOP models can be ordered in such a way that the next model provides the same features of the previous one. In this order, the first one is the <code>base</code> model that provides exactly the features presented in the previous section. The <code>base</code> model is ideal for definition of classes without super-classes.</p>
+<p>The LOOP models can be ordered in such a way that the next model provides the same features of the previous one. In this order, the first one is the <code>base</code> model that provides exactly the features presented in the previous <a href="file:///Users/maia/Work/proj/loop/trunk/docs/docs_basics.html">section</a>. The <code>base</code> model is ideal for definition of classes without super-classes.</p>
 
 <h3>Functions</h3>
 
@@ -237,9 +237,16 @@ print(Root:search("my_folder/my_file.txt").data)
 
 <h2><a name="cached">Cached Model</a></h2>
 
-<p>In order to avoid the search through the complete hierarchy of classes, LOOP provides the <code>cached</code> model which classes copy the fields defined by their super-classes. This cache of inherited fields makes classes with simple or multiple inheritance as efficient as classes of the <code>base</code> model. Another advantage of the cache model is that meta-methods like the <code>__index</code> can be shared across the hierarchy of classes because it is copied to each class <i>i.e.</i> meta-table.</p>
+<p>In order to avoid the search through the complete hierarchy of classes every time a class field is indexed, LOOP provides the <code>cached</code> model.
+In this model, classes copy the fields defined by their super-classes to themselves (<i>i.e.</i> meta-table).
+This cache of inherited fields makes instances of classes with simple or multiple inheritance as efficient as classes of the <code>base</code> model.
+Other advantage of the cache model is that meta-methods like the <code>__index</code> can be shared across the hierarchy of classes because they are copied to each class (<i>i.e.</i> meta-table).
+Currently, Lua ignores the <code>__index</code> when accessging the fields of meta-tables (see the <a href="http://www.lua.org/manual/5.1/manual.html#2.8">Lua manual</a>).</p>
 
-<p>On the other hand, to properly update the cache of inherited fields, classes are manipulated by proxies that intercept class operations and update the class hierarchy properly. This indirection makes class operation more expensive than in other models. All functions of the <code>cached</code> model manipulates proxies of actual classes. The <code>cached</code> model introduces the new function <code>allmembers</code> that return an iterator for all members provided by a class, including the inherited ones.</p>
+<p>On the other hand, to properly update the cache of inherited fields whenever a class is changed, the classes of this model are manipulated through proxies that intercept any changes and update all caches of inherited field through out the entire class hierarchy.
+This indirection makes class operation more expensive than in other models where classes are simple meta-tables.
+All functions of the <code>cached</code> model manipulates proxies of actual classes.
+The <code>cached</code> model introduces the new function <code>allmembers</code> that return an iterator for all members provided by a class, including the inherited ones.</p>
 
 <h3>Functions</h3>
 
