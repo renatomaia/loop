@@ -105,11 +105,9 @@ function BaseTemplate:__build(segments)
 end
 
 function Template(template, ...)
-	if select("#", ...) > 0
-		then return oo.class(template, ...)
-		else return oo.class(template, BaseTemplate)
-	end
+	return oo.class(template, BaseTemplate, ...)
 end
+
 --------------------------------------------------------------------------------
 
 function factoryof(component)
