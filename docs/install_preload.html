@@ -29,7 +29,7 @@
 			</ul>
 		<a href="docs.html" title="Class models">Manual</a><br>
 		<a href="classlib.html" title="Class library">Library</a><br>
-		<a href="credits.html" title="Who does develop LOOP?">Credits</a><br>
+		<a href="contact.html" title="Who are behind LOOP?">Contact</a><br>
 		<a href="http://luaforge.net/projects/loop/" title="LuaForge Project Page">LuaForge</a><br>
 	</p>
 </div>
@@ -39,17 +39,22 @@
 	
 	<p>If you plan to embed a Lua script library like LOOP in a C/C++ application you may prefer to generate a C library with your library's script files already pre-compiled.
 	To do so, you may use the scripts <code>precompiler.lua</code> and <code>preloader.lua</code> provided in the LOOP package.
-	Such scripts work as a sort of replacement for the old <code>bin2c</code> application that used to be included in the Lua distribution, however these scripts make use of the facilities provided by the Lua 5.1 package model.
-	These scripts are very general and may be used to generate pre-compiled libraries for any set of Lua scripts.</p>
+	Such scripts work as a sort of replacement for the old <code>bin2c</code> application that used to be included in the Lua distribution, however they are primarily intended to pre-compile and pre-load scripts that implement modules following the Lua 5.1 package model.
+	For pre-compilation of ordinary scripts check out <a href="http://lua-users.org/wiki/BinTwoCee">bin2c</a> or other implementations of the old <code>bin2c</code> application.
+	Anyway, the scripts provided in the LOOP package are very general and may be used to generate pre-compiled libraries for any set of Lua scripts.</p>
 	
 	<dl>
 		<dt><strong>WARNING:</strong></dt>
 		<dd>
-			The current version of these scripts require class <code>loop.compiler.Arguments</code> to handle command-line options. So it might be necessary to make the LOOP library available in the <code>LUA_PATH</code>.
+			The current version of these scripts require class <code>loop.compiler.Arguments</code> to handle command-line options.
+			So it might be necessary to make the LOOP library available in the <code>LUA_PATH</code>.
 			Alternatively, you may simply redefine your commands as:
 			<pre>lua -epackage.path=[[&lt;LOOP_HOME&gt;/?.lua]] &lt;LOOP_HOME&gt;/precompiler.lua</pre>
 			<pre>lua -epackage.path=[[&lt;LOOP_HOME&gt;/?.lua]] &lt;LOOP_HOME&gt;/preloader.lua</pre>
-			Anyway, these scripts are very easy to read and modify, so feel free to change them in any way to better fit your demands.
+			Anyway, these scripts are very easy to read and modify, so feel free to change them in any way to better fit your demands.<br>
+			<br>
+			On the other hand, these concerns are not valid if you installed LOOP's <a href="install.html#rock">rock</a> through <a href="http://www.luarocks.org/">LuaRocks</a>.
+			In such case, you can use these scripts simply through commands <code>precompiler.lua</code> and <code>preloader.lua</code>.
 		</dd>
 	</dl>
 	
@@ -275,7 +280,7 @@ int luaopen_loop_collection_OrderedSet(lua_State*);</pre>
 </div>
 
 <div class="content">
-	<h3><small>Copyright (C) 2004-2007 Tecgraf, PUC-Rio</small></h3>
+	<h3><small>Copyright (C) 2004-2008 Tecgraf, PUC-Rio</small></h3>
 	<small>This project is currently being maintained by <a href="http://www.tecgraf.puc-rio.br">Tecgraf</a> at <a href="http://www.puc-rio.br">PUC-Rio</a>.</small>
 </div>
 
