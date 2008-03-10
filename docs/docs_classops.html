@@ -138,7 +138,7 @@ local mydate2 = AddingDate()
 
 <h2><a name="superclass">Super-Class Access</a></h2>
 
-<p>Most LOOP models provide functions for introspection of the class hierarchy, allowing the application to get the super-class of a particular class. However, the access to super-class method implementations can be cumbersome in some situations. One main problem is that a class method is usually a plain Lua function and therefore is not bound to a particular class. This way, there is no simple way to determine the class of a method in order to figure out its super-class and the inherited method implementation. The most straightforward solution is to place super-classes in local variables and access the inherited methods using the class stored in that variable, like in the example of the following code.</p>
+<p>Most LOOP models provide functions for introspection of the class hierarchy, allowing the application to get the super-class of a particular class. However, the access to super-class in method implementations can be cumbersome in some situations. One main problem is that a class method is usually a plain Lua function and therefore is not bound to a particular class. This way, there is no simple way to determine the class of a method in order to figure out its super-class and the inherited method implementation. The most straightforward solution is to place super-classes in local variables and access the inherited methods using the class stored in that variable, like in the example of the following code.</p>
 
 <pre>
 local Square = oo.class()
