@@ -1,5 +1,4 @@
 #!/usr/local/bin/lua
-
 --------------------------------------------------------------------------------
 -- @script  Lua Script Pre-Compiler
 -- @version 1.1
@@ -136,7 +135,7 @@ end
 
 local function allequals(...)
 	local name = ...
-	for i = 1, select("#", ...) do
+	for i = 2, select("#", ...) do
 		if name ~= select(i, ...) then return nil end
 	end
 	return name
