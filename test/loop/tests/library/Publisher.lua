@@ -52,4 +52,16 @@ return function(checks)
 	checks:assert(sub1.third, checks.is(3))
 	checks:assert(sub2.third, checks.is(3))
 	checks:assert(sub3.third, checks.is(3))
+	
+	checks:assert(not pcall(function()
+		pub:fake(pub:push(4, "forth", "event"))
+	end), "fake method did not raise an error.")
+	
+	for _, sub in ipairs{ sub1, sub2, sub3 } do
+		local self, val1, val2, val3 = sub:push()
+		checks:assert(self, checks.is(sub))
+		checks:assert(val1, checks.is(4))
+		checks:assert(val2, checks.is("forth"))
+		checks:assert(val3, checks.is("event"))
+	end
 end
