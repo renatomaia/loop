@@ -13,22 +13,27 @@
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 --------------------------------------------------------------------------------
 
-local type = type
-local oo   = require "loop.base"
+local type        = type
+local oo          = require "loop.base"
+local ObjectCache = require "loop.collection.ObjectCache"
 
 module("loop.object.Wrapper", oo.class)
 
-local value, object
-
-local function method(self, ...)
-	return value(object, ...)
+function __init(self, ...)
+	self = oo.rawnew(self, ...)
+	self.__methods = ObjectCache()
+	function self.__methods.retrieve(_, method)
+		return function(_, ...)
+			return method(self.__object, ...)
+		end
+	end
+	return self
 end
 
 function __index(self, key)
-	object = self.__object
-	value = object[key]
+	local value = self.__object[key]
 	if type(value) == "function"
-		then return method
+		then return self.__methods[value]
 		else return value
 	end
 end

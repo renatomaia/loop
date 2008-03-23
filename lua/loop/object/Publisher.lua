@@ -15,23 +15,20 @@
 
 local pairs = pairs
 
-local oo = require "loop.base"
+local oo          = require "loop.base"
+local ObjectCache = require "loop.collection.ObjectCache"
 
 module("loop.object.Publisher", oo.class)
 
-local event
-
-local function method(self, ...)
-	local method = event
-	for _, object in pairs(self) do
-		object[method](object, ...)
+__index = ObjectCache{
+	retrieve = function(_, method)
+		return function(self, ...)
+			for _, object in pairs(self) do
+				object[method](object, ...)
+			end
+		end
 	end
-end
-
-function __index(self, key)
-	event = key
-	return method
-end
+}
 
 function __newindex(self, key, value)
 	for _, object in pairs(self) do
