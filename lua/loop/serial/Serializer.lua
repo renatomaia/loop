@@ -27,6 +27,7 @@ local ipairs = ipairs
 local loadstring = loadstring
 local rawget = rawget
 local rawset = rawset
+local require = require
 local tostring = tostring
 local tonumber = tonumber
 local error = error
@@ -45,6 +46,7 @@ namespace = "serial"
 
 ------------------------------------------------------------------------------
 _M.globals = _G
+_M.require = require
 _M.getmetatable = getmetatable
 _M.setmetatable = setmetatable
 _M.getfenv = getfenv
@@ -89,7 +91,7 @@ function __init(self, object)
 	if self.package then
 		for name, pack in pairs(self.package) do
 			if self[pack] == nil then
-				self[pack] = 'require("'..name..'")'
+				self[pack] = self.namespace..'.require("'..name..'")'
 				self:addmembers(pack)
 			end
 		end
