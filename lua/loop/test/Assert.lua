@@ -35,7 +35,7 @@ function results(self, success, message, ...)
 		elseif type(message) == "table" then
 			result = {}
 			for _, msg in ipairs(message) do
-				result[result+1] = format(viewer, unpack(msg, 1, msg.n))
+				result[#result+1] = format(viewer, unpack(msg, 1, msg.n))
 			end
 			self:fail(table.concat(result, "\n\t"), 2)
 		end

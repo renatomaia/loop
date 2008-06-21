@@ -142,15 +142,14 @@ end
 --------------------------------------------------------------------------------
 
 local function altcheck(conds, index, value, errors, ...)
-	if (...) then
-		return
-	else
-		errors[errors+1] = { n = select("#", ...) - 1, select(2, ...) }
+	if not (...) then
+		errors[#errors+1] = { n = select("#", ...) - 1, select(2, ...) }
 		if conds[index] then
 			return altcheck(conds, index+1, value, errors, conds[index](value))
 		end
+		return false, errors
 	end
-	return errors
+	return ...
 end
 
 function either(...)
