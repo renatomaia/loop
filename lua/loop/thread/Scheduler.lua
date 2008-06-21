@@ -28,6 +28,7 @@
 local luaerror      = error
 local assert        = assert
 local getmetatable  = getmetatable
+local newproxy      = newproxy
 local luapcall      = pcall
 local rawget        = rawget
 local coroutine     = require "coroutine"
@@ -44,12 +45,16 @@ module("loop.thread.Scheduler", oo.class)
 -- Initialization Code ---------------------------------------------------------
 --------------------------------------------------------------------------------
 
+local HaltKey = newproxy()
+
 local WeakSet = oo.class{ __mode = "k" }
+
 function __init(class, self)
 	self = oo.rawnew(class, self)
 	if rawget(self, "traps"     ) == nil then self.traps      = WeakSet()           end
 	if rawget(self, "running"   ) == nil then self.running    = OrderedSet()        end
 	if rawget(self, "sleeping"  ) == nil then self.sleeping   = PriorityQueue()     end
+	if rawget(self, "halted"    ) == nil then self.halted     = false               end
 	if rawget(self, "current"   ) == nil then self.current    = false               end
 	if rawget(self, "currentkey") == nil then self.currentkey = OrderedSet.firstkey end
 	self.sleeping.wakeup = self.sleeping.wakeup or self.sleeping.priority
@@ -125,47 +130,52 @@ end
 -- Internal Functions ----------------------------------------------------------
 --------------------------------------------------------------------------------
 
+local firstkey = OrderedSet.firstkey
 function resumeall(self, success, ...)                                          --[[VERBOSE]] local verbose = self.verbose
-	local routine = self.current
-	if routine then                                                               --[[VERBOSE]] verbose:threads(false, routine," yielded")
-		if coroutine.status(routine) == "dead" then                                 --[[VERBOSE]] verbose:threads(routine," has finished")
-			self:remove(routine, self.currentkey)
-			self.current = false
-			local trap = self.traps[routine]
-			if trap then                                                              --[[VERBOSE]] verbose:threads(true, "executing trap for ",routine)
-				trap(self, routine, success, ...)                                       --[[VERBOSE]] verbose:threads(false)
-			elseif not success then                                                   --[[VERBOSE]] verbose:threads("uncaptured error on ",routine)
-				self:error(routine, ...)
-			end
-		elseif self.running:contains(routine) then
-			self.currentkey = routine
-		end                                                                         --[[VERBOSE]] else verbose:scheduler(true, "resuming running threads")
-	end
-	routine = self.running[self.currentkey] 
-	if routine then
-		self.current = routine                                                      --[[VERBOSE]] verbose:threads(true, "resuming ",routine)
-		return self:resumeall(coroutine.resume(routine, ...))
-	else                                                                          --[[VERBOSE]] verbose:scheduler(false, "running threads resumed")
-		self.currentkey = OrderedSet.firstkey
-		self.current = false
-		return success ~= nil
-	end
+	local continue = (... ~= HaltKey)
+	if continue then
+		local running = self.running
+		local routine = self.current
+		if routine then                                                             --[[VERBOSE]] verbose:threads(false, routine," yielded")
+			if coroutine.status(routine) == "dead" then                               --[[VERBOSE]] verbose:threads(routine," has finished")
+				self:remove(routine, self.currentkey)
+				self.current = false
+				local trap = self.traps[routine]
+				if trap then                                                            --[[VERBOSE]] verbose:threads(true, "executing trap for ",routine)
+					trap(self, routine, success, ...)                                     --[[VERBOSE]] verbose:threads(false)
+				elseif not success then                                                 --[[VERBOSE]] verbose:threads("uncaptured error on ",routine)
+					self:error(routine, ...)
+				end
+			elseif running:contains(routine) then
+				self.currentkey = routine
+			end                                                                       --[[VERBOSE]] else verbose:scheduler(true, "resuming running threads")
+		end
+		routine = running[self.currentkey] 
+		if routine then
+			self.current = routine                                                    --[[VERBOSE]] verbose:threads(true, "resuming ",routine)
+			return self:resumeall(coroutine.resume(routine, ...))
+		end
+		self.currentkey = firstkey
+		continue = running[firstkey]
+	end                                                                           --[[VERBOSE]] verbose:scheduler(false, "running threads resumed")
+	self.current = false
+	return continue
 end
 
 function wakeupall(self)                                                        --[[VERBOSE]] local verbose = self.verbose
 	local sleeping = self.sleeping
 	if sleeping:head() then                                                       --[[VERBOSE]] verbose:scheduler(true, "waking sleeping threads up")
 		local running = self.running
+		local currentkey = self.currentkey
 		local now = self:time()
 		repeat
-			if sleeping:wakeup(sleeping:head()) <= now
-				then running:enqueue(sleeping:dequeue())                                --[[VERBOSE]] verbose:threads(self.running:tail()," woke up")
-				else break
+			local wake = sleeping:wakeup(sleeping:head())
+			if wake <= now
+				then currentkey = running:insert(sleeping:dequeue(), currentkey)        --[[VERBOSE]] verbose:threads(currentkey," woke up (timeout was ",now-wake," seconds ago)")
+				else return wake                                                        --[[VERBOSE]],verbose:scheduler(false, "sleeping threads waken")
 			end
-		until sleeping:empty()                                                      --[[VERBOSE]] verbose:scheduler(false, "sleeping threads waken")
-		return true
+		until sleeping:empty()                                                      --[[VERBOSE]] verbose:scheduler(false, "all sleeping threads waken, none left")
 	end
-	return false
 end
 
 --------------------------------------------------------------------------------
@@ -177,8 +187,8 @@ function time(self)
 	return os.difftime(os.time(), StartTime)
 end
 
-function idle(self, timeout)                                                    --[[VERBOSE]] self.verbose:scheduler(true, "starting busy-waiting for ",timeout," seconds")
-	if timeout then repeat until self:time() > timeout end                        --[[VERBOSE]] self.verbose:scheduler(false, "busy-waiting ended")
+function idle(self, timeout)                                                    --[[VERBOSE]] self.verbose:scheduler(true, "starting busy-waiting until ",timeout)
+	repeat until self:time() > timeout                                            --[[VERBOSE]] self.verbose:scheduler(false, "busy-waiting ended")
 end
 
 function error(self, routine, errmsg)
@@ -227,33 +237,31 @@ function start(self, func, ...)
 	return coroutine.yield(...)
 end
 
+function halt(self)
+	self:checkcurrent()
+	return coroutine.yield(HaltKey)
+end
+
 --------------------------------------------------------------------------------
 -- Control Functions -----------------------------------------------------------
 --------------------------------------------------------------------------------
 
 function step(self, ...)                                                        --[[VERBOSE]] local verbose = self.verbose; verbose:scheduler(true, "performing scheduling step")
-	local woken = self:wakeupall()
-	local resumed = self:resumeall(nil, ...)                                      --[[VERBOSE]] verbose:scheduler(false, "scheduling step performed")
-	return woken or resumed
-end
-
-function run(self, ...)                                                         --[[VERBOSE]] local verbose = self.verbose; verbose:scheduler(true, "running scheduler")
-	if self:step(...) and not self.halted then
-		local running = self.running
-		if running:empty() then
-			local sleeping = self.sleeping
-			local nextwake = sleeping:head()
-			if nextwake then nextwake = sleeping:wakeup(nextwake) end                 --[[VERBOSE]] verbose:scheduler(true, "idle until ",nextwake)
-			self:idle(nextwake)                                                       --[[VERBOSE]] verbose:scheduler(false, "resuming scheduling")
-		end                                                                         --[[VERBOSE]] verbose:scheduler(false, "reissue scheduling")
-		return self:run()
-	else                                                                          --[[VERBOSE]] verbose:scheduler(false, "no thread pending scheduling or scheduler halted")
-		self.halted = nil
+	local nextwake = self:wakeupall()
+	local nextrun = self:resumeall(nil, ...)                                      --[[VERBOSE]] verbose:scheduler(false, "scheduling step performed")
+	if nextrun then
+		return 0
+	elseif nextrun == nil then
+		return nextwake
 	end
 end
 
-function halt(self)
-  self.halted = true
+function run(self, ...)                                                         --[[VERBOSE]] local verbose = self.verbose; verbose:scheduler(true, "running scheduler")
+	local nextstep = self:step(...)
+	if nextstep then
+		if nextstep > 0 then self:idle(nextstep) end                                --[[VERBOSE]] verbose:scheduler(false, "reissue scheduling")
+		return self:run()
+	end                                                                           --[[VERBOSE]] verbose:scheduler(false, "no thread pending scheduling or scheduler halted")
 end
 
 --------------------------------------------------------------------------------
