@@ -9,31 +9,33 @@
 --------------------------------------------------------------------------------
 -- Project: LOOP Class Library                                                --
 -- Release: 2.3 beta                                                          --
--- Title  : Interchangeable Disjoint Cyclic Sets                              --
+-- Title  : Interchangeable Disjoint Bidirectional Cyclic Sets                --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 --------------------------------------------------------------------------------
 
-local global = require "_G"
-local table  = require "loop.table"
-local oo     = require "loop.base"
+local global     = require "_G"
+local oo         = require "loop.simple"
+local CyclicSets = require "loop.collection.CyclicSets"
 
-local next   = global.next
 local rawget = global.rawget
-local copy   = table.copy
 local rawnew = oo.rawnew
 
-module(..., oo.class)
+module(...)
 
-function contains(self, item)
-	return (self.next or self)[item] ~= nil
+oo.class(_M, CyclicSets)
+
+function __init(self, object)
+	self = rawnew(self, object)
+	self.back = self.back or {}
+	return self
 end
 
-function successor(self, item)
-	return (self.next or self)[item]
+function antecessor(self, item)
+	return self.back[item]
 end
 
-function forward(self, item)
-	return rawget, (self.next or self), item
+function backward(self, item)
+	return rawget, self.back, item
 end
 
 -- []:add(item)                   : item --> [item]
@@ -44,17 +46,18 @@ end
 function add(self, place, item)
 	local next = self.next or self
 	if next[item] == nil then
-		local replaced
+		local succ
 		if place == nil then
-			place, replaced = item, item
+			place, succ = item, item
 		else
-			replaced = next[place]
-			if replaced == nil then
-				replaced = place
+			succ = next[place]
+			if succ == nil then
+				succ = place
 			end
 		end
-		next[item] = replaced
-		next[place] = item
+		local back = self.back
+		next[item] , back[succ] = succ, item
+		next[place], back[item] = item, place
 		return item
 	end
 end
@@ -66,8 +69,10 @@ function removefrom(self, place)
 	local next = self.next or self
 	local item = next[place]
 	if item ~= nil then
-		next[place] = next[item]
-		next[item] = nil
+		local back = self.back
+		local succ = next[item]
+		next[place], back[succ] = succ, place
+		next[item] , back[item] = nil, nil
 		return item
 	end
 end
@@ -79,53 +84,41 @@ end
 -- [old, item...last|new]:moveto(new, old, last) : item --> [old|new, item...last]
 -- [old, item|new]:moveto(new, old, last)        : item --> INCONSISTENT STATE
 -- [old, item|last...]:moveto(new, old, last)    : item --> INCONSISTENT STATE
-function movetofrom(self, new, old, last)
+function movetofrom(self, newplace, oldplace, lastitem)
 	local next = self.next or self
-	local item = next[old]
-	if last == nil then last = item end
-	if item ~= nil then
-		next[old] = next[last]
-		next[last] = next[new]
-		next[new] = item
-		return item
+	local theitem = next[oldplace]
+	if lastitem == nil then lastitem = theitem end
+	if theitem ~= nil then
+		local back = self.back
+		local oldsucc = next[lastitem]
+		local newsucc = next[newplace]
+		next[oldplace], back[oldsucc] = oldsucc, oldplace
+		next[lastitem], back[newsucc] = newsucc, lastitem
+		next[newplace], back[theitem] = theitem, newplace
+		return theitem
 	end
+end
+
+function remove(self, item)
+	return self:removefrom(self.back[item])
+end
+
+function moveto(self, place, item, last)
+	return self:movetofrom(place, self.back[item], last)
 end
 
 function disjoint(self)
-	local items = self.next or self
-	local result = {}
-	local missing = copy(items)
-	local start = next(missing)
-	while start do
-		result[#result+1] = start
-		local item = start
-		repeat
-			missing[item] = nil
-			item = items[item]
-		until item == start
-		start = next(missing)
-	end
+	local back
+	if self.next == nil then back, self.back = self.back, nil end
+	local result = CyclicSets.disjoint(self)
+	if back then self.back = back end
 	return result
 end
 
-function __tostring(self, tostring, concat, delimiter)
-	tostring = tostring or global.tostring
-	concat = concat or global.table.concat
-	local items = self.next or self
-	local result = {}
-	local missing = copy(items)
-	local start = next(missing)
-	while start do
-		result[#result+1] = "[ "
-		local item = start
-		repeat
-			result[#result+1] = tostring(item)
-			result[#result+1] = ", "
-			missing[item] = nil
-			item = items[item]
-		until item == start
-		result[#result] = " ]"
-		start = next(missing)
-	end
-	return concat(result)
+function __tostring(self, ...)
+	local back
+	if self.next == nil then back, self.back = self.back, nil end
+	local result = CyclicSets.__tostring(self, ...)
+	if back then self.back = back end
+	return result
 end

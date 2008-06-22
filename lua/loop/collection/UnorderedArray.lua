@@ -13,10 +13,10 @@
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 --------------------------------------------------------------------------------
 
-local table = require "table"
-local oo    = require "loop.base"
+local global = _G -- only if available
+local oo     = require "loop.base"
 
-module("loop.collection.UnorderedArray", oo.class)
+module(..., oo.class)
 
 function add(self, value)
 	self[#self + 1] = value
@@ -29,4 +29,16 @@ function remove(self, index)
 	elseif (index > 0) and (index < size) then
 		self[index], self[size] = self[size], nil
 	end
+end
+
+function __tostring(self, tostring, concat)
+	tostring = tostring or global.tostring
+	concat = concat or global.table.concat
+	local result = { "{ " }
+	for _, value in global.ipairs(self) do
+		result[#result+1] = tostring(value)
+		result[#result+1] = ", "
+	end
+	result[#result] = " }"
+	return concat(result)
 end

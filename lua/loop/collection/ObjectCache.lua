@@ -21,7 +21,7 @@ local rawset = rawset
 
 local oo   = require "loop.base"
 
-module("loop.collection.ObjectCache", oo.class)
+module(..., oo.class)
 
 __mode = "k"
 
@@ -33,7 +33,7 @@ function __index(self, key)
 		else
 			value = rawget(self, "default")
 		end
-		rawset(self, key, value)
+		self[key] = value
 		return value
 	end
 end

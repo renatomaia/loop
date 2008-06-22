@@ -12,35 +12,36 @@
 -- Title  : Map of Objects that Keeps an Array of Key Values                  --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 --------------------------------------------------------------------------------
--- Notes:                                                                     --
---   Can only store non-numeric values.                                       --
---   Use of key strings equal to the name of one method prevents its usage.   --
---------------------------------------------------------------------------------
 
-local rawget         = rawget
-local table          = require "table"
-local oo             = require "loop.simple"
-local UnorderedArray = require "loop.collection.UnorderedArray"
+local global = require "_G"
+local table  = require "table"
+local oo     = require "loop.base"
 
-module("loop.collection.MapWithArrayOfKeys", oo.class)
+local rawget = global.rawget
+local insert = table.insert
+
+module(..., oo.class)
 
 keyat = rawget
 
 function value(self, key, value)
+	local map = self.map or self
 	if value == nil
-		then return self[key]
-		else self[key] = value
+		then return map[key]
+		else map[key] = value
 	end
 end
 
 function add(self, key, value)
+	local map = self.map or self
 	self[#self + 1] = key
-	self[key] = value
+	map[key] = value
 end
 
 function addat(self, index, key, value)
-	table.insert(self, index, key)
-	self[key] = value
+	local map = self.map or self
+	insert(self, index, key)
+	map[key] = value
 end
 
 function remove(self, key)
@@ -52,13 +53,39 @@ function remove(self, key)
 end
 
 function removeat(self, index)
-	self[ self[index] ] = nil
-	return UnorderedArray.remove(self, index)
+	local map = self.map or self
+	local key = self[index]
+	if key ~= nil then
+		local size = #self
+		if index ~= size then
+			self[index] = self[size]
+		end
+		self[size] = nil
+		map[key] = nil
+		return key
+	end
 end
 
 function valueat(self, index, value)
+	local map = self.map or self
 	if value == nil
-		then return self[ self[index] ]
-		else self[ self[index] ] = value
+		then return map[ self[index] ]
+		else map[ self[index] ] = value
 	end
+end
+
+function __tostring(self, tostring, concat)
+	local map = self.map or self
+	tostring = tostring or global.tostring
+	concat = concat or global.table.concat
+	local result = { "{ " }
+	for _, key in global.ipairs(self) do
+		result[#result+1] = "["
+		result[#result+1] = tostring(key)
+		result[#result+1] = "]="
+		result[#result+1] = tostring(map[key])
+		result[#result+1] = ", "
+	end
+	result[#result] = " }"
+	return concat(result)
 end

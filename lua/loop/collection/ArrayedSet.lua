@@ -17,40 +17,59 @@
 --   Storage of strings equal to the name of one method prevents its usage.   --
 --------------------------------------------------------------------------------
 
-local rawget = rawget
+local global = require "_G"
 local oo     = require "loop.base"
 
-module("loop.collection.UnorderedArraySet", oo.class)
+module(..., oo.class)
 
-valueat = rawget
-indexof = rawget
+valueat = global.rawget
+
+function indexof(self, value)
+	local set = self.set or self
+	return set[value]
+end
 
 function contains(self, value)
-	return self[value] ~= nil
+	return indexof(self) ~= nil
 end
 
 function add(self, value)
-	if self[value] == nil then
+	local set = self.set or self
+	if set[value] == nil then
 		self[#self+1] = value
-		self[value] = #self
+		set[value] = #self
 		return value
 	end
 end
 
 function remove(self, value)
-	local index = self[value]
-	if index then
+	local set = self.set or self
+	local index = set[value]
+	if index ~= nil then
 		local size = #self
 		if index ~= size then
 			local last = self[size]
-			self[index], self[last] = last, index
+			self[index] = last
+			set[last]   = index
 		end
-		self[value] = nil
 		self[size] = nil
+		set[value] = nil
 		return value
 	end
 end
 
 function removeat(self, index)
-	return self:remove(self[index])
+	return remove(self, self[index])
+end
+
+function __tostring(self, tostring, concat)
+	tostring = tostring or global.tostring
+	concat = concat or global.table.concat
+	local result = { "{ " }
+	for _, value in global.ipairs(self) do
+		result[#result+1] = tostring(value)
+		result[#result+1] = ", "
+	end
+	result[#result] = " }"
+	return concat(result)
 end
