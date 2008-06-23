@@ -30,7 +30,11 @@ function __init(self, object)
 	return self
 end
 
-function antecessor(self, item)
+-- []:precessor(item)                : nil --> []
+-- [ ... ]:precessor(item)           : nil --> [ ... ]
+-- [ item ]:precessor(item)          : item --> [ item ]
+-- [ pred, item... ]:precessor(item) : pred --> [ pred, item... ]
+function precessor(self, item)
 	return self.back[item]
 end
 
@@ -38,12 +42,7 @@ function backward(self, item)
 	return rawget, self.back, item
 end
 
--- []:add(item)                   : item --> [item]
--- []:add(place, item)            : item --> [place, item]
--- [place]:add(place, item)       : item --> [place, item]
--- [item]:add(place, item)        : nil  --> [item]
--- [place, item]:add(place, item) : nil  --> [place, item]
-function add(self, place, item)
+function addto(self, place, item)
 	local next = self.next or self
 	if next[item] == nil then
 		local succ
@@ -62,9 +61,6 @@ function add(self, place, item)
 	end
 end
 
--- []:remove(place)            : nil  --> []
--- [item]:remove(place)        : nil  --> [item]
--- [place, item]:remove(place) : item --> [place]
 function removefrom(self, place)
 	local next = self.next or self
 	local item = next[place]
@@ -77,21 +73,30 @@ function removefrom(self, place)
 	end
 end
 
--- []:moveto(new, old)                           : nil  --> []
--- [new]:moveto(new, old)                        : nil  --> [new]
--- [old, item]:moveto(new, old)                  : item --> [old|new, item]
--- [old, item|new]:moveto(new, old)              : item --> [old|new, item]
--- [old, item...last|new]:moveto(new, old, last) : item --> [old|new, item...last]
--- [old, item|new]:moveto(new, old, last)        : item --> INCONSISTENT STATE
--- [old, item|last...]:moveto(new, old, last)    : item --> INCONSISTENT STATE
+function removeall(self, item)
+	local next = self.next or self
+	local back = self.back
+	repeat
+		item, next[item], back[item] = next[item], nil, nil
+	until item == nil
+end
+
 function movetofrom(self, newplace, oldplace, lastitem)
 	local next = self.next or self
 	local theitem = next[oldplace]
-	if lastitem == nil then lastitem = theitem end
 	if theitem ~= nil then
-		local back = self.back
+		if lastitem == nil then lastitem = theitem end
 		local oldsucc = next[lastitem]
-		local newsucc = next[newplace]
+		local newsucc
+		if newplace == nil then
+			newplace, newsucc = lastitem, theitem
+		else
+			newsucc = next[newplace]
+			if newsucc == nil then
+				newsucc = newplace
+			end
+		end
+		local back = self.back
 		next[oldplace], back[oldsucc] = oldsucc, oldplace
 		next[lastitem], back[newsucc] = newsucc, lastitem
 		next[newplace], back[theitem] = theitem, newplace

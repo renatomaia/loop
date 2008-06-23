@@ -66,6 +66,15 @@ function findnode(self, key, path)
 	return node, prev
 end
 --------------------------------------------------------------------------------
+function empty(self)
+	return (self[1] ~= nil)
+end
+
+function head(self)
+	local node = self[1]
+	if node then return node.value, node.key end
+end
+
 local function iterator(holder)
 	node = holder[1][1]
 	if node then
@@ -85,9 +94,11 @@ function get(self, key, orGreater)
 end
 
 function put(self, key, value, onlyAdd, orGreater)
+	local prev
 	local path = self:getnode() or {}
 	local node = self:findnode(key, path)
 	if node and (orGreater or node.key == key) then
+		prev = path[1]
 		self:freenode(path)
 		if not onlyAdd then node.value = value end
 	else
@@ -99,15 +110,15 @@ function put(self, key, value, onlyAdd, orGreater)
 		end
 		while #path > newlevel do path[#path] = nil end
 		node = path
-		for level = 1, newlevel do
-			local prev  = path[level]
+		node.key = key
+		node.value = value
+		for level = newlevel, 1, -1 do
+			prev = path[level]
 			node[level] = prev[level]
 			prev[level] = node
 		end
-		node.key = key
-		node.value = value
 	end
-	return node.value, node.key
+	return prev.value, prev.key
 end
 
 function remove(self, key, orGreater)
@@ -165,41 +176,43 @@ function __tostring(self, tostring, concat)
 		result[#result+1] = ", "
 		node = node[1]
 	end
-	result[#result] = " }"
+	local last = #result
+	result[last] = (last == 1) and "{}" or " }"
 	return concat(result)
 end
 
--- | | | [3] = table: 0xa97fe88
--- +-+-+-[6] = table: 0xa97fe88
---   | | [7] = table: 0xa97fe88
---   | +-[9] = table: 0xa97fe88
---   | | [12] = table: 0xa97fe88
---   | | [19] = table: 0xa97fe88
---   | | [21] = table: 0xa97fe88
---   +-+-[25] = table: 0xa97fe88
---       [26] = table: 0xa97fe88
-function debug(self, tostring, concat)
+-- prints debugging information about the structure
+-- of the skip list, in the following form:
+-- | | | [3] = <value>
+-- +-+-+-[6] = <value>
+--   | | [7] = <value>
+--   | +-[9] = <value>
+--   | | [12] = <value>
+--   | | [19] = <value>
+--   | | [21] = <value>
+--   +-+-[25] = <value>
+--       [26] = <value>
+function debug(self, tostring, output)
 	tostring = tostring or global.tostring
-	concat = concat or global.table.concat
+	output = output or global.io.stderr
 	local current = {global.unpack(self)}
 	while #current > 0 do
 		local node = current[1]
 		for level = #self, 2, -1 do
 			if level > #current then
-				global.io.write "  "
+				output:write "  "
 			elseif node == current[level] then
-				global.io.write "+-"
+				output:write "+-"
 				current[level] = node[level]
 			else
-				global.io.write "| "
+				output:write "| "
 			end
 		end
 		current[1] = node[1]
-		global.io.write "["
-		global.io.write(tostring(node.key))
-		global.io.write "] = "
-		global.io.write(tostring(node.value))
-		global.io.write ",\n"
+		output:write "["
+		output:write(tostring(node.key))
+		output:write "] = "
+		output:write(tostring(node.value))
+		output:write ",\n"
 	end
 end
-

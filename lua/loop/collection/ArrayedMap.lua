@@ -86,6 +86,7 @@ function __tostring(self, tostring, concat)
 		result[#result+1] = tostring(map[key])
 		result[#result+1] = ", "
 	end
-	result[#result] = " }"
+	local last = #result
+	result[last] = (last == 1) and "{}" or " }"
 	return concat(result)
 end

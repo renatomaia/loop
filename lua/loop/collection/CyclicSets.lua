@@ -24,10 +24,17 @@ local rawnew = oo.rawnew
 
 module(..., oo.class)
 
+-- []:contains(item)          : false --> []
+-- [ ... ]:contains(item)     : false --> [ ... ]
+-- [ item... ]:contains(item) : true --> [ item, succ... ]
 function contains(self, item)
 	return (self.next or self)[item] ~= nil
 end
 
+-- []:successor(item)                : nil --> []
+-- [ ... ]:successor(item)           : nil --> [ ... ]
+-- [ item ]:successor(item)          : item --> [ item ]
+-- [ item, succ... ]:successor(item) : succ --> [ item, succ... ]
 function successor(self, item)
 	return (self.next or self)[item]
 end
@@ -36,32 +43,40 @@ function forward(self, item)
 	return rawget, (self.next or self), item
 end
 
--- []:add(item)                   : item --> [item]
--- []:add(place, item)            : item --> [place, item]
--- [place]:add(place, item)       : item --> [place, item]
--- [item]:add(place, item)        : nil  --> [item]
--- [place, item]:add(place, item) : nil  --> [place, item]
-function add(self, place, item)
+-- []:addto()                            : ERROR: table index is nil --> []
+-- []:addto(place)                       : ERROR: table index is nil --> []
+-- []:addto(nil, item)                   : item --> [ item ]
+-- []:addto(place, item)                 : item --> [ place, item ]
+-- [ ... ]:addto()                       : ERROR: table index is nil --> [ ... ]
+-- [ ... ]:addto(place)                  : ERROR: table index is nil --> [ ... ]
+-- [ ... ]:addto(nil, item)              : item --> [ item | ... ]
+-- [ ... ]:addto(place, item)            : item --> [ place, item | ... ]
+-- [ place... ]:addto(place, item)       : item --> [ place, item... ]
+-- [ item... ]:addto(place, item)        : nil  --> [ item... ]
+-- [ place, item... ]:addto(place, item) : nil  --> [ place, item... ]
+function addto(self, place, item)
 	local next = self.next or self
 	if next[item] == nil then
-		local replaced
+		local succ
 		if place == nil then
-			place, replaced = item, item
+			place, succ = item, item
 		else
-			replaced = next[place]
-			if replaced == nil then
-				replaced = place
+			succ = next[place]
+			if succ == nil then
+				succ = place
 			end
 		end
-		next[item] = replaced
+		next[item]  = succ
 		next[place] = item
 		return item
 	end
 end
 
--- []:remove(place)            : nil  --> []
--- [item]:remove(place)        : nil  --> [item]
--- [place, item]:remove(place) : item --> [place]
+-- []:removefrom()                      : nil  --> []
+-- []:removefrom(place)                 : nil  --> []
+-- [ ... ]:removefrom()                 : nil  --> []
+-- [ ... ]:removefrom(place)            : nil  --> [ ... ]
+-- [ place, item... ]:removefrom(place) : item --> [ place... ]
 function removefrom(self, place)
 	local next = self.next or self
 	local item = next[place]
@@ -72,22 +87,64 @@ function removefrom(self, place)
 	end
 end
 
--- []:moveto(new, old)                           : nil  --> []
--- [new]:moveto(new, old)                        : nil  --> [new]
--- [old, item]:moveto(new, old)                  : item --> [old|new, item]
--- [old, item|new]:moveto(new, old)              : item --> [old|new, item]
--- [old, item...last|new]:moveto(new, old, last) : item --> [old|new, item...last]
--- [old, item|new]:moveto(new, old, last)        : item --> INCONSISTENT STATE
--- [old, item|last...]:moveto(new, old, last)    : item --> INCONSISTENT STATE
-function movetofrom(self, new, old, last)
+-- []:removeall()                     : ERROR: table index is nil --> []
+-- []:removeall(item)                 : nil --> []
+-- [ ... ]:removeall()                : ERROR: table index is nil --> [ ... ]
+-- [ ... ]:removeall(item)            : nil --> [ ... ]
+-- [ item... ]:removeall(item)        : nil --> []
+-- [ item... | .... ]:removeall(item) : nil --> [ .... ]
+function removeall(self, item)
 	local next = self.next or self
-	local item = next[old]
-	if last == nil then last = item end
-	if item ~= nil then
-		next[old] = next[last]
-		next[last] = next[new]
-		next[new] = item
-		return item
+	repeat
+		item, next[item] = next[item], nil
+	until item == nil
+end
+
+-- []:movetofrom()                                              : nil  --> []
+-- []:movetofrom(nil, old)                                      : nil  --> []
+-- []:movetofrom(new, old)                                      : nil  --> []
+-- [ ... ]:movetofrom()                                         : nil  --> [ ... ]
+-- [ ... ]:movetofrom(nil, old)                                 : nil  --> [ ... ]
+-- [ ... ]:movetofrom(new, old)                                 : nil  --> [ ... ]
+-- [ new... ]:movetofrom(new, old)                              : nil  --> [ new... ]
+--
+-- [ old, item... ]:movetofrom(nil, old)                        : item --> [ old... | item ]
+-- [ old, item... ]:movetofrom(new, old)                        : item --> [ old... | new, item ]
+-- [ old, item..new... ]:movetofrom(new, old)                   : item --> [ old..new, item... ]
+-- [ old, item... | new.... ]:movetofrom(new, old)              : item --> [ old... | new, item.... ]
+--
+-- [ old, item..last... ]:movetofrom(nil, old, last)            : item --> [ old... | item..last ]
+-- [ old, item..last... ]:movetofrom(new, old, last)            : item --> [ old... | new, item..last ]
+-- [ old, item..last...new.... ]:movetofrom(new, old, last)     : item --> [ old...new, item..last.... ]
+-- [ old, item..last... | new.... ]:movetofrom(new, old, last)  : item --> [ old... | new, item..last.... ]
+--
+-- [ old, item... ]:movetofrom(nil, old, last)                  : item --> INCONSISTENT STATE
+-- [ old, item... ]:movetofrom(new, old, last)                  : item --> INCONSISTENT STATE
+-- [ old, item..new... ]:movetofrom(new, old, last)             : item --> INCONSISTENT STATE
+-- [ old, item... | new.... ]:movetofrom(new, old, last)        : item --> INCONSISTENT STATE
+-- [ old, item | last... ]:movetofrom(nil, old, last)           : item --> INCONSISTENT STATE
+-- [ old, item | last... ]:movetofrom(new, old, last)           : item --> INCONSISTENT STATE
+-- [ old, item | last..new... ]:movetofrom(new, old, last)      : item --> INCONSISTENT STATE
+-- [ old, item | last... | new.... ]:movetofrom(new, old, last) : item --> INCONSISTENT STATE
+function movetofrom(self, newplace, oldplace, lastitem)
+	local next = self.next or self
+	local theitem = next[oldplace]
+	if theitem ~= nil then
+		if lastitem == nil then lastitem = theitem end
+		local oldsucc = next[lastitem]
+		local newsucc
+		if newplace == nil then
+			newplace, newsucc = lastitem, theitem
+		else
+			newsucc = next[newplace]
+			if newsucc == nil then
+				newsucc = newplace
+			end
+		end
+		next[oldplace] = oldsucc
+		next[lastitem] = newsucc
+		next[newplace] = theitem
+		return theitem
 	end
 end
 
@@ -96,7 +153,7 @@ function disjoint(self)
 	local result = {}
 	local missing = copy(items)
 	local start = next(missing)
-	while start do
+	while start ~= nil do
 		result[#result+1] = start
 		local item = start
 		repeat
@@ -115,8 +172,8 @@ function __tostring(self, tostring, concat, delimiter)
 	local result = {}
 	local missing = copy(items)
 	local start = next(missing)
-	while start do
-		result[#result+1] = "[ "
+	result[#result+1] = "[ "
+	while start ~= nil do
 		local item = start
 		repeat
 			result[#result+1] = tostring(item)
@@ -124,8 +181,10 @@ function __tostring(self, tostring, concat, delimiter)
 			missing[item] = nil
 			item = items[item]
 		until item == start
-		result[#result] = " ]"
+		result[#result] = " | "
 		start = next(missing)
 	end
+	local last = #result
+	result[last] = (last == 1) and "[]" or " ]"
 	return concat(result)
 end

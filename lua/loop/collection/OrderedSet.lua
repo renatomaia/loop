@@ -16,28 +16,29 @@
 local oo         = require "loop.base"
 local CyclicSets = require "loop.collection.CyclicSets"
 
+local rawnew   = oo.rawnew
+local addto    = CyclicSets.addto
+local getsucc  = CyclicSets.successor
+local removeat = CyclicSets.removefrom
+
 local INIT = newproxy()
 local LAST = newproxy()
 
 module(..., oo.class)
 
-empty = CyclicSets.empty
+empty    = CyclicSets.empty
 contains = CyclicSets.contains
 
 function __init(self, object)
 	self = rawnew(self, object)
-	CyclicSets.add(self, INIT)
+	addto(self, nil, INIT)
 	self[LAST] = INIT
 	return self
 end
 
-local function iterator(next, prev)
-	local item = next[prev]
-	if item ~= INIT then return item, prev end
-end
-function sequence(self, from)
-	if from == nil then from = INIT end
-	return iterator, (self.next or self), from
+function empty(self)
+	local next = self.next or self
+	return next[INIT] == INIT
 end
 
 function first(self)
@@ -52,16 +53,25 @@ function last(self)
 	if item ~= INIT then return item end
 end
 
-function empty(self)
-	local next = self.next or self
-	return next[INIT] == INIT
+function successor(self, item)
+	item = getsucc(self, item)
+	if item ~= INIT then return item end
+end
+
+local function iterator(next, prev)
+	local item = next[prev]
+	if item ~= INIT then return item, prev end
+end
+function sequence(self, from)
+	if from == nil then from = INIT end
+	return iterator, (self.next or self), from
 end
 
 function insert(self, item, place)
 	local next = self.next or self
 	local last = next[LAST]
 	if place == nil then place = last end
-	if self:contains(place) and CyclicSets.add(place, item) == item then
+	if self:contains(place) and addto(self, place, item) == item then
 		if place == last then next[LAST] = item end
 		return item
 	end
@@ -71,7 +81,7 @@ function removefrom(self, place)
 	local next = self.next or self
 	local last = next[LAST]
 	if place ~= last then
-		local item = CyclicSets.removefrom(place)
+		local item = removeat(self, place)
 		if item ~= nil then
 			if item == last then next[LAST] = place end
 			return item
@@ -130,6 +140,7 @@ function __tostring(self, tostring, concat)
 		result[#result+1] = tostring(item)
 		result[#result+1] = ", "
 	end
-	result[#result] = " ]"
+	local last = #result
+	result[last] = (last == 1) and "[]" or " ]"
 	return concat(result)
 end
