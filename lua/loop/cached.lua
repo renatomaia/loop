@@ -46,7 +46,7 @@ local base        = require "loop.multiple"
 table.copy(base, _M)
 --------------------------------------------------------------------------------
 local function subsiterator(queue, class)
-	class = queue[class]
+	class = queue:successor(class)
 	if class then
 		for sub in pairs(class.subs) do
 			queue:enqueue(sub)

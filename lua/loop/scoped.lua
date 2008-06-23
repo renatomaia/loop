@@ -185,7 +185,7 @@ end
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 local function supersiterator(stack, class)
-	class = stack[class]
+	class = stack:successor(class)
 	if class then
 		for _, super in ipairs(class.supers) do
 			stack:insert(super, class)
