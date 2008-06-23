@@ -1,4 +1,4 @@
-local Scheduler = require "loop.thread.Scheduler"
+local Scheduler = require "loop.thread.NewScheduler"
 
 --Scheduler.verbose:level(2)
 --Scheduler.verbose:flag("debug", false)
@@ -6,17 +6,23 @@ local Scheduler = require "loop.thread.Scheduler"
 local EventLog
 local function say(name, msg)
 	EventLog[#EventLog+1] = name.." "..msg
-end
-local function newtask(name, func)
-	return coroutine.create(function(...)
-		say(name, "started");
-		(func or coroutine.yield)(name, ...)
-		say(name, "ended")
-	end)
+
+print(EventLog[#EventLog])
+
 end
 
 local function test(checks, Scheduler)
 	--Scheduler.verbose.schedulerdetails = Scheduler
+	
+	local function newtask(name, func)
+		local task = coroutine.create(function(...)
+			say(name, "started");
+			(func or coroutine.yield)(name, ...)
+			say(name, "ended")
+		end)
+		Scheduler.verbose.labels[task] = name
+		return task
+	end
 	
 	local First = newtask("First")
 	local Last = newtask("Last")
@@ -67,7 +73,7 @@ local function test(checks, Scheduler)
 	local Halter = newtask("Halter", function(name)
 		Scheduler:halt()
 	end)
-	
+
 	Scheduler:register(First)
 	Scheduler:register(Sleeper1)
 	Scheduler:register(Sleeper2)
@@ -82,6 +88,9 @@ local function test(checks, Scheduler)
 	
 	EventLog = {}
 	Scheduler:run()
+
+print("-- halt --")
+
 	checks:assert(Scheduler.current, checks.is(false))
 	checks:assert(EventLog, checks.similar{
 		"First started",
@@ -114,11 +123,13 @@ local function test(checks, Scheduler)
 				"Sleeper1 woke",
 				"Resumer started",
 				"Waker ended",
-				"Sleeper2 woke",
-				"Sleeper2 ended",
 			},{
 				"Sleeper1 ended",
 				"Resumer ended",
+				 pause=true,
+			},{
+				"Sleeper2 woke",
+				"Sleeper2 ended",
 				 pause=true,
 			},{
 				"Sleeper3 woke",
@@ -159,12 +170,28 @@ local function test(checks, Scheduler)
 			stepresult = checks.is(nil)
 		end
 		local nextstep = Scheduler:step()
+		if nextstep == nil then
+			checks:assert(step, checks.is(last))
+		elseif nextstep == 0 then
+			checks:assert(step < last, "step should have returned 'nil', but was 0")
+		else
+			EventLog.pause = true
+		end
 		checks:assert(Scheduler.current, checks.is(false))
-		checks:assert(EventLog, checks.similar(events, nil, {isomorphic=false}))
-		checks:assert(nextstep, stepresult)
-		if nextstep and nextstep > 0 then Scheduler:idle(nextstep) end
+		checks:assert(EventLog, checks.similar(events))
+		if nextstep and nextstep > 0 then
+
+print("-- pause --")
+
+			Scheduler:idle(nextstep)
+
+else print("-- step --")
+
+		end
 	end
+	EventLog = {}
 	for i=1, 3 do
+		checks:assert(EventLog, checks.similar{})
 		checks:assert(Scheduler:step(), checks.is(nil))
 	end
 end
@@ -195,6 +222,9 @@ return function(checks)
 		assert(coroutine.resume(nests[index], checks, scheduler))
 	end
 	for index, nest in ipairs(nests) do
+
+print("-- SCHEDULER YIELD --")
+
 		assert(coroutine.resume(nest, index))
 	end
 end
