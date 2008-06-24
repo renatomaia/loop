@@ -1,4 +1,4 @@
-local Scheduler = require "loop.thread.NewScheduler"
+local Scheduler = require "loop.thread.Scheduler"
 
 --Scheduler.verbose:level(2)
 --Scheduler.verbose:flag("debug", false)
@@ -7,23 +7,20 @@ local EventLog
 local function say(name, msg)
 	EventLog[#EventLog+1] = name.." "..msg
 
-print(EventLog[#EventLog])
+--print(EventLog[#EventLog])
 
+end
+local function newtask(name, func)
+	local task = coroutine.create(function(...)
+		say(name, "started");
+		(func or coroutine.yield)(name, ...)
+		say(name, "ended")
+	end)
+	Scheduler.verbose.viewer.labels[task] = name
+	return task
 end
 
 local function test(checks, Scheduler)
-	--Scheduler.verbose.schedulerdetails = Scheduler
-	
-	local function newtask(name, func)
-		local task = coroutine.create(function(...)
-			say(name, "started");
-			(func or coroutine.yield)(name, ...)
-			say(name, "ended")
-		end)
-		Scheduler.verbose.labels[task] = name
-		return task
-	end
-	
 	local First = newtask("First")
 	local Last = newtask("Last")
 	local Waker = newtask("Waker", function(name)
@@ -33,6 +30,15 @@ local function test(checks, Scheduler)
 	local Resumer = newtask("Resumer", function(name, msg)
 		checks:assert(msg, checks.is("from Sleeper1"))
 		Scheduler:resume(Waker, "from "..name)
+	end)
+	local Removed = newtask("Removed")
+	local RemovedSleeper = newtask("RemovedSleeper", function(name)
+		Scheduler:suspend(1)
+		say(name, "woke")
+	end)
+	local ResumedSleeper = newtask("ResumedSleeper", function(name)
+		Scheduler:suspend(10)
+		say(name, "woke")
 	end)
 	local Sleeper1 = newtask("Sleeper1", function(name)
 		Scheduler:suspend(1)
@@ -48,6 +54,9 @@ local function test(checks, Scheduler)
 		say(name, "woke")
 	end)
 	local Suspender = newtask("Suspender", function(name)
+		Scheduler:remove(Removed)
+		Scheduler:remove(RemovedSleeper)
+		Scheduler:resume(ResumedSleeper)
 		Scheduler:suspend() -- never returns
 	end)
 	local Starter = newtask("Starter", function(name)
@@ -78,6 +87,9 @@ local function test(checks, Scheduler)
 	Scheduler:register(Sleeper1)
 	Scheduler:register(Sleeper2)
 	Scheduler:register(Sleeper3)
+	Scheduler:register(Removed)
+	Scheduler:register(RemovedSleeper)
+	Scheduler:register(ResumedSleeper)
 	Scheduler:register(Suspender)
 	Scheduler:register(Starter)
 	Scheduler:register(Waker)
@@ -89,7 +101,7 @@ local function test(checks, Scheduler)
 	EventLog = {}
 	Scheduler:run()
 
-print("-- halt --")
+--print("-- halt --")
 
 	checks:assert(Scheduler.current, checks.is(false))
 	checks:assert(EventLog, checks.similar{
@@ -97,7 +109,12 @@ print("-- halt --")
 		"Sleeper1 started",
 		"Sleeper2 started",
 		"Sleeper3 started",
+		"Removed started",
+		"RemovedSleeper started",
+		"ResumedSleeper started",
 		"Suspender started",
+		"ResumedSleeper woke",
+		"ResumedSleeper ended",
 		"Starter started",
 		"Started started",
 		"Waker started",
@@ -139,7 +156,7 @@ print("-- halt --")
 	else
 		Expected = {
 			{
-				"Sleeper1 woke",    --
+				"Sleeper1 woke",   --
 				"Resumer started", --
 				"Waker ended",     --
 				"Sleeper2 woke",   --  woken before the current thread ?
@@ -181,19 +198,21 @@ print("-- halt --")
 		checks:assert(EventLog, checks.similar(events))
 		if nextstep and nextstep > 0 then
 
-print("-- pause --")
+--print("-- pause --")
 
 			Scheduler:idle(nextstep)
 
-else print("-- step --")
+--else print("-- step --")
 
 		end
 	end
 	EventLog = {}
 	for i=1, 3 do
-		checks:assert(EventLog, checks.similar{})
 		checks:assert(Scheduler:step(), checks.is(nil))
+		checks:assert(EventLog, checks.similar{})
 	end
+	checks:assert(Scheduler:run(), checks.is(nil))
+	checks:assert(EventLog, checks.similar{})
 end
 
 local stdassert = assert
@@ -210,6 +229,7 @@ return function(checks)
 	}
 	-- main loop runs in the main thread
 	for index, scheduler in ipairs(instances) do
+		--Scheduler.verbose.schedulerdetails = scheduler
 		test(checks, scheduler)
 	end
 	-- main loop runs in a coroutine
@@ -219,12 +239,14 @@ return function(checks)
 		coroutine.create(test),
 	}
 	for index, scheduler in ipairs(instances) do
+		--Scheduler.verbose.schedulerdetails = scheduler
 		assert(coroutine.resume(nests[index], checks, scheduler))
 	end
 	for index, nest in ipairs(nests) do
 
-print("-- SCHEDULER YIELD --")
+--print("-- SCHEDULER YIELD --")
 
+		--Scheduler.verbose.schedulerdetails = scheduler
 		assert(coroutine.resume(nest, index))
 	end
 end

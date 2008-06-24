@@ -34,12 +34,13 @@ local running      = coroutine.running
 local gettime      = os.time
 local difftime     = os.difftime
 
-local StartTime = gettime()
-local WeakSet   = oo.class{ __mode = "k" }
-local HaltKey   = global.newproxy()
-local traceback = global.debug and
-                  	global.debug.traceback or
-                  	function(_, err) return err end
+local StartTime  = gettime()
+local WeakValues = oo.class{ __mode = "v" }
+local WeakKeys   = oo.class{ __mode = "k" }
+local HaltKey    = global.newproxy()
+local traceback  = global.debug and
+                   	global.debug.traceback or
+                   	function(_, err) return err end
 
 --[[VERBOSE]] local type        = global.type
 --[[VERBOSE]] local unpack      = global.unpack
@@ -50,6 +51,7 @@ local traceback = global.debug and
 --[[VERBOSE]] local table       = require "table"
 --[[VERBOSE]] local math        = require "math"
 --[[VERBOSE]] local ObjectCache = require "loop.collection.ObjectCache"
+--[[VERBOSE]] local Viewer      = require "loop.debug.Viewer"
 --[[VERBOSE]] local Verbose     = require "loop.debug.Verbose"
 --[[DEBUG]]   local Inspector   = require "loop.debug.Inspector"
 
@@ -102,11 +104,12 @@ end
 
 function __init(class, self)
 	self = oo.rawnew(class, self)
-	if rawget(self, "traps"   ) == nil then self.traps    = WeakSet()      end
-	if rawget(self, "threads" ) == nil then self.threads  = BiCyclicSets() end
-	if rawget(self, "times"   ) == nil then self.times    = SortedMap()    end
-	if rawget(self, "current" ) == nil then self.current  = false          end
-	if rawget(self, "previous") == nil then self.previous = false          end
+	if rawget(self, "threads"  ) == nil then self.threads   = BiCyclicSets() end
+	if rawget(self, "wakeindex") == nil then self.wakeindex = SortedMap()    end
+	if rawget(self, "wakeentry") == nil then self.wakeentry = WeakValues()   end
+	if rawget(self, "traps"    ) == nil then self.traps     = WeakKeys()     end
+	if rawget(self, "current"  ) == nil then self.current   = false          end
+	if rawget(self, "previous" ) == nil then self.previous  = false          end
 	self.threads:addto(nil, false)
 	return self
 end
@@ -121,7 +124,7 @@ function checkcurrent(self)
 	local thread = running()
 	assert(current,
 		"attempt to call scheduler operation out of a scheduled thread context.")
-	assert(current == thread or PCallMap[thread] == current,
+	assert(current == thread or NestedPCalls:successor(thread) == current,
 		"inconsistent internal state, current scheduled thread is not running.")
 	return current
 end
@@ -142,7 +145,7 @@ function resumeall(self, success, ...)                                          
 				elseif not success then                                                 --[[VERBOSE]] verbose:threads("uncaptured error on ",current)
 					self:error(current, ...)
 				end
-			elseif threads:precessor(current) == previous then
+			elseif threads:predecessor(current) == previous then
 				self.previous = current
 			end                                                                       --[[VERBOSE]] else verbose:scheduler(true, "resuming running threads")
 		end
@@ -159,17 +162,69 @@ function resumeall(self, success, ...)                                          
 end
 
 function wakeupall(self)                                                        --[[VERBOSE]] local verbose = self.verbose
-	local times = self.times
-	local head = times:head()
-	if head then                                                                  --[[VERBOSE]] verbose:scheduler(true, "waking sleeping threads up")
-		local next, time = times:crop(self:time(), true)
-		-- TODO: what if 'head' or 'next' are not registered in the sleeping set
-		--       anymore? they may have been removed, resumed, re-registered, etc.
-		if head ~= next then
+	local wakeindex = self.wakeindex
+	local first = wakeindex:head()
+	if first then                                                                  --[[VERBOSE]] verbose:scheduler(true, "waking sleeping threads up")
+		local remains, time = wakeindex:cropuntil(self:time(), true)
+		if first ~= remains then
 			local threads = self.threads
-			threads:moveto(self.previous, head, threads:precessor(next or head))     --[[VERBOSE]] verbose:threads("some sleeping threads woke up")
+			local last = threads:predecessor(remains or first)
+			threads:moveto(self.previous, first, last)                                --[[VERBOSE]] verbose:threads("some sleeping threads woke up")
 		end                                                                         --[[VERBOSE]] verbose:scheduler(false, "all sleeping threads waken, none left")
 		return time
+	end
+end
+
+--------------------------------------------------------------------------------
+-- All expected cases:
+--
+-- Arrows indicate changes performed by the method.
+-- No arrows means no change.
+--
+-- wakeentry = { ... }
+-- wakeindex = { ... }
+-- threads   = [ ... ]
+--
+-- wakeentry = { ... [thread] = entry }  --> { ... }
+-- wakeindex = { ... }
+-- threads   = [ ... ]
+--
+-- wakeentry = { ... [thread]    = entry }  --> { ... }
+-- wakeindex = { ... [entry.key] = thread } --> { ... }
+-- threads   = [ ... thread ]
+--
+-- wakeentry = { ... [thread]    = entry  } --> { [nextthread] = entry      }
+-- wakeindex = { ... [entry.key] = thread } --> { [entry.key]  = nextthread }
+-- threads   = [ ... thread, nextthread... ]
+--
+-- wakeentry = { ... [thread]    = entry , [nextentry.value] = nextentry...       } --> { [nextentry.value] = nextentry...       }
+-- wakeindex = { ... [entry.key] = thread, [nextentry.key]   = nextentry.value... } --> { [nextentry.key]   = nextentry.value... }
+-- threads   = [ ... thread, nextentry.value... ]
+--
+-- wakeentry = { ... [thread]    = entry , [nextentry.value] = nextentry       } --> { [nextthread] = entry     , [nextentry.value] = nextentry       }
+-- wakeindex = { ... [entry.key] = thread, [nextentry.key]   = nextentry.value } --> { [entry.key]  = nextthread, [nextentry.key]   = nextentry.value }
+-- threads   = [ ... thread, nextthread..nextentry.value... ]
+--
+function cancelwake(self, thread)                                               --[[VERBOSE]] local verbose = self.verbose
+	local wakeentry = self.wakeentry
+	local entry = wakeentry[thread]
+	if entry then -- 'thread' *may* be sleeping.
+		local wakeindex = self.wakeindex
+		local path = {}
+		local found = wakeindex:findnode(entry.key, path)
+		if found == entry then -- yes, it is sleeping.
+			local nextentry = wakeindex:nextto(entry)
+			local nextthread = self.threads:successor(thread)
+			if (nextentry and nextentry.value == nextthread) -- only one in this entry
+			or (nextthread == wakeindex:head())            -- the last in sleeping set
+			then -- no other thread is waiting here
+				wakeindex:removefrom(entry, path)
+			else -- other thread is waiting to wake at the same time
+				entry.value = nextthread
+				wakeentry[nextthread] = entry
+			end
+		end
+		wakeentry[thread] = nil
 	end
 end
 
@@ -195,15 +250,16 @@ end
 
 function register(self, thread, previous)                                       --[[VERBOSE]] local verbose = self.verbose; verbose:threads("registering ",thread)
 	local threads = self.threads
-	if previous == nil then previous = threads:precessor(false) end
+	if previous == nil then previous = threads:predecessor(false) end
 	return threads:addto(previous, thread)
 end
 
 function remove(self, thread)                                                   --[[VERBOSE]] local verbose = self.verbose; verbose:threads("removing ",thread)
 	local threads = self.threads
 	if thread == self.previous then
-		self.previous = threads:precessor(thread)
+		self.previous = threads:predecessor(thread)
 	end
+	self:cancelwake(thread)
 	return threads:remove(thread)
 end
 
@@ -212,10 +268,18 @@ function suspend(self, time, ...)                                               
 	if time == nil then
 		self.threads:remove(current)                                                --[[VERBOSE]] verbose:threads(current," suspended")
 	elseif time > 0 then
-		local previous = self.times:put(self:time() + time, current, true)
-		-- TODO: what if 'previous' are not registered in the sleeping set anymore?
-		--       they may have been removed, resumed, re-registered, etc.
-		self.threads:moveto(previous, current)                                      --[[VERBOSE]] verbose:threads(current," waiting for ",time," seconds")
+		local wakeindex = self.wakeindex
+		time = self:time() + time
+		local entry = { key = time, value = current }
+		local found, previous = wakeindex:findnode(time, entry)
+		if found then
+			previous = found.value
+		else
+			previous = previous.value
+			wakeindex:addto(entry, entry)
+			self.wakeentry[current] = entry
+		end
+		self.threads:moveto(previous, current)                                      --[[VERBOSE]] verbose:threads(current," waiting until instant ",time)
 	end
 	return yield(...)
 end
@@ -223,10 +287,12 @@ end
 function resume(self, thread, ...)                                              --[[VERBOSE]] local verbose = self.verbose
 	local current = self:checkcurrent()
 	local threads = self.threads
-	local place = threads:precessor(thread)
-	if place == nil
-		then threads:addto(current, thread)                                         --[[VERBOSE]] verbose:threads("resuming unregistered ",thread)
-		else threads:movetofrom(current, place)                                     --[[VERBOSE]] verbose:threads("resuming registered ",thread)
+	local place = threads:predecessor(thread)
+	if place == nil then
+		threads:addto(current, thread)                                              --[[VERBOSE]] verbose:threads("resuming unregistered ",thread)
+	else
+		self:cancelwake(thread)
+		threads:movetofrom(current, place)                                          --[[VERBOSE]] verbose:threads("resuming registered ",thread)
 	end
 	return yield(...)
 end
@@ -267,11 +333,14 @@ end
 -- Verbose Support -------------------------------------------------------------
 --------------------------------------------------------------------------------
 
---[[VERBOSE]] verbose = Verbose()
+--[[VERBOSE]] verbose = Verbose{
+--[[VERBOSE]] 	viewer = Viewer{
+--[[VERBOSE]] 		labels = ObjectCache{ current = 0 }
+--[[VERBOSE]] 	}
+--[[VERBOSE]] }
 --[[VERBOSE]] 
 --[[VERBOSE]] local LabelStart = string.byte("A")
---[[VERBOSE]] verbose.labels = ObjectCache{ current = 0 }
---[[VERBOSE]] function verbose.labels:retrieve(value)
+--[[VERBOSE]] function verbose.viewer.labels:retrieve(value)
 --[[VERBOSE]] 	if type(value) == "thread" then
 --[[VERBOSE]] 		local id = self.current
 --[[VERBOSE]] 		local label = {}
@@ -282,7 +351,7 @@ end
 --[[VERBOSE]] 		self.current = self.current + 1
 --[[VERBOSE]] 		value = string.char(unpack(label))
 --[[VERBOSE]] 	end
---[[VERBOSE]] 	return value
+--[[VERBOSE]] 	return tostring(value)
 --[[VERBOSE]] end
 --[[VERBOSE]] 
 --[[VERBOSE]] verbose.groups.concurrency = { "scheduler", "threads", "copcall" }
@@ -290,15 +359,16 @@ end
 --[[VERBOSE]] verbose:newlevel{"scheduler"}
 --[[VERBOSE]] verbose:newlevel{"copcall"}
 --[[VERBOSE]] function verbose.custom:threads(...)
---[[VERBOSE]] 	local viewer  = self.viewer
---[[VERBOSE]] 	local output  = self.viewer.output
+--[[VERBOSE]] 	local viewer = self.viewer
+--[[VERBOSE]] 	local output = self.viewer.output
+--[[VERBOSE]] 	local labels = self.viewer.labels
 --[[VERBOSE]] 	
 --[[VERBOSE]] 	for i = 1, select("#", ...) do
 --[[VERBOSE]] 		local value = select(i, ...)
 --[[VERBOSE]] 		if type(value) == "string" then
 --[[VERBOSE]] 			output:write(value)
 --[[VERBOSE]] 		elseif type(value) == "thread" then
---[[VERBOSE]] 			output:write("thread ", self.labels[value], "[", tostring(value):match("%l+: (.+)"), "]")
+--[[VERBOSE]] 			output:write("thread ", labels[value], "[", tostring(value):match("%l+: (.+)"), "]")
 --[[VERBOSE]] 		else
 --[[VERBOSE]] 			viewer:write(value)
 --[[VERBOSE]] 		end
@@ -310,21 +380,21 @@ end
 --[[VERBOSE]] 	
 --[[VERBOSE]] 		output:write(newline)
 --[[VERBOSE]] 		output:write("Current: ")
---[[VERBOSE]] 		output:write(tostring(self.labels[scheduler.current]))
+--[[VERBOSE]] 		output:write(tostring(labels[scheduler.current]))
 --[[VERBOSE]] 	
 --[[VERBOSE]] 		output:write(newline)
 --[[VERBOSE]] 		output:write("Running:")
 --[[VERBOSE]] 		for current in scheduler.threads:forward(false) do
 --[[VERBOSE]] 			if not current then break end
 --[[VERBOSE]] 			output:write(" ")
---[[VERBOSE]] 			output:write(tostring(self.labels[current]))
+--[[VERBOSE]] 			output:write(tostring(labels[current]))
 --[[VERBOSE]] 		end
 --[[VERBOSE]] 	
 --[[VERBOSE]] 		output:write(newline)
 --[[VERBOSE]] 		output:write("Sleeping:")
---[[VERBOSE]] 		for time, current in scheduler.times:pairs() do
+--[[VERBOSE]] 		for time, current in scheduler.wakeindex:pairs() do
 --[[VERBOSE]] 			output:write(" ")
---[[VERBOSE]] 			output:write(tostring(self.labels[current]))
+--[[VERBOSE]] 			output:write(tostring(labels[current]))
 --[[VERBOSE]] 			output:write("(")
 --[[VERBOSE]] 			output:write(time)
 --[[VERBOSE]] 			output:write(")")
@@ -333,13 +403,13 @@ end
 --output:write(newline,
 --	"ThreadSets: ",
 --	scheduler.threads:__tostring(function(thread)
---		return tostring(self.labels[thread])
+--		return tostring(labels[thread])
 --	end))
 --
 --[[VERBOSE]] 	end
 --[[VERBOSE]] end
 --[[VERBOSE]] verbose.custom.copcall = verbose.custom.threads
 --[[VERBOSE]] 
---[[DEBUG]] verbose.I = Inspector{ viewer = viewer }
+--[[DEBUG]] verbose.I = Inspector{ viewer = verbose.viewer }
 --[[DEBUG]] function verbose.inspect:debug() self.I:stop(4) end
 --[[DEBUG]] verbose:flag("debug", true)
