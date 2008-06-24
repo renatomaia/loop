@@ -26,7 +26,6 @@ local LAST = newproxy()
 
 module(..., oo.class)
 
-empty    = CyclicSets.empty
 contains = CyclicSets.contains
 
 function __init(self, object)
