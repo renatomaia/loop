@@ -24,16 +24,16 @@ end
 
 map = SortedMap{ nodepool = nodepool }
 
-assert(map:put(12, "12") == nil)
-assert(map:put(6 , "6")  == nil)
-assert(map:put(3 , "3")  == nil)
-assert(map:put(26, "26") == "12")
-assert(map:put(25, "25") == "12")
-assert(map:put(19, "19") == "12")
-assert(map:put(7 , "7")  == "6")
-assert(map:put(21, "21") == "19")
-assert(map:put(17, "17") == "12")
-assert(map:put(9 , "9")  == "7")
+assert(map:put(12, "12") == "12")
+assert(map:put(6 , "6" ) == "6" )
+assert(map:put(3 , "3" ) == "3" )
+assert(map:put(26, "26") == "26")
+assert(map:put(25, "25") == "25")
+assert(map:put(19, "19") == "19")
+assert(map:put(7 , "7" ) == "7" )
+assert(map:put(21, "21") == "21")
+assert(map:put(17, "17") == "17")
+assert(map:put(9 , "9" ) == "9" )
 
 assert(map:get(12) == "12")
 assert(map:get(6 ) == "6")
@@ -48,11 +48,11 @@ assert(map:get(9 ) == "9")
 
 print "items added and consulted"; map:debug()
 
-map:crop(0, true)
+map:cropuntil(0, true)
 
 print "cropped upto 0 and iterated"; map:debug()
 
-map:crop(14, true)
+map:cropuntil(14, true)
 
 print(map)
 for key, value in map:pairs() do
@@ -67,7 +67,7 @@ map:remove(3)
 
 print "removed >12, 6, 3"; map:debug()
 
-map:crop(100000, true)
+map:cropuntil(100000, true)
 
 print "cropped upto 100000"; map:debug()
 
@@ -77,7 +77,7 @@ end
 
 print "1000 items added"; map:debug()
 
-map:crop(90, true)
+map:cropuntil(90, true)
 
 print "cropped upto 90"; map:debug()
 

@@ -54,6 +54,10 @@ function newlevel(self)
 	return level
 end
 
+function nextto(self, node)
+	return node[1]
+end
+
 function findnode(self, key, path)
 	local prev, node = self
 	for level = #self, 1, -1 do
@@ -65,6 +69,47 @@ function findnode(self, key, path)
 	end
 	return node, prev
 end
+
+function addto(self, node, path)
+	local newlevel = self:newlevel()
+	if newlevel > #self then
+		for level = #self+1, newlevel do
+			path[level] = self
+		end
+	end
+	while #path > newlevel do path[#path] = nil end
+	for level = newlevel, 1, -1 do
+		prev = path[level]
+		node[level] = prev[level]
+		prev[level] = node
+	end
+end
+
+function removefrom(self, node, path)
+	for level = 1, #self do
+		local prev = path[level]
+		if prev[level] ~= node then break end
+		prev[level] = node[level]
+	end
+end
+
+function popnode(self)
+	local node = self[1]
+	for level = 1, #self do
+		if self[level] ~= node then break end
+		self[level] = node[level]
+	end
+	return node
+end
+
+function cropto(self, path)
+	if path[1] ~= self then
+		for level = 1, #self do
+			self[level] = path[level][level]
+		end
+		return true
+	end
+end
 --------------------------------------------------------------------------------
 function empty(self)
 	return (self[1] ~= nil)
@@ -73,6 +118,16 @@ end
 function head(self)
 	local node = self[1]
 	if node then return node.value, node.key end
+end
+
+function next(self, key, orGreater)
+	local node = self:findnode(key)
+	if node and (orGreater or node.key == key) then
+		node = self:nextto(node)
+		if node then
+			return node.value, node.key
+		end
+	end
 end
 
 local function iterator(holder)
@@ -94,67 +149,47 @@ function get(self, key, orGreater)
 end
 
 function put(self, key, value, onlyAdd, orGreater)
-	local prev
-	local path = self:getnode() or {}
-	local node = self:findnode(key, path)
-	if node and (orGreater or node.key == key) then
-		prev = path[1]
-		self:freenode(path)
-		if not onlyAdd then node.value = value end
-	else
-		local newlevel = self:newlevel()
-		if newlevel > #self then
-			for level = #self+1, newlevel do
-				path[level] = self
-			end
+	local node = self:getnode() or {}
+	local found = self:findnode(key, node)
+	if found and (orGreater or found.key == key) then
+		self:freenode(node)
+		if not onlyAdd then
+			found.value = value
+			return value, found.key
 		end
-		while #path > newlevel do path[#path] = nil end
-		node = path
+	else
 		node.key = key
 		node.value = value
-		for level = newlevel, 1, -1 do
-			prev = path[level]
-			node[level] = prev[level]
-			prev[level] = node
-		end
+		self:addto(node, node)
+		return value, key
 	end
-	return prev.value, prev.key
 end
 
 function remove(self, key, orGreater)
 	local path = {}
 	local node = self:findnode(key, path)
 	if node and (orGreater or node.key == key) then
-		for level = 1, #self do
-			local prev = path[level]
-			if prev[level] ~= node then break end
-			prev[level] = node[level]
-		end
+		self:removefrom(node, path)
 		self:freenode(node)
 		return node.value, node.key
 	end
 end
 
 function pop(self)
-	local node = self[1]
-	for level = 1, #self do
-		if self[level] ~= node then break end
-		self[level] = node[level]
+	local node = self:popnode()
+	if node then
+		self:freenode(node)
+		return node.value, node.key
 	end
-	self:freenode(node)
-	return node.value, node.key
 end
 
-function crop(self, key, orGreater)
+function cropuntil(self, key, orGreater)
 	local path = {}
 	local node = self:findnode(key, path)
 	if orGreater or (node and node.key == key) then
-		if path[1] ~= self then
-			local start = self[1]
-			for level = 1, #self do
-				self[level] = path[level][level]
-			end
-			self:freenode(start, path[1])
+		local first = self[1]
+		if self:cropto(path) then
+			self:freenode(first, path[1])
 		end
 		if node then
 			return node.value, node.key
@@ -162,7 +197,6 @@ function crop(self, key, orGreater)
 	end
 end
 --------------------------------------------------------------------------------
-
 function __tostring(self, tostring, concat)
 	tostring = tostring or global.tostring
 	concat = concat or global.table.concat
