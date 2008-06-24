@@ -30,11 +30,11 @@ function __init(self, object)
 	return self
 end
 
--- []:precessor(item)                : nil --> []
--- [ ... ]:precessor(item)           : nil --> [ ... ]
--- [ item ]:precessor(item)          : item --> [ item ]
--- [ pred, item... ]:precessor(item) : pred --> [ pred, item... ]
-function precessor(self, item)
+-- []:predecessor(item)               : nil --> []
+-- [ ? ]:predecessor(item)            : nil --> [ ? ]
+-- [ item ]:predecessor(item)         : item --> [ item ]
+-- [ pred, item ? ]:predecessor(item) : pred --> [ pred, item ? ]
+function predecessor(self, item)
 	return self.back[item]
 end
 
@@ -88,7 +88,7 @@ function movetofrom(self, newplace, oldplace, lastitem)
 		if lastitem == nil then lastitem = theitem end
 		local oldsucc = next[lastitem]
 		local newsucc
-		if newplace == nil then
+		if newplace == nil or newplace == theitem then
 			newplace, newsucc = lastitem, theitem
 		else
 			newsucc = next[newplace]
