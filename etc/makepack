@@ -1,0 +1,27 @@
+#!/bin/sh
+
+SVNBASE=https://subversion.tecgraf.puc-rio.br/engsoftware/
+VERSION=2.3
+RELEASE=beta
+PACKAGE=loop-$VERSION-$RELEASE
+
+if [ ! -d $PACKAGE ]; then mkdir $PACKAGE; fi
+
+svn export --force $SVNBASE/loop/trunk $PACKAGE
+
+cd $PACKAGE
+# build docs and remove unecessary files
+cd docs; lua build.lua sitemap.lua .; cd ..
+rm -f docs/docs_ClassTemplateDoc.html
+rm -f docs/build.lua
+rm -f docs/sitemap.lua
+# remove this script
+rm -f etc/makepack
+# remove test suite
+rm -fR test
+# remote LOOP classes that are still draft
+rm -fR lua/loop/test
+cd ..
+
+tar -czvf $PACKAGE.tar.gz $PACKAGE/
+rm -fR $PACKAGE/

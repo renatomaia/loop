@@ -1,0 +1,86 @@
+<p>Class of objects that store a set of values with associated weight values so that these values are arranged in the descending order of weight.
+The values are stored like in the <a href="OrderedSet.html"><code>OrderedSet</code></a> class, but the values are sorted in descending order of weight.
+This class is useful for implementing priority queues with no repeated values and which priorities are comparable values like numbers or strings.</p>
+
+<p>Each instance holds an additional table containing the priority of each value inserted in the queue that are used to keep the values properly sorted.</p>
+
+<h2>Behavior</h2>
+
+<h3>Methods</h3>
+
+<dl>
+
+	<dt><code><b>contains</b>(value)</code></dt>
+	<dd>
+		Return true if a <code>value</code> is inserted in the queue or false otherwise.
+	</dd>
+	
+	<dt><code><b>dequeue</b>()</code></dt>
+	<dd>
+		Removes the first value of the queue and then returns it.
+		If the queue is empty this function has no effect.
+	</dd>
+	
+	<dt><code><b>empty</b>()</code></dt>
+	<dd>
+		Return true if there is no value inserted in the queue or false otherwise.
+	</dd>
+	
+	<dt><code><b>enqueue</b>(value, priority)</code></dt>
+	<dd>
+		Adds <code>value</code> to the queue just before the value with priority larger than <code>priority</code>.
+		<code>value</code> is returned if successfully added.
+		If <code>value</code> is already inserted then the call has no effect and no value is returned.
+	</dd>
+	
+	<dt><code><b>head</b>()</code></dt>
+	<dd>
+		Returns the value at the start of the queue.
+	</dd>
+
+	<dt><code><b>remove</b>(value [, start])</code></dt>
+	<dd>
+		Searches for <code>value</code> and removes it from the queue starting the search after the value of <code>start</code>.
+		If <code>start</code> is not provided the search is done through the entire set.
+		The removed value and its priority are returned or no value is returned if <code>value</code> is not found.
+	</dd>
+	
+	<dt><code><b>priority</b>(value)</code></dt>
+	<dd>
+		Returns the priority associated to the value <code>value</code> inserted in the queue.
+	</dd>
+	
+	<dt><code><b>tail</b>()</code></dt>
+	<dd>
+		Returns the value at the end of the queue.
+	</dd>
+	
+</dl>
+
+<h2>Remarks</h2>
+
+<ul>
+	<li>
+		Instances cannot store the name of class members as strings.
+		To do so, use the class operations over an empty table like in the following example:
+		<pre>
+PriorityQueue = require "loop.collection.PriorityQueue"
+queue = {}
+PriorityQueue.enqueue(queue, "first", 1)
+PriorityQueue.enqueue(queue, "enqueue", 2)
+PriorityQueue.enqueue(queue, "head", 3)
+for word in PriorityQueue.sequence(queue) do
+  io.write(word, " ")
+end
+		</pre>
+	</li>
+</ul>
+<!--
+<h2>Examples</h2>
+
+<h3>$ExampleName</h3>
+
+<pre>
+- - example missing
+</pre>
+-->
