@@ -80,6 +80,9 @@ local function escapepattern(pattern)
 	return pattern:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
 end
 
+local filesep  = escapepattern(FILE_SEP)
+local funcsep  = escapepattern(FUNC_SEP)
+
 local function adjustpath(path)
 	if path ~= "" and not path:find(filesep.."$") then
 		return path..FILE_SEP
@@ -87,8 +90,6 @@ local function adjustpath(path)
 	return path
 end
 
-local filesep  = escapepattern(FILE_SEP)
-local funcsep  = escapepattern(FUNC_SEP)
 local filepath = adjustpath(directory)..output
 
 if funcname == "" then funcname = "luapreload_"..output end

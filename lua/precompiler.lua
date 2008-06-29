@@ -89,6 +89,10 @@ local function escapepattern(pattern)
 	return pattern:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
 end
 
+local filesep  = escapepattern(FILE_SEP)
+local pathsep  = escapepattern(PATH_SEP)
+local pathmark = escapepattern(PATH_MARK)
+
 local function adjustpath(path)
 	if path ~= "" and not path:find(filesep.."$") then
 		return path..FILE_SEP
@@ -96,9 +100,6 @@ local function adjustpath(path)
 	return path
 end
 
-local filesep  = escapepattern(FILE_SEP)
-local pathsep  = escapepattern(PATH_SEP)
-local pathmark = escapepattern(PATH_MARK)
 local filepath = adjustpath(directory)..output
 
 --------------------------------------------------------------------------------
