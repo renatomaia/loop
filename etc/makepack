@@ -16,7 +16,7 @@ rm -f docs/docs_ClassTemplateDoc.html
 rm -f docs/build.lua
 rm -f docs/sitemap.lua
 # remove this script
-rm -f etc/makepack
+rm -fR etc
 # remove test suite
 rm -fR test
 # remote LOOP classes that are still draft
