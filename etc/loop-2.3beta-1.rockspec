@@ -1,7 +1,7 @@
 package = "LOOP"
 version = "2.3beta-1"
 source = {
-	url = "http://luaforge.net/frs/download.php/????/loop-2.3-beta.tar.gz",
+	url = "http://luaforge.net/frs/download.php/3525/loop-2.3-beta.tar.gz",
 }
 description = {
 	summary = "Class Models for The Lua Language",
