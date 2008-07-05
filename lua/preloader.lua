@@ -1,4 +1,4 @@
-#!/usr/local/bin/lua
+#!/usr/bin/env lua
 --------------------------------------------------------------------------------
 -- @script  Lua Module Pre-Loader
 -- @version 1.1
@@ -39,7 +39,7 @@ local start, errmsg = _M(...)
 if not start or help then
 	if errmsg then io.stderr:write("ERROR: ", errmsg, "\n") end
 	io.stderr:write([[
-Lua Module Pre-Loader 1.1  Copyright (C) 2006-2007 Tecgraf, PUC-Rio
+Lua Module Pre-Loader 1.1  Copyright (C) 2006-2008 Tecgraf, PUC-Rio
 Usage: ]],_NAME,[[.lua [options] [inputs]
   
   [inputs] is a sequence of names that may be header file paths or package

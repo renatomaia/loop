@@ -1,4 +1,4 @@
-#!/usr/local/bin/lua
+#!/usr/bin/env lua
 --------------------------------------------------------------------------------
 -- @script  Lua Script Pre-Compiler
 -- @version 1.1
@@ -42,7 +42,7 @@ local start, errmsg = _M(...)
 if not start or help then
 	if errmsg then io.stderr:write("ERROR: ", errmsg, "\n") end
 	io.stderr:write([[
-Lua Script Pre-Compiler 1.1  Copyright (C) 2006-2007 Tecgraf, PUC-Rio
+Lua Script Pre-Compiler 1.1  Copyright (C) 2006-2008 Tecgraf, PUC-Rio
 Usage: ]],_NAME,[[.lua [options] [inputs]
   
   [inputs] is a sequence of names that may be file paths or package names, use
