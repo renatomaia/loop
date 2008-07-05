@@ -24,4 +24,5 @@ rm -fR lua/loop/test
 cd ..
 
 tar -czvf $PACKAGE.tar.gz $PACKAGE/
+zip -r $PACKAGE.zip $PACKAGE/
 rm -fR $PACKAGE/
