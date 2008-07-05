@@ -276,7 +276,7 @@ This package makes no assumption about the component's implementation objects, t
 This is because the template provided by this package creates additional objects to represent the component's external interface, which is provided to clients to access the component ports, and also the context object, which is the component's internal interface.
 The figure bellow illustrates the schema of components created with templates of package <code>loop.component.contained</code>.</p>
 
-<img src="docs_Contained.jpg">
+<div align="center"><img src="contained.jpg"></div>
 
 <p>Alternatively, LOOP also provides other component packages that provide templates that avoid creation of additional objects for each component like <code>loop.component.wrapped</code> that creates only one additional object to represent the component external interface, but uses the component's implementation itself as the context object and therefore stores all ports values (facet implementation and receptacle connections) and the factory in the component's implementation object.
 This results that the component's implementation object can access all ports using the <code>self</code> parameter and avoid an additional table index to get the context object.
