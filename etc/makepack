@@ -11,10 +11,10 @@ svn export --force $SVNBASE/loop/trunk $PACKAGE
 
 cd $PACKAGE
 # build docs and remove unecessary files
-cd docs; lua build.lua sitemap.lua .; cd ..
-rm -f docs/docs_ClassTemplateDoc.html
-rm -f docs/build.lua
-rm -f docs/sitemap.lua
+cd doc; lua build.lua sitemap.lua .; cd ..
+rm -f doc/docs_ClassTemplateDoc.html
+rm -f doc/build.lua
+rm -f doc/sitemap.lua
 # remove this script
 rm -fR etc
 # remove test suite
