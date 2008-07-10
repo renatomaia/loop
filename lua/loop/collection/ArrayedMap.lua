@@ -9,34 +9,81 @@
 --------------------------------------------------------------------------------
 -- Project: LOOP Class Library                                                --
 -- Release: 2.3 beta                                                          --
--- Title  : Array Optimized for Insertion/Removal that Doesn't Garantee Order --
+-- Title  : Map of Objects that Keeps an Array of Key Values                  --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 --------------------------------------------------------------------------------
 
-local global = _G -- only if available
+local global = require "_G"
+local table  = require "table"
 local oo     = require "loop.base"
+
+local rawget = global.rawget
+local insert = table.insert
 
 module(..., oo.class)
 
-function add(self, value)
-	self[#self + 1] = value
+keyat = rawget
+
+function value(self, key, value)
+	local map = self.map or self
+	if value == nil
+		then return map[key]
+		else map[key] = value
+	end
 end
 
-function remove(self, index)
-	local size = #self
-	if index == size then
+function add(self, key, value)
+	local map = self.map or self
+	self[#self + 1] = key
+	map[key] = value
+end
+
+function addat(self, index, key, value)
+	local map = self.map or self
+	insert(self, index, key)
+	map[key] = value
+end
+
+function remove(self, key)
+	for i = 1, #self do
+		if self[i] == key then
+			return removeat(self, i)
+		end
+	end
+end
+
+function removeat(self, index)
+	local map = self.map or self
+	local key = self[index]
+	if key ~= nil then
+		local size = #self
+		if index ~= size then
+			self[index] = self[size]
+		end
 		self[size] = nil
-	elseif (index > 0) and (index < size) then
-		self[index], self[size] = self[size], nil
+		map[key] = nil
+		return key
+	end
+end
+
+function valueat(self, index, value)
+	local map = self.map or self
+	if value == nil
+		then return map[ self[index] ]
+		else map[ self[index] ] = value
 	end
 end
 
 function __tostring(self, tostring, concat)
+	local map = self.map or self
 	tostring = tostring or global.tostring
 	concat = concat or global.table.concat
 	local result = { "{ " }
-	for _, value in global.ipairs(self) do
-		result[#result+1] = tostring(value)
+	for _, key in global.ipairs(self) do
+		result[#result+1] = "["
+		result[#result+1] = tostring(key)
+		result[#result+1] = "]="
+		result[#result+1] = tostring(map[key])
 		result[#result+1] = ", "
 	end
 	local last = #result

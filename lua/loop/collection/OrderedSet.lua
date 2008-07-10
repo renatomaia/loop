@@ -12,153 +12,134 @@
 -- Title  : Ordered Set Optimized for Insertions and Removals                 --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 --------------------------------------------------------------------------------
--- Notes:                                                                     --
---   Storage of strings equal to the name of one method prevents its usage.   --
---------------------------------------------------------------------------------
 
-local oo = require "loop.base"
+local oo         = require "loop.base"
+local CyclicSets = require "loop.collection.CyclicSets"
 
---------------------------------------------------------------------------------
--- key constants ---------------------------------------------------------------
---------------------------------------------------------------------------------
+local rawnew   = oo.rawnew
+local addto    = CyclicSets.addto
+local getsucc  = CyclicSets.successor
+local removeat = CyclicSets.removefrom
 
-local FIRST = newproxy()
+local INIT = newproxy()
 local LAST = newproxy()
 
-module("loop.collection.OrderedSet", oo.class)
+module(..., oo.class)
 
---------------------------------------------------------------------------------
--- basic functionality ---------------------------------------------------------
---------------------------------------------------------------------------------
+contains = CyclicSets.contains
 
-local function iterator(self, previous)
-	return self[previous], previous
-end
-
-function sequence(self)
-	return iterator, self, FIRST
-end
-
-function contains(self, element)
-	return element ~= nil and (self[element] ~= nil or element == self[LAST])
-end
-
-function first(self)
-	return self[FIRST]
-end
-
-function last(self)
-	return self[LAST]
+function __init(self, object)
+	self = rawnew(self, object)
+	addto(self, nil, INIT)
+	self[LAST] = INIT
+	return self
 end
 
 function empty(self)
-	return self[FIRST] == nil
+	local next = self.next or self
+	return next[INIT] == INIT
 end
 
-function insert(self, element, previous)
-	if element ~= nil and not contains(self, element) then
-		if previous == nil then
-			previous = self[LAST]
-			if previous == nil then
-				previous = FIRST
-			end
-		elseif not contains(self, previous) and previous ~= FIRST then
-			return
-		end
-		if self[previous] == nil
-			then self[LAST] = element
-			else self[element] = self[previous]
-		end
-		self[previous] = element
-		return element
+function first(self)
+	local next = self.next or self
+	local item = next[INIT]
+	if item ~= INIT then return item end
+end
+
+function last(self)
+	local next = self.next or self
+	local item = next[LAST]
+	if item ~= INIT then return item end
+end
+
+function successor(self, item)
+	item = getsucc(self, item)
+	if item ~= INIT then return item end
+end
+
+local function iterator(next, prev)
+	local item = next[prev]
+	if item ~= INIT then return item, prev end
+end
+function sequence(self, from)
+	if from == nil then from = INIT end
+	return iterator, (self.next or self), from
+end
+
+function insert(self, item, place)
+	local next = self.next or self
+	local last = next[LAST]
+	if place == nil then place = last end
+	if self:contains(place) and addto(self, place, item) == item then
+		if place == last then next[LAST] = item end
+		return item
 	end
 end
 
-function previous(self, element, start)
-	if contains(self, element) then
-		local previous = (start == nil and FIRST or start)
-		repeat
-			if self[previous] == element then
-				return previous
-			end
-			previous = self[previous]
-		until previous == nil
+function removefrom(self, place)
+	local next = self.next or self
+	local last = next[LAST]
+	if place ~= last then
+		local item = removeat(self, place)
+		if item ~= nil then
+			if item == last then next[LAST] = place end
+			return item
+		end
 	end
 end
 
-function remove(self, element, start)
-	local prev = previous(self, element, start)
-	if prev ~= nil then
-		self[prev] = self[element]
-		if self[LAST] == element
-			then self[LAST] = prev
-			else self[element] = nil
+function previous(self, item, from)
+	if self:contains(item) then
+		for found, previous in self:sequence(from) do
+			if found == item then return previous end
 		end
-		return element, prev
 	end
 end
 
-function replace(self, old, new, start)
-	local prev = previous(self, old, start)
-	if prev ~= nil and new ~= nil and not contains(self, new) then
-		self[prev] = new
-		self[new] = self[old]
-		if old == self[LAST]
-			then self[LAST] = new
-			else self[old] = nil
-		end
-		return old, prev
-	end
+function remove(self, item, ...)
+	return self:removefrom(self:previous(item, ...))
 end
 
-function pushfront(self, element)
-	if element ~= nil and not contains(self, element) then
-		if self[FIRST] ~= nil
-			then self[element] = self[FIRST]
-			else self[LAST] = element
-		end
-		self[FIRST] = element
-		return element
-	end
+function pushfront(self, item)
+	return self:insert(item, INIT)
 end
 
 function popfront(self)
-	local element = self[FIRST]
-	self[FIRST] = self[element]
-	if self[FIRST] ~= nil
-		then self[element] = nil
-		else self[LAST] = nil
-	end
-	return element
+	return self:removefrom(INIT)
 end
 
-function pushback(self, element)
-	if element ~= nil and not contains(self, element) then
-		if self[LAST] ~= nil
-			then self[ self[LAST] ] = element
-			else self[FIRST] = element
-		end
-		self[LAST] = element
-		return element
-	end
-end
+pushback = insert
 
 --------------------------------------------------------------------------------
--- function aliases ------------------------------------------------------------
---------------------------------------------------------------------------------
 
--- set operations
+-- set aliases
 add = pushback
 
--- stack operations
+-- stack aliases
 push = pushfront
 pop = popfront
 top = first
 
--- queue operations
+-- queue aliases
 enqueue = pushback
 dequeue = popfront
 head = first
 tail = last
 
-firstkey = FIRST
+firstkey = INIT
+
+--------------------------------------------------------------------------------
+
+function __tostring(self, tostring, concat)
+	local next = self.next or self
+	tostring = tostring or global.tostring
+	concat = concat or global.table.concat
+	local result = { "[ " }
+	for item in self:sequence() do
+		result[#result+1] = tostring(item)
+		result[#result+1] = ", "
+	end
+	local last = #result
+	result[last] = (last == 1) and "[]" or " ]"
+	return concat(result)
+end

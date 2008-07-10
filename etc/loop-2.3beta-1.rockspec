@@ -1,7 +1,7 @@
 package = "LOOP"
 version = "2.3beta-1"
 source = {
-	url = "http://luaforge.net/frs/download.php/3525/loop-2.3-beta.tar.gz",
+	url = "http://luaforge.net/frs/download.php/????/loop-2.3-beta.tar.gz",
 }
 description = {
 	summary = "Class Models for The Lua Language",
@@ -55,6 +55,10 @@ build = {
 			["loop.serial.StringStream"] = "lua/loop/serial/StringStream.lua",
 			["loop.simple"] = "lua/loop/simple.lua",
 			["loop.table"] = "lua/loop/table.lua",
+			["loop.test.Fixture"] = "lua/loop/test/Fixture.lua",
+			["loop.test.Reporter"] = "lua/loop/test/Reporter.lua",
+			["loop.test.Results"] = "lua/loop/test/Results.lua",
+			["loop.test.Suite"] = "lua/loop/test/Suite.lua",
 			["loop.thread.CoSocket"] = "lua/loop/thread/CoSocket.lua",
 			["loop.thread.IOScheduler"] = "lua/loop/thread/IOScheduler.lua",
 			["loop.thread.Scheduler"] = "lua/loop/thread/Scheduler.lua",

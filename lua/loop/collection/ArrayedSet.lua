@@ -9,26 +9,57 @@
 --------------------------------------------------------------------------------
 -- Project: LOOP Class Library                                                --
 -- Release: 2.3 beta                                                          --
--- Title  : Array Optimized for Insertion/Removal that Doesn't Garantee Order --
+-- Title  : Unordered Array Optimized for Containment Check                   --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 --------------------------------------------------------------------------------
+-- Notes:                                                                     --
+--   Can only store non-numeric values.                                       --
+--   Storage of strings equal to the name of one method prevents its usage.   --
+--------------------------------------------------------------------------------
 
-local global = _G -- only if available
+local global = require "_G"
 local oo     = require "loop.base"
 
 module(..., oo.class)
 
-function add(self, value)
-	self[#self + 1] = value
+valueat = global.rawget
+
+function indexof(self, value)
+	local set = self.set or self
+	return set[value]
 end
 
-function remove(self, index)
-	local size = #self
-	if index == size then
-		self[size] = nil
-	elseif (index > 0) and (index < size) then
-		self[index], self[size] = self[size], nil
+function contains(self, value)
+	return indexof(self) ~= nil
+end
+
+function add(self, value)
+	local set = self.set or self
+	if set[value] == nil then
+		self[#self+1] = value
+		set[value] = #self
+		return value
 	end
+end
+
+function remove(self, value)
+	local set = self.set or self
+	local index = set[value]
+	if index ~= nil then
+		local size = #self
+		if index ~= size then
+			local last = self[size]
+			self[index] = last
+			set[last]   = index
+		end
+		self[size] = nil
+		set[value] = nil
+		return value
+	end
+end
+
+function removeat(self, index)
+	return remove(self, self[index])
 end
 
 function __tostring(self, tostring, concat)

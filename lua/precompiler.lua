@@ -1,4 +1,4 @@
-#!/usr/bin/env lua
+#!/usr/local/bin/lua
 --------------------------------------------------------------------------------
 -- @script  Lua Script Pre-Compiler
 -- @version 1.1
@@ -42,7 +42,7 @@ local start, errmsg = _M(...)
 if not start or help then
 	if errmsg then io.stderr:write("ERROR: ", errmsg, "\n") end
 	io.stderr:write([[
-Lua Script Pre-Compiler 1.1  Copyright (C) 2006-2008 Tecgraf, PUC-Rio
+Lua Script Pre-Compiler 1.1  Copyright (C) 2006-2007 Tecgraf, PUC-Rio
 Usage: ]],_NAME,[[.lua [options] [inputs]
   
   [inputs] is a sequence of names that may be file paths or package names, use
@@ -89,10 +89,6 @@ local function escapepattern(pattern)
 	return pattern:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
 end
 
-local filesep  = escapepattern(FILE_SEP)
-local pathsep  = escapepattern(PATH_SEP)
-local pathmark = escapepattern(PATH_MARK)
-
 local function adjustpath(path)
 	if path ~= "" and not path:find(filesep.."$") then
 		return path..FILE_SEP
@@ -100,6 +96,9 @@ local function adjustpath(path)
 	return path
 end
 
+local filesep  = escapepattern(FILE_SEP)
+local pathsep  = escapepattern(PATH_SEP)
+local pathmark = escapepattern(PATH_MARK)
 local filepath = adjustpath(directory)..output
 
 --------------------------------------------------------------------------------

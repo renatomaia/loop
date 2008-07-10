@@ -1,4 +1,4 @@
-#!/usr/bin/env lua
+#!/usr/local/bin/lua
 --------------------------------------------------------------------------------
 -- @script  Lua Module Pre-Loader
 -- @version 1.1
@@ -39,7 +39,7 @@ local start, errmsg = _M(...)
 if not start or help then
 	if errmsg then io.stderr:write("ERROR: ", errmsg, "\n") end
 	io.stderr:write([[
-Lua Module Pre-Loader 1.1  Copyright (C) 2006-2008 Tecgraf, PUC-Rio
+Lua Module Pre-Loader 1.1  Copyright (C) 2006-2007 Tecgraf, PUC-Rio
 Usage: ]],_NAME,[[.lua [options] [inputs]
   
   [inputs] is a sequence of names that may be header file paths or package
@@ -80,9 +80,6 @@ local function escapepattern(pattern)
 	return pattern:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
 end
 
-local filesep  = escapepattern(FILE_SEP)
-local funcsep  = escapepattern(FUNC_SEP)
-
 local function adjustpath(path)
 	if path ~= "" and not path:find(filesep.."$") then
 		return path..FILE_SEP
@@ -90,6 +87,8 @@ local function adjustpath(path)
 	return path
 end
 
+local filesep  = escapepattern(FILE_SEP)
+local funcsep  = escapepattern(FUNC_SEP)
 local filepath = adjustpath(directory)..output
 
 if funcname == "" then funcname = "luapreload_"..output end
