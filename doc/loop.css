@@ -44,8 +44,8 @@ body>#Menu {width:120px;}
 
 #Header {
 	font-weight:bold;
-	margin:30px 0px 10px 10px;
-	padding:13px 0px 0px 110px;
+	margin:30px 0px 10px 0px;
+	padding:13px 0px 0px 120px;
 	/* For IE5/Win's benefit height = [correct height] + [top padding] + [top and bottom border widths] */
 	height:33px; /* 19px + 13px + 2px = 33px */
 	border-style:solid;
