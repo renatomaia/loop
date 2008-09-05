@@ -61,7 +61,7 @@ outputdir = "website",
 	},
 },
 { index="Contact" , href="contact.html" , title="Contact People" },
-{ index="LuaForge", href="http://luaforge.net/projects/oil/", title="Project at LuaForge" },
+{ index="LuaForge", href="http://luaforge.net/projects/loop/", title="Project at LuaForge" },
 
 [==============================================================================[
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
