@@ -17,11 +17,13 @@ local global = require "_G"
 local table  = require "table"
 local oo     = require "loop.base"
 
+local ipairs = global.ipairs
 local rawget = global.rawget
 local insert = table.insert
 
 module(..., oo.class)
 
+keys = ipairs
 keyat = rawget
 
 function value(self, key, value)
@@ -42,14 +44,6 @@ function addat(self, index, key, value)
 	local map = self.map or self
 	insert(self, index, key)
 	map[key] = value
-end
-
-function remove(self, key)
-	for i = 1, #self do
-		if self[i] == key then
-			return removeat(self, i)
-		end
-	end
 end
 
 function removeat(self, index)

@@ -64,6 +64,45 @@ local function wrappedconnect(self, host, port)                                 
 	return result, errmsg
 end
 
+local function wrappedconnect(self, host, port)
+	local socket    = self.__object
+	local event     = self.readevent
+	local cosocket  = self.cosocket
+	local readlocks = cosocket.readlocks
+	local scheduler = cosocket.scheduler                                          --[[VERBOSE]] local verbose = scheduler.verbose
+	local current   = scheduler:checkcurrent()                                    --[[VERBOSE]] verbose:cosocket(true, "performing wrapped accept")
+
+	assert(socket, "bad argument #1 to `connect' (wrapped socket expected)")
+	assert(readlocks[socket] == nil, "attempt to write a socket in use")
+	
+	local success, errmsg = socket:connect()
+	
+	-- check if job has completed
+	if not success and errmsg == "timeout" and timeout ~= 0 then                  --[[VERBOSE]] verbose:cosocket(true, "waiting to connection be established")
+
+		-- subscribing current thread for writing signal
+		writing:add(socket, current)                                                --[[VERBOSE]] verbose:threads(current," subscribed for write signal")
+	
+		-- lock socket for writing and wait for signal until timeout
+		writelocks[socket] = current
+		scheduler:suspend(timeout)                                                  --[[VERBOSE]] verbose:cosocket(false, "wrapped accept resumed")
+		writelocks[socket] = nil
+
+		-- if thread is still blocked for writing then waiting timed out
+		if writing[socket] == current then
+			writing:remove(socket)                                                    --[[VERBOSE]] verbose:threads(current," unsubscribed for read signal")
+			success, errmsg = nil, "timeout"                                          --[[VERBOSE]] verbose:cosocket(false, "waiting timed out")
+		else
+			if timeout then
+				sleeping:remove(current)                                                --[[VERBOSE]] verbose:threads(current," removed from sleeping queue")
+			end                                                                       --[[VERBOSE]] verbose:cosocket(false, "returing results after waiting")
+			success, errmsg = 1, nil
+		end
+	end
+	
+	return success, errmsg
+end
+
 --------------------------------------------------------------------------------
 
 local function wrappedaccept(self)

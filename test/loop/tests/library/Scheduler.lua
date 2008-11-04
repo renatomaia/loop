@@ -1,6 +1,7 @@
 local Scheduler = require "loop.thread.Scheduler"
 
 --Scheduler.verbose:level(2)
+--Scheduler.verbose:flag("print", true)
 --Scheduler.verbose:flag("debug", false)
 
 local EventLog
@@ -10,11 +11,14 @@ local function say(name, msg)
 --print(EventLog[#EventLog])
 
 end
+local function finish(name, ...)
+	say(name, "ended")
+	return ...
+end
 local function newtask(name, func)
 	local task = coroutine.create(function(...)
 		say(name, "started");
-		(func or coroutine.yield)(name, ...)
-		say(name, "ended")
+		return finish(name, (func or coroutine.yield)(name, ...))
 	end)
 	Scheduler.verbose.viewer.labels[task] = name
 	return task
@@ -30,6 +34,11 @@ local function test(checks, Scheduler)
 	local Resumer = newtask("Resumer", function(name, msg)
 		checks:assert(msg, checks.is("from Sleeper1"))
 		Scheduler:resume(Waker, "from "..name)
+	end)
+	local Remover = newtask("Remover", function(name)
+		Scheduler:remove(Scheduler.current)
+		say(name, "removed itself")
+		coroutine.yield()
 	end)
 	local Removed = newtask("Removed")
 	local RemovedSleeper = newtask("RemovedSleeper", function(name)
@@ -77,16 +86,45 @@ local function test(checks, Scheduler)
 		say("Raiser", "failed")
 	end
 	local Catcher = newtask("Catcher", function(name)
-		pcall(Scheduler.halt, Scheduler) -- halt should fail
+		local success = pcall(Scheduler.halt, Scheduler) -- halt should fail
+		checks:assert(success, checks.is(false))
 	end)
 	local Halter = newtask("Halter", function(name)
 		Scheduler:halt()
+	end)
+	local Waiter1 = newtask("Waiter1", function(name)
+		say(name, "waiting")
+		local msg = Scheduler:wait("event")
+		checks:assert(msg, checks.is("from Notifier"))
+		return msg
+	end)
+	local Waiter2 = newtask("Waiter2", function(name)
+		say(name, "waiting")
+		local msg = Scheduler:wait("event")
+		checks:assert(msg, checks.is("from Notifier"))
+		return msg
+	end)
+	local Waiter3 = newtask("Waiter3", function(name)
+		say(name, "waiting")
+		local msg = Scheduler:wait("event")
+		checks:assert(msg, checks.is("from Notifier"))
+		return msg
+	end)
+	local Notifier = newtask("Notifier", function(name)
+		say(name, "notifing one")
+		Scheduler:notify("event", "from "..name)
+		say(name, "notifing all others")
+		return Scheduler:notifyall("event", "from "..name)
 	end)
 
 	Scheduler:register(First)
 	Scheduler:register(Sleeper1)
 	Scheduler:register(Sleeper2)
 	Scheduler:register(Sleeper3)
+	Scheduler:register(Waiter1)
+	Scheduler:register(Waiter2)
+	Scheduler:register(Waiter3)
+	Scheduler:register(Remover)
 	Scheduler:register(Removed)
 	Scheduler:register(RemovedSleeper)
 	Scheduler:register(ResumedSleeper)
@@ -96,19 +134,26 @@ local function test(checks, Scheduler)
 	Scheduler:register(Raiser)
 	Scheduler:register(Catcher)
 	Scheduler:register(Halter)
+	Scheduler:register(Notifier)
 	Scheduler:register(Last)
 	
 	EventLog = {}
 	Scheduler:run()
-
---print("-- halt --")
-
+	
 	checks:assert(Scheduler.current, checks.is(false))
 	checks:assert(EventLog, checks.similar{
 		"First started",
 		"Sleeper1 started",
 		"Sleeper2 started",
 		"Sleeper3 started",
+		"Waiter1 started",
+		"Waiter1 waiting",
+		"Waiter2 started",
+		"Waiter2 waiting",
+		"Waiter3 started",
+		"Waiter3 waiting",
+		"Remover started",
+		"Remover removed itself",
 		"Removed started",
 		"RemovedSleeper started",
 		"ResumedSleeper started",
@@ -129,12 +174,20 @@ local function test(checks, Scheduler)
 		Expected = {
 			{
 				"Halter ended",
+				"Notifier started",
+				"Notifier notifing one",
+				"Waiter3 ended",
 				"Last started",
 			},{
 				"First ended",
 				"Starter ended",
 				"Started ended",
+				"Notifier notifing all others",
+				"Waiter2 ended",
+				"Waiter1 ended",
 				"Last ended",
+			},{
+				"Notifier ended",
 				 pause=true,
 			},{
 				"Sleeper1 woke",
@@ -164,6 +217,9 @@ local function test(checks, Scheduler)
 				"Sleeper3 woke",   --
 				"Sleeper3 ended",  --
 				"Halter ended",
+				"Notifier started",
+				"Notifier notifing one",
+				"Waiter3 ended",
 				"Last started",
 			},{
 				"First ended",
@@ -171,7 +227,12 @@ local function test(checks, Scheduler)
 				"Started ended",
 				"Sleeper1 ended",
 				"Resumer ended",
+				"Notifier notifing all others",
+				"Waiter2 ended",
+				"Waiter1 ended",
 				"Last ended",
+			},{
+				"Notifier ended",
 			}
 		}
 	end

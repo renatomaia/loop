@@ -21,11 +21,7 @@ local pairs = pairs
 local rawset = rawset
 local setmetatable = setmetatable
 
-local table = require "table"
-
 module "loop.table"
-
-setmetatable(_M, { __index = table })
 
 --------------------------------------------------------------------------------
 -- Copies all elements stored in a table into another.
@@ -53,7 +49,7 @@ function copy(source, destiny)
 end
 
 --------------------------------------------------------------------------------
--- Clears all contens of a table.
+-- Clears all contents of a table.
 
 -- All pairs of key and value stored in table 'source' will be removed by
 -- setting nil to each key used to store values in table 'source'.
@@ -68,4 +64,31 @@ function clear(tab)
 		elem = next(tab)
 	end
 	return tab
+end
+
+--------------------------------------------------------------------------------
+-- Moves all contents of a table into another.
+
+-- All pairs of key and value stored in table 'source' will be moved into
+-- table 'destiny'.
+
+-- @param source Table containing elements to be copied.
+-- @param destiny [optional] Table which elements must be copied into.
+
+-- @return Table containing copied elements.
+
+-- @usage copied = loop.table.move(results)
+-- @usage loop.table.move(results, newcopy)
+
+function move(source, destiny)
+	if source then
+		if not destiny then destiny = {} end
+		local field, value = next(source)
+		while field ~= nil do
+			source[field] = nil
+			rawset(destiny, field, value)
+			field, value = next(source)
+		end
+	end
+	return destiny
 end

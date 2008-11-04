@@ -16,16 +16,19 @@
 --[[VERBOSE]] local rawget   = rawget
 --[[VERBOSE]] local tostring = tostring
 
-local ipairs             = ipairs
-local getmetatable       = getmetatable
-local math               = require "math"
-local oo                 = require "loop.simple"
-local MapWithArrayOfKeys = require "loop.collection.MapWithArrayOfKeys"
-local Scheduler          = require "loop.thread.Scheduler"
+local math       = require "math"
+local oo         = require "loop.simple"
+local ArrayedMap = require "loop.collection.ArrayedMap"
+local Scheduler  = require "loop.thread.Scheduler"
+
+local ipairs       = global.ipairs
+local getmetatable = global.getmetatable
+local max          = math.max
+local class        = oo.class
 
 module "loop.thread.IOScheduler"
 
-oo.class(_M, Scheduler)
+class(_M, Scheduler)
 
 --------------------------------------------------------------------------------
 -- Initialization Code ---------------------------------------------------------
@@ -33,8 +36,8 @@ oo.class(_M, Scheduler)
 
 function __init(class, self)
 	self = Scheduler.__init(class, self)
-	self.reading = MapWithArrayOfKeys()
-	self.writing = MapWithArrayOfKeys()
+	self.reading = ArrayedMap()
+	self.writing = ArrayedMap()
 	return self
 end
 __init(getmetatable(_M), _M)
@@ -44,7 +47,7 @@ __init(getmetatable(_M), _M)
 --------------------------------------------------------------------------------
 
 function signalall(self, timeout)                                               --[[VERBOSE]] local verbose = self.verbose
-	if timeout then timeout = math.max(timeout - self:time(), 0) end
+	if timeout then timeout = max(timeout - self:time(), 0) end
 	local reading, writing = self.reading, self.writing
 	if #reading > 0 or #writing > 0 then                                          --[[VERBOSE]] verbose:scheduler(true, "signaling blocked threads for ",timeout," seconds")
 		local running = self.running

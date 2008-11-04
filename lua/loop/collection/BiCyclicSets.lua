@@ -43,63 +43,59 @@ function backward(self, item)
 end
 
 function addto(self, place, item)
-	local next = self.next or self
-	if next[item] == nil then
+	if self[item] == nil then
 		local succ
 		if place == nil then
 			place, succ = item, item
 		else
-			succ = next[place]
+			succ = self[place]
 			if succ == nil then
 				succ = place
 			end
 		end
 		local back = self.back
-		next[item] , back[succ] = succ, item
-		next[place], back[item] = item, place
+		self[item] , back[succ] = succ, item
+		self[place], back[item] = item, place
 		return item
 	end
 end
 
 function removefrom(self, place)
-	local next = self.next or self
-	local item = next[place]
+	local item = self[place]
 	if item ~= nil then
 		local back = self.back
-		local succ = next[item]
-		next[place], back[succ] = succ, place
-		next[item] , back[item] = nil, nil
+		local succ = self[item]
+		self[place], back[succ] = succ, place
+		self[item] , back[item] = nil, nil
 		return item
 	end
 end
 
 function removeall(self, item)
-	local next = self.next or self
 	local back = self.back
 	repeat
-		item, next[item], back[item] = next[item], nil, nil
+		item, self[item], back[item] = self[item], nil, nil
 	until item == nil
 end
 
 function movetofrom(self, newplace, oldplace, lastitem)
-	local next = self.next or self
-	local theitem = next[oldplace]
+	local theitem = self[oldplace]
 	if theitem ~= nil then
 		if lastitem == nil then lastitem = theitem end
-		local oldsucc = next[lastitem]
+		local oldsucc = self[lastitem]
 		local newsucc
 		if newplace == nil or newplace == theitem then
 			newplace, newsucc = lastitem, theitem
 		else
-			newsucc = next[newplace]
+			newsucc = self[newplace]
 			if newsucc == nil then
 				newsucc = newplace
 			end
 		end
 		local back = self.back
-		next[oldplace], back[oldsucc] = oldsucc, oldplace
-		next[lastitem], back[newsucc] = newsucc, lastitem
-		next[newplace], back[theitem] = theitem, newplace
+		self[oldplace], back[oldsucc] = oldsucc, oldplace
+		self[lastitem], back[newsucc] = newsucc, lastitem
+		self[newplace], back[theitem] = theitem, newplace
 		return theitem
 	end
 end
@@ -114,7 +110,7 @@ end
 
 function disjoint(self)
 	local back
-	if self.next == nil then back, self.back = self.back, nil end
+	back, self.back = self.back, nil
 	local result = CyclicSets.disjoint(self)
 	if back then self.back = back end
 	return result
@@ -122,7 +118,7 @@ end
 
 function __tostring(self, ...)
 	local back
-	if self.next == nil then back, self.back = self.back, nil end
+	back, self.back = self.back, nil
 	local result = CyclicSets.__tostring(self, ...)
 	if back then self.back = back end
 	return result

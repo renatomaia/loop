@@ -36,19 +36,16 @@ function __init(self, object)
 end
 
 function empty(self)
-	local next = self.next or self
-	return next[INIT] == INIT
+	return self[INIT] == INIT
 end
 
 function first(self)
-	local next = self.next or self
-	local item = next[INIT]
+	local item = self[INIT]
 	if item ~= INIT then return item end
 end
 
 function last(self)
-	local next = self.next or self
-	local item = next[LAST]
+	local item = self[LAST]
 	if item ~= INIT then return item end
 end
 
@@ -63,26 +60,24 @@ local function iterator(next, prev)
 end
 function sequence(self, from)
 	if from == nil then from = INIT end
-	return iterator, (self.next or self), from
+	return iterator, self, from
 end
 
 function insert(self, item, place)
-	local next = self.next or self
-	local last = next[LAST]
+	local last = self[LAST]
 	if place == nil then place = last end
 	if self:contains(place) and addto(self, place, item) == item then
-		if place == last then next[LAST] = item end
+		if place == last then self[LAST] = item end
 		return item
 	end
 end
 
 function removefrom(self, place)
-	local next = self.next or self
-	local last = next[LAST]
+	local last = self[LAST]
 	if place ~= last then
 		local item = removeat(self, place)
 		if item ~= nil then
-			if item == last then next[LAST] = place end
+			if item == last then self[LAST] = place end
 			return item
 		end
 	end
@@ -131,7 +126,6 @@ firstkey = INIT
 --------------------------------------------------------------------------------
 
 function __tostring(self, tostring, concat)
-	local next = self.next or self
 	tostring = tostring or global.tostring
 	concat = concat or global.table.concat
 	local result = { "[ " }

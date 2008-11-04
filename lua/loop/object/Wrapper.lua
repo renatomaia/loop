@@ -19,21 +19,18 @@ local ObjectCache = require "loop.collection.ObjectCache"
 
 module("loop.object.Wrapper", oo.class)
 
-function __init(self, ...)
-	self = oo.rawnew(self, ...)
-	self.__methods = ObjectCache()
-	function self.__methods.retrieve(_, method)
-		return function(_, ...)
+local methods = ObjectCache{
+	retrieve = function(_, method)
+		return function(self, ...)
 			return method(self.__object, ...)
 		end
-	end
-	return self
-end
+	end,
+}
 
 function __index(self, key)
 	local value = self.__object[key]
 	if type(value) == "function"
-		then return self.__methods[value]
+		then return methods[value]
 		else return value
 	end
 end

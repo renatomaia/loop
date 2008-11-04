@@ -24,6 +24,7 @@ function started(self, test)
 	end
 	if self.name then self.output:write("[", self.name, "]\t") end
 	self.output:write(string.rep("  ", #self), test, " ... ")
+	self.output:flush()
 	self[#self+1] = self.time()
 end
 
@@ -52,4 +53,5 @@ function ended(self, test, success, message)
 		if self.name then self.output:write("[", self.name, "]\t") end
 		self.output:write(Summary:format(100*self.success/self.count, self.success, self.count))
 	end
+	self.output:flush()
 end

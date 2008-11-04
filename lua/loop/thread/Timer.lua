@@ -27,10 +27,10 @@ end
 
 function timer(self)
 	local scheduler = self.scheduler
+	local rate = self.rate
+	local next = scheduler:time() + rate
+	self:action()
 	if self.enabled then
-		local rate = self.rate
-		local next = scheduler:time() + rate
-		self:action()
 		local now = scheduler:time()
 		if now < next
 			then scheduler:suspend(next - now)
@@ -43,12 +43,15 @@ function timer(self)
 end
 
 function enable(self)
-	if not self.enabled then
+	if self.enabled then
 		self.enabled = true
 		return self.scheduler:register(self.thread)
 	end
 end
 
 function disable(self)
-	self.enabled = nil
+	if self.enabled then
+		self.enabled = nil
+		return self.scheduler:remove(self.thread)
+	end
 end

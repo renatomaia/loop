@@ -109,11 +109,11 @@ function __init(class, self)
 	if rawget(self, "wakeentry") == nil then self.wakeentry = WeakValues()   end
 	if rawget(self, "traps"    ) == nil then self.traps     = WeakKeys()     end
 	if rawget(self, "current"  ) == nil then self.current   = false          end
-	if rawget(self, "previous" ) == nil then self.previous  = false          end
+	if rawget(self, "scheduled") == nil then self.scheduled = false          end
 	self.threads:addto(nil, false)
 	return self
 end
-__init(getmetatable(_M), _M)
+__init(oo.classof(_M), _M)
 
 --------------------------------------------------------------------------------
 -- Internal Functions ----------------------------------------------------------
@@ -133,7 +133,7 @@ function resumeall(self, success, ...)                                          
 	local continue = (... ~= HaltKey)
 	if continue then
 		local threads = self.threads
-		local previous = self.previous
+		local scheduled = self.scheduled
 		local current = self.current
 		if current then                                                             --[[VERBOSE]] verbose:threads(false, current," yielded")
 			if status(current) == "dead" then                                         --[[VERBOSE]] verbose:threads(current," has finished")
@@ -145,16 +145,15 @@ function resumeall(self, success, ...)                                          
 				elseif not success then                                                 --[[VERBOSE]] verbose:threads("uncaptured error on ",current)
 					self:error(current, ...)
 				end
-			elseif threads:predecessor(current) == previous then
-				self.previous = current
 			end                                                                       --[[VERBOSE]] else verbose:scheduler(true, "resuming running threads")
 		end
-		current = threads:successor(self.previous)
+		current = threads:successor(self.scheduled)
 		if current then
+			self.scheduled = current
 			self.current = current                                                    --[[VERBOSE]] verbose:threads(true, "resuming ",current)
 			return self:resumeall(runthread(current, ...))
 		end
-		self.previous = false
+		self.scheduled = false
 		continue = threads[false] or nil
 	end                                                                           --[[VERBOSE]] verbose:scheduler(false, "running threads resumed")
 	self.current = false
@@ -169,7 +168,7 @@ function wakeupall(self)                                                        
 		if first ~= remains then
 			local threads = self.threads
 			local last = threads:predecessor(remains or first)
-			threads:moveto(self.previous, first, last)                                --[[VERBOSE]] verbose:threads("some sleeping threads woke up")
+			threads:moveto(self.scheduled, first, last)                                --[[VERBOSE]] verbose:threads("some sleeping threads woke up")
 		end                                                                         --[[VERBOSE]] verbose:scheduler(false, "all sleeping threads waken, none left")
 		return time
 	end
@@ -256,8 +255,8 @@ end
 
 function remove(self, thread)                                                   --[[VERBOSE]] local verbose = self.verbose; verbose:threads("removing ",thread)
 	local threads = self.threads
-	if thread == self.previous then
-		self.previous = threads:predecessor(thread)
+	if thread == self.scheduled then
+		self.scheduled = threads:predecessor(thread)
 	end
 	self:cancelwake(thread)
 	return threads:remove(thread)
@@ -265,8 +264,12 @@ end
 
 function suspend(self, time, ...)                                               --[[VERBOSE]] local verbose = self.verbose
 	local current = self:checkcurrent()
+	local threads = self.threads
+	if current == self.scheduled then
+		self.scheduled = threads:predecessor(current)
+	end
 	if time == nil then
-		self.threads:remove(current)                                                --[[VERBOSE]] verbose:threads(current," suspended")
+		threads:remove(current)                                                     --[[VERBOSE]] verbose:threads(current," suspended")
 	elseif time > 0 then
 		local wakeindex = self.wakeindex
 		time = self:time() + time
@@ -279,32 +282,77 @@ function suspend(self, time, ...)                                               
 			wakeindex:addto(entry, entry)
 			self.wakeentry[current] = entry
 		end
-		self.threads:moveto(previous, current)                                      --[[VERBOSE]] verbose:threads(current," waiting until instant ",time)
+		threads:moveto(previous, current)                                           --[[VERBOSE]] verbose:threads(current," waiting until instant ",time)
 	end
 	return yield(...)
 end
 
 function resume(self, thread, ...)                                              --[[VERBOSE]] local verbose = self.verbose
-	local current = self:checkcurrent()
+	self:checkcurrent()
 	local threads = self.threads
-	local place = threads:predecessor(thread)
-	if place == nil then
-		threads:addto(current, thread)                                              --[[VERBOSE]] verbose:threads("resuming unregistered ",thread)
+	local scheduled = self.scheduled
+	if thread == scheduled then
+		self.scheduled = threads:predecessor(scheduled)
 	else
-		self:cancelwake(thread)
-		threads:movetofrom(current, place)                                          --[[VERBOSE]] verbose:threads("resuming registered ",thread)
+		local place = threads:predecessor(thread)
+		if place == nil then
+			threads:addto(scheduled, thread)                                          --[[VERBOSE]] verbose:threads("resuming unregistered ",thread)
+		else
+			self:cancelwake(thread)
+			threads:movetofrom(scheduled, place)                                      --[[VERBOSE]] verbose:threads("resuming registered ",thread)
+		end
 	end
 	return yield(...)
 end
 
 function start(self, func, ...)                                                 --[[VERBOSE]] local verbose = self.verbose
-	self.threads:addto(self:checkcurrent(), newthread(func))                      --[[VERBOSE]] verbose:threads("starting ",self.threads:successor(self.current))
+	self:checkcurrent()
+	self.threads:addto(self.scheduled, newthread(func))                           --[[VERBOSE]] verbose:threads("starting ",self.threads:successor(self.current))
 	return yield(...)
 end
 
 function halt(self)
-	self:checkcurrent()
+	local current = self:checkcurrent()
+	local scheduled = self.scheduled
+	if current == scheduled then
+		self.scheduled = self.threads:predecessor(scheduled)
+	end
 	return yield(HaltKey)
+end
+
+function wait(self, signal, ...)                                                --[[VERBOSE]] local verbose = self.verbose
+	local current = self:checkcurrent()
+	local threads = self.threads
+	if current == self.scheduled then
+		local previous = threads:predecessor(current)
+		self.scheduled = previous
+		threads:movetofrom(signal, previous)
+	else
+		threads:addto(signal, current)
+	end
+	return yield(...)
+end
+
+function notifyall(self, signal, ...)                                           --[[VERBOSE]] local verbose = self.verbose
+	self:checkcurrent()
+	local threads = self.threads
+	threads:movetofrom(self.scheduled, signal, threads:predecessor(signal))
+	threads:removefrom(signal)
+	return yield(...)
+end
+
+function notify(self, signal, ...)                                              --[[VERBOSE]] local verbose = self.verbose
+	self:checkcurrent()
+	local threads = self.threads
+	threads:movetofrom(self.scheduled, signal)
+	if threads:successor(signal) == signal then
+		threads:removefrom(signal)
+	end
+	return yield(...)
+end
+
+function cancel(self, signal)                                                   --[[VERBOSE]] local verbose = self.verbose
+	return self.threads:removeall(signal)
 end
 
 --------------------------------------------------------------------------------
@@ -376,29 +424,42 @@ end
 --[[VERBOSE]] 	
 --[[VERBOSE]] 	local scheduler = rawget(self, "schedulerdetails")
 --[[VERBOSE]] 	if scheduler then
---[[VERBOSE]] 		local newline = "\n"..viewer.prefix..viewer.indentation
---[[VERBOSE]] 	
---[[VERBOSE]] 		output:write(newline)
---[[VERBOSE]] 		output:write("Current: ")
---[[VERBOSE]] 		output:write(tostring(labels[scheduler.current]))
---[[VERBOSE]] 	
---[[VERBOSE]] 		output:write(newline)
---[[VERBOSE]] 		output:write("Running:")
+--[[VERBOSE]] 		output:write(" {")
+--[[VERBOSE]] 		local sep = "  "
 --[[VERBOSE]] 		for current in scheduler.threads:forward(false) do
 --[[VERBOSE]] 			if not current then break end
---[[VERBOSE]] 			output:write(" ")
+--[[VERBOSE]] 			if current == scheduler.current then sep = " [" end
+--[[VERBOSE]] 			output:write(sep)
 --[[VERBOSE]] 			output:write(tostring(labels[current]))
+--[[VERBOSE]] 			if     sep == " [" then sep = "] "
+--[[VERBOSE]] 			elseif sep == "] " then sep = "  " end
 --[[VERBOSE]] 		end
---[[VERBOSE]] 	
---[[VERBOSE]] 		output:write(newline)
---[[VERBOSE]] 		output:write("Sleeping:")
---[[VERBOSE]] 		for time, current in scheduler.wakeindex:pairs() do
---[[VERBOSE]] 			output:write(" ")
---[[VERBOSE]] 			output:write(tostring(labels[current]))
---[[VERBOSE]] 			output:write("(")
---[[VERBOSE]] 			output:write(time)
---[[VERBOSE]] 			output:write(")")
---[[VERBOSE]] 		end
+--[[VERBOSE]] 		output:write(sep, "}")
+--[[VERBOSE]] 		
+--[[VERBOSE]] 		
+-- [[VERBOSE]] 		local newline = "\n"..viewer.prefix..viewer.indentation
+-- [[VERBOSE]] 	
+-- [[VERBOSE]] 		output:write(newline)
+-- [[VERBOSE]] 		output:write("Current: ")
+-- [[VERBOSE]] 		output:write(tostring(labels[scheduler.current]))
+-- [[VERBOSE]] 	
+-- [[VERBOSE]] 		output:write(newline)
+-- [[VERBOSE]] 		output:write("Running:")
+-- [[VERBOSE]] 		for current in scheduler.threads:forward(false) do
+-- [[VERBOSE]] 			if not current then break end
+-- [[VERBOSE]] 			output:write(" ")
+-- [[VERBOSE]] 			output:write(tostring(labels[current]))
+-- [[VERBOSE]] 		end
+-- [[VERBOSE]] 	
+-- [[VERBOSE]] 		output:write(newline)
+-- [[VERBOSE]] 		output:write("Sleeping:")
+-- [[VERBOSE]] 		for time, current in scheduler.wakeindex:pairs() do
+-- [[VERBOSE]] 			output:write(" ")
+-- [[VERBOSE]] 			output:write(tostring(labels[current]))
+-- [[VERBOSE]] 			output:write("(")
+-- [[VERBOSE]] 			output:write(time)
+-- [[VERBOSE]] 			output:write(")")
+-- [[VERBOSE]] 		end
 --
 --output:write(newline,
 --	"ThreadSets: ",
