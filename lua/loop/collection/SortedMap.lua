@@ -33,6 +33,7 @@ function getnode(self)
 			return node
 		end
 	end
+	return {}
 end
 
 function freenode(self, node, last)
@@ -149,7 +150,7 @@ function get(self, key, orGreater)
 end
 
 function put(self, key, value, onlyAdd, orGreater)
-	local node = self:getnode() or {}
+	local node = self:getnode()
 	local found = self:findnode(key, node)
 	if found and (orGreater or found.key == key) then
 		self:freenode(node)
