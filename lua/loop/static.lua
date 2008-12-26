@@ -23,14 +23,16 @@ local _G = require "_G"
 
 local getfenv = _G.getfenv
 local setfenv = _G.setfenv
+local type = _G.type
 
 module "loop.static"
 --------------------------------------------------------------------------------
 function class(class)
-	return function(...)
-		setfenv(class, {})
-		class(...)
-		local object = getfenv(class)
+	class = class or function() end
+	return function(object, ...)
+		setfenv(class, object or {})
+		class(object, ...)
+		object = getfenv(class)
 		setfenv(class, _G)
 		return object
 	end
@@ -41,7 +43,9 @@ function new(class, ...)
 end
 --------------------------------------------------------------------------------
 function share(obj, level)
-	setfenv((level or 1) + 1, obj)
+	if type(obj) == "table" then
+		setfenv((level or 1) + 1, obj)
+	end
 end
 --------------------------------------------------------------------------------
 function this(level)

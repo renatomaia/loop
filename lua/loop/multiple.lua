@@ -30,13 +30,13 @@ local require = require
 local ipairs  = ipairs
 local select  = select
 
-local table = require "loop.table"
+local tabop = require "loop.table"
 
 module "loop.multiple"
 --------------------------------------------------------------------------------
 local base = require "loop.simple"
 --------------------------------------------------------------------------------
-table.copy(base, _M)
+tabop.copy(base, _M)
 --------------------------------------------------------------------------------
 local MultipleClass = {
 	__call = new,
@@ -51,7 +51,7 @@ local MultipleClass = {
 
 function class(class, ...)
 	if select("#", ...) > 1
-		then return base.rawnew(table.copy(MultipleClass, {...}), initclass(class))
+		then return base.rawnew(tabop.copy(MultipleClass, {...}), initclass(class))
 		else return base.class(class, ...)
 	end
 end

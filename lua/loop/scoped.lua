@@ -53,7 +53,8 @@ local getmetatable = getmetatable
 local rawget       = rawget
 
 local debug = require "debug"
-local table = require "loop.table"
+local table = require "table"
+local tabop = require "loop.table"
 
 module "loop.scoped"                                                            -- [[VERBOSE]] local verbose = require "loop.verbose"
 
@@ -62,7 +63,7 @@ local ObjectCache = require "loop.collection.ObjectCache"
 local OrderedSet  = require "loop.collection.OrderedSet"
 local base        = require "loop.multiple"
 --------------------------------------------------------------------------------
-table.copy(require "loop.cached", _M)
+tabop.copy(require "loop.cached", _M)
 --------------------------------------------------------------------------------
 --- SCOPED DATA CHAIN ----------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -237,8 +238,8 @@ function ScopedClass:__init(class)
 		then
 			class.public = {}
 		else
-			local public = table.copy(class)
-			table.clear(class)
+			local public = tabop.copy(class)
+			tabop.clear(class)
 			class.public = public
 		end
 	end
@@ -309,7 +310,7 @@ function ScopedClass:updatemembers()
 	--
 	-- metatables to collect with current members
 	--
-	local public = table.clear(self.class)
+	local public = tabop.clear(self.class)
 	local protected
 	local private
 	
@@ -323,11 +324,11 @@ function ScopedClass:updatemembers()
 		local super = superclasses[i]
 
 		-- copy members from superclass metatables
-		public = table.copy(super.class, public)
+		public = tabop.copy(super.class, public)
 
 		if base.instanceof(super, ScopedClass) then
 			-- copy protected members from superclass metatables
-			protected = table.copy(super:getmeta("protected"), protected)
+			protected = tabop.copy(super:getmeta("protected"), protected)
 
 			-- extract the __index and __newindex values
 			publicindex    = unwrap(public, "index")    or publicindex
@@ -391,7 +392,7 @@ function ScopedClass:updatemembers()
 			end
 		else
 			-- update current metatable with new members
-			protected = table.copy(protected, table.clear(self.protected.class))
+			protected = tabop.copy(protected, tabop.clear(self.protected.class))
 		end
 
 		-- setup metatable with proper indexers
@@ -447,7 +448,7 @@ function ScopedClass:updatemembers()
 			end
 		else
 			-- update current metatable with new members
-			private = table.copy(private, table.clear(self:getmeta("private")))
+			private = tabop.copy(private, tabop.clear(self:getmeta("private")))
 		end
 
 		-- setup metatable with proper indexers
