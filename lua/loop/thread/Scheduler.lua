@@ -107,10 +107,6 @@ function pcall(func, ...)
 	end
 end
 
-function getpcall()
-	return pcall
-end
-
 function checkcurrent(self)
 	local current = self.current
 	local running = coroutine.running()
