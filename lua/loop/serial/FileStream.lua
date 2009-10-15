@@ -25,12 +25,12 @@ oo.class(_M, Serializer)
 buffersize = 1024
 
 function write(self, ...)
-	self.file:write(...)
+	assert(self.file:write(...))
 end
 
 function put(self, ...)
 	self:serialize(...)
-	self.file:write("\0")
+	assert(self.file:write("\0"))
 end
 
 function get(self)
