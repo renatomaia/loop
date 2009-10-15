@@ -263,16 +263,19 @@ end
 --[[VERBOSE]] verbose = Verbose()
 --[[VERBOSE]] 
 --[[VERBOSE]] local LabelStart = string.byte("A")
---[[VERBOSE]] verbose.labels = ObjectCache{ current = 0 }
+--[[VERBOSE]] verbose.labels = ObjectCache{
+--[[VERBOSE]] 	current = { thread = 0, userdata = 0 },
+--[[VERBOSE]] }
 --[[VERBOSE]] function verbose.labels:retrieve(value)
---[[VERBOSE]] 	if type(value) == "thread" then
---[[VERBOSE]] 		local id = self.current
+--[[VERBOSE]] 	local typename = type(value)
+--[[VERBOSE]] 	local id = self.current[typename]
+--[[VERBOSE]] 	if id then
+--[[VERBOSE]] 		self.current[typename] = id + 1
 --[[VERBOSE]] 		local label = {}
 --[[VERBOSE]] 		repeat
 --[[VERBOSE]] 			label[#label+1] = LabelStart + (id % 26)
 --[[VERBOSE]] 			id = math.floor(id / 26)
 --[[VERBOSE]] 		until id <= 0
---[[VERBOSE]] 		self.current = self.current + 1
 --[[VERBOSE]] 		value = string.char(unpack(label))
 --[[VERBOSE]] 	end
 --[[VERBOSE]] 	return value

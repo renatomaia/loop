@@ -16,12 +16,12 @@
 --[[VERBOSE]] local rawget   = rawget
 --[[VERBOSE]] local tostring = tostring
 
-local ipairs             = ipairs
-local getmetatable       = getmetatable
-local math               = require "math"
-local oo                 = require "loop.simple"
-local MapWithArrayOfKeys = require "loop.collection.MapWithArrayOfKeys"
-local Scheduler          = require "loop.thread.Scheduler"
+local ipairs            = ipairs
+local getmetatable      = getmetatable
+local math              = require "math"
+local oo                = require "loop.simple"
+local UnorderedArraySet = require "loop.collection.UnorderedArraySet"
+local Scheduler         = require "loop.thread.Scheduler"
 
 module "loop.thread.IOScheduler"
 
@@ -31,10 +31,33 @@ oo.class(_M, Scheduler)
 -- Initialization Code ---------------------------------------------------------
 --------------------------------------------------------------------------------
 
+local DoubleMap = oo.class()
+function DoubleMap:__init(...)
+	self = oo.rawnew(self, ...)
+	self.socks = UnorderedArraySet()
+	return self
+end
+function DoubleMap:add(key, value)
+	self.socks:add(key)
+	self[key] = value
+	self[value] = key
+end
+function DoubleMap:remove(key)
+	local value = self[key]
+	if key ~= nil then
+		self.socks:remove(key)
+		self[key] = nil
+		self[value] = nil
+		return value, key
+	end
+end
+
 function __init(class, self)
 	self = Scheduler.__init(class, self)
-	self.reading = MapWithArrayOfKeys()
-	self.writing = MapWithArrayOfKeys()
+	self.readlocks = {}
+	self.writelocks = {}
+	self.reading = DoubleMap()
+	self.writing = DoubleMap()
 	return self
 end
 __init(getmetatable(_M), _M)
@@ -46,29 +69,15 @@ __init(getmetatable(_M), _M)
 function signalall(self, timeout)                                               --[[VERBOSE]] local verbose = self.verbose
 	if timeout then timeout = math.max(timeout - self:time(), 0) end
 	local reading, writing = self.reading, self.writing
-	if #reading > 0 or #writing > 0 then                                          --[[VERBOSE]] verbose:scheduler(true, "signaling blocked threads for ",timeout," seconds")
+	if #reading.socks > 0 or #writing.socks > 0 then                              --[[VERBOSE]] verbose:scheduler(true, "signaling blocked threads for ",timeout," seconds")
 		local running = self.running
-		local readok, writeok = self.select(reading, writing, timeout)
-		local index = 1
-		while index <= #reading do
-			local channel = reading[index]
-			if readok[channel] then                                                   --[[VERBOSE]] verbose:threads("unblocking reading ",reading[channel])
-				running:enqueue(reading[channel])
-				reading:removeat(index)
-			else
-				index = index + 1
-			end
+		local readok, writeok = self.select(reading.socks, writing.socks, timeout)
+		for _, channel in ipairs(readok) do
+			running:enqueue(reading:remove(channel))
 		end
-		index = 1
-		while index <= #writing do
-			local channel = writing[index]
-			if writeok[channel] then                                                  --[[VERBOSE]] verbose:threads("unblocking writing ", writing[channel])
-				running:enqueue(writing[channel])
-				writing:removeat(index)         
-			else
-				index = index + 1
-			end
-		end                                                                         --[[VERBOSE]] verbose:scheduler(false,  "blocked threads signaled")
+		for _, channel in ipairs(writeok) do
+			running:enqueue(writing:remove(channel))
+		end
 		return true
 	elseif timeout and timeout > 0 then                                           --[[VERBOSE]] verbose:scheduler("no threads blocked, sleeping for ",timeout," seconds")
 		self.sleep(timeout)
@@ -99,25 +108,17 @@ end
 
 local function handleremoved(self, routine, removed, ...)
 	local reading, writing = self.reading, self.writing
-	local index = 1
-	while index <= #reading do
-		local channel = reading[index]
-		if reading[channel] == routine then
-			reading:removeat(index)
-			removed = routine
-		else
-			index = index + 1
-		end
+	local channel = reading[routine]
+	if channel then
+		reading:remove(channel)
+		self.readlocks[channel] = nil
+		removed = routine
 	end
-	index = 1
-	while index <= #writing do
-		local channel = writing[index]
-		if writing[channel] == routine then
-			writing:removeat(index)
-			removed = routine
-		else
-			index = index + 1
-		end
+	local channel = writing[routine]
+	if channel then
+		writing:remove(channel)
+		self.writelocks[channel] = nil
+		removed = routine
 	end
 	return removed, ...
 end
@@ -153,18 +154,24 @@ end
 --[[VERBOSE]] 	
 --[[VERBOSE]] 		output:write(newline)
 --[[VERBOSE]] 		output:write("Reading:")
---[[VERBOSE]] 		for _, current in ipairs(scheduler.reading) do
---[[VERBOSE]]				current = scheduler.reading[current]
+--[[VERBOSE]] 		for _, socket in ipairs(scheduler.reading.socks) do
+--[[VERBOSE]]				local current = scheduler.reading[socket]
 --[[VERBOSE]] 			output:write(" ")
 --[[VERBOSE]] 			output:write(tostring(self.labels[current]))
+--[[VERBOSE]] 			output:write(" (")
+--[[VERBOSE]] 			output:write(tostring(self.labels[socket]))
+--[[VERBOSE]] 			output:write(")")
 --[[VERBOSE]] 		end
 --[[VERBOSE]] 	
 --[[VERBOSE]] 		output:write(newline)
 --[[VERBOSE]] 		output:write("Writing:")
---[[VERBOSE]] 		for _, current in ipairs(scheduler.writing) do
---[[VERBOSE]]				current = scheduler.writing[current]
+--[[VERBOSE]] 		for _, socket in ipairs(scheduler.writing.socks) do
+--[[VERBOSE]]				local current = scheduler.writing[socket]
 --[[VERBOSE]] 			output:write(" ")
 --[[VERBOSE]] 			output:write(tostring(self.labels[current]))
+--[[VERBOSE]] 			output:write(" (")
+--[[VERBOSE]] 			output:write(tostring(self.labels[socket]))
+--[[VERBOSE]] 			output:write(")")
 --[[VERBOSE]] 		end
 --[[VERBOSE]] 	end
 --[[VERBOSE]] end

@@ -34,8 +34,6 @@ module("loop.thread.CoSocket", oo.class)
 
 function __init(class, self, scheduler)
 	self = oo.rawnew(class, self)
-	self.readlocks = {}
-	self.writelocks = {}
 	if not self.scheduler then
 		self.scheduler = scheduler
 	end
@@ -70,8 +68,8 @@ local function wrappedaccept(self)
 	local socket    = self.__object
 	local timeout   = self.timeout
 	local cosocket  = self.cosocket
-	local readlocks = cosocket.readlocks
 	local scheduler = cosocket.scheduler                                          --[[VERBOSE]] local verbose = scheduler.verbose
+	local readlocks = scheduler.readlocks
 	local current   = scheduler:checkcurrent()                                    --[[VERBOSE]] verbose:cosocket(true, "performing wrapped accept")
 
 	assert(socket, "bad argument #1 to `accept' (wrapped socket expected)")
@@ -111,13 +109,14 @@ end
 local function wrappedreceive(self, pattern)
 	local socket    = self.__object
 	local timeout   = self.timeout
-	local readlocks = self.cosocket.readlocks
-	local scheduler = self.cosocket.scheduler                                     --[[VERBOSE]] local verbose = scheduler.verbose
-	local current   = scheduler:checkcurrent()                                    --[[VERBOSE]] verbose:cosocket(true, "performing wrapped receive")
+	local cosocket  = self.cosocket
+	local scheduler = cosocket.scheduler
+	local readlocks = scheduler.readlocks                                         --[[VERBOSE]] local verbose = scheduler.verbose
+	local current   = scheduler:checkcurrent()                                    --[[VERBOSE]] verbose:cosocket(true, "performing wrapped receive (",pattern,")")
 
 	assert(socket, "bad argument #1 to `receive' (wrapped socket expected)")
 	assert(readlocks[socket] == nil, "attempt to read a socket in use")
-
+	
 	-- get data already avaliable
 	local result, errmsg, partial = socket:receive(pattern)
 
@@ -193,8 +192,9 @@ end
 local function wrappedsend(self, data, i, j)                                    --[[VERBOSE]] local verbose = self.cosocket.scheduler.verbose
 	local socket     = self.__object                                              --[[VERBOSE]] verbose:cosocket(true, "performing wrapped send")
 	local timeout    = self.timeout
-	local writelocks = self.cosocket.writelocks
-	local scheduler  = self.cosocket.scheduler
+	local cosocket   = self.cosocket
+	local scheduler  = cosocket.scheduler
+	local writelocks = scheduler.writelocks
 	local current    = scheduler:checkcurrent()
 
 	assert(socket, "bad argument #1 to `send' (wrapped socket expected)")
@@ -261,8 +261,8 @@ function select(self, recvt, sendt, timeout)
 	local current = scheduler:checkcurrent()                                      --[[VERBOSE]] verbose:cosocket(true, "performing wrapped select")
 		
 	if (recvt and #recvt > 0) or (sendt and #sendt > 0) then
-		local readlocks  = self.readlocks
-		local writelocks = self.writelocks
+		local readlocks  = scheduler.readlocks
+		local writelocks = scheduler.writelocks
 		
 		-- assert that no thread is already blocked on these sockets
 		if recvt then
