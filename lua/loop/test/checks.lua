@@ -100,9 +100,15 @@ end
 local NotSimilar = ": %s was not similar to %s (%s)"
 function similar(expected, message, criteria)
 	if not message then message = "expected similar values" end
-	criteria = Matcher(criteria)
+	criteria = criteria or {}
+	if criteria.isomorphic == nil then 
+		criteria.isomorphic = false
+	end
+	if criteria.metatable == nil then 
+		criteria.metatable = false
+	end
 	return function(actual)
-		local success, errmsg = criteria:match(actual, expected)
+		local success, errmsg = Matcher(criteria):match(expected, actual)
 		if not success then
 			return false, message..NotSimilar, actual, expected, errmsg
 		end
