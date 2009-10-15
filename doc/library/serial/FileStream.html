@@ -38,6 +38,7 @@ This class is useful to implement persitence mechanisms.</p>
 	<dt><code><b>get</b>()</code></dt>
 	<dd>
 		Each time this method is called, it restores one of the set of values serialized in the file defined by field <code>file</code>, in the same order they were serialized.
+		When all values have been restored, this method returns no values.
 		All the set of values stored in the file defined by field <code>file</code> must be separated by a null character followed by a newline character (<i>i.e.</i> <code>"\0\n"</code>).
 	</dd>
 	
