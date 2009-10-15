@@ -182,22 +182,22 @@ However, the serialization mechanism provided by these class face a strong limit
 
 <dt><a href="serial/StringStream.html">String Stream</a></dt>
 <dd>
-	<p>Subclass of <code><a href="Serializer.html">Serializer</a></code> that serializes values into a string.
-	It is also used to restore values serialized in a string using the serialization mechanism provided by <code><a href="Serializer.html">Serializer</a></code>.
+	<p>Subclass of <code><a href="serial/Serializer.html">Serializer</a></code> that serializes values into a string.
+	It is also used to restore values serialized in a string using the serialization mechanism provided by <code><a href="serial/Serializer.html">Serializer</a></code>.
 	This class is useful to pack values into strings that can be stored in run-time memory or other sort of storage.</p>
 </dd>
 
 <dt><a href="serial/FileStream.html">File Stream</a></dt>
 <dd>
-	<p>Subclass of <code><a href="Serializer.html">Serializer</a></code> that serializes values into a file.
-	It is also used to restore values serialized in a file using the serialization mechanism provided by <code><a href="Serializer.html">Serializer</a></code>.
+	<p>Subclass of <code><a href="serial/Serializer.html">Serializer</a></code> that serializes values into a file.
+	It is also used to restore values serialized in a file using the serialization mechanism provided by <code><a href="serial/Serializer.html">Serializer</a></code>.
 	This class is useful to implement persitence mechanisms.</p>
 </dd>
 
 <dt><a href="serial/SocketStream.html">Socket Stream</a></dt>
 <dd>
-	<p>Subclass of <code><a href="Serializer.html">Serializer</a></code> that serializes values into a socket object like the ones provided by the <a href="http://www.tecgraf.puc-rio.br/luasocket">LuaSocket</a> library.
-	It is also used to restore values serialized using the serialization mechanism provided by <code><a href="Serializer.html">Serializer</a></code> that are transmitted by a socket.
+	<p>Subclass of <code><a href="serial/Serializer.html">Serializer</a></code> that serializes values into a socket object like the ones provided by the <a href="http://www.tecgraf.puc-rio.br/luasocket">LuaSocket</a> library.
+	It is also used to restore values serialized using the serialization mechanism provided by <code><a href="serial/Serializer.html">Serializer</a></code> that are transmitted by a socket.
 	This class is useful to implement communication infrastructures.</p>
 </dd>
 
@@ -206,7 +206,7 @@ However, the serialization mechanism provided by these class face a strong limit
 <h2><a name="thread">Threading</a></h2>
 
 <p>This group contains classes for supporting a multi-threading model based in the co-routines of Lua.
-In this model the execution switch is done explicitly by the programmer instead of using some automatic policy (<i>e.g.</i>, using timeslots) like in preemptive models.
+In this model, the execution switch is done explicitly by the programmer instead of using some automatic policy (<i>e.g.</i>, using timeslots) like in preemptive models.
 Such multi-threading model is called cooperative and is generally much simpler due to the absence of race conditions and less use of synchronization mechanisms.
 On the other hand, the programmer is left with the burden of guaranteeing that all independent threads are scheduled for execution properly from time to time.
 However, such task is usually trivial in the context of a single integrated application.</p>
