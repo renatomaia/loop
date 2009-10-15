@@ -106,7 +106,7 @@ local filepath = adjustpath(directory)..output
 
 local function readinput(file, name)
 	if bytecodes then
-		file = assert(io.open(file))
+		file = assert(io.open(file, "rb"))
 		file = file:read("*a"), file:close()
 	else
 		file = string.dump(assert(loadfile(file)))
