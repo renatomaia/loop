@@ -43,7 +43,6 @@ local traceback  = global.debug and
                    	function(_, err) return err end
 
 --[[VERBOSE]] local type        = global.type
---[[VERBOSE]] local unpack      = global.unpack
 --[[VERBOSE]] local rawget      = global.rawget
 --[[VERBOSE]] local select      = global.select
 --[[VERBOSE]] local tostring    = global.tostring
@@ -85,8 +84,8 @@ end
 function pcall(func, ...)
 	local thread = running()
 	if thread then
-		local luafunc, pcall = luapcall(newthread, func)
-		if luafunc then
+		local isluafunc, pcall = luapcall(newthread, func)
+		if isluafunc then
 			NestedPCalls:addto(thread, pcall)                                         --[[VERBOSE]] verbose:copcall(true, "new protected call in ",NestedPCalls:successor(pcall))
 			return resumepcall(pcall, runthread(pcall, ...))
 		end
@@ -192,12 +191,12 @@ end
 -- wakeindex = { ... [entry.key] = thread } --> { ... }
 -- threads   = [ ... thread ]
 --
--- wakeentry = { ... [thread]    = entry  } --> { [nextthread] = entry      }
--- wakeindex = { ... [entry.key] = thread } --> { [entry.key]  = nextthread }
+-- wakeentry = { ... [thread]    = entry  } --> { ... [nextthread] = entry      }
+-- wakeindex = { ... [entry.key] = thread } --> { ... [entry.key]  = nextthread }
 -- threads   = [ ... thread, nextthread... ]
 --
--- wakeentry = { ... [thread]    = entry , [nextentry.value] = nextentry...       } --> { [nextentry.value] = nextentry...       }
--- wakeindex = { ... [entry.key] = thread, [nextentry.key]   = nextentry.value... } --> { [nextentry.key]   = nextentry.value... }
+-- wakeentry = { ... [thread]    = entry , [nextentry.value] = nextentry...       } --> { ... [nextentry.value] = nextentry...       }
+-- wakeindex = { ... [entry.key] = thread, [nextentry.key]   = nextentry.value... } --> { ... [nextentry.key]   = nextentry.value... }
 -- threads   = [ ... thread, nextentry.value... ]
 --
 -- wakeentry = { ... [thread]    = entry , [nextentry.value] = nextentry       } --> { [nextthread] = entry     , [nextentry.value] = nextentry       }
@@ -397,7 +396,7 @@ end
 --[[VERBOSE]] 			id = math.floor(id / 26)
 --[[VERBOSE]] 		until id <= 0
 --[[VERBOSE]] 		self.current = self.current + 1
---[[VERBOSE]] 		value = string.char(unpack(label))
+--[[VERBOSE]] 		value = string.char(table.unpack(label))
 --[[VERBOSE]] 	end
 --[[VERBOSE]] 	return tostring(value)
 --[[VERBOSE]] end

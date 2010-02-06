@@ -37,6 +37,29 @@ indentation = "  "
 linebreak = "\n"
 prefix = ""
 output = io.output()
+keywords = {
+	["and"] = true,
+	["break"] = true,
+	["do"] = true,
+	["else"] = true,
+	["elseif"] = true,
+	["end"] = true,
+	["false"] = true,
+	["for"] = true,
+	["function"] = true,
+	["if"] = true,
+	["in"] = true,
+	["local"] = true,
+	["nil"] = true,
+	["not"] = true,
+	["or"] = true,
+	["repeat"] = true,
+	["return"] = true,
+	["then"] = true,
+	["true"] = true,
+	["until"] = true,
+	["while"] = true,
+}
 
 function writevalue(self, buffer, value, history, prefix, maxdepth)
 	local luatype = type(value)
@@ -49,27 +72,42 @@ function writevalue(self, buffer, value, history, prefix, maxdepth)
 		if label then
 			buffer:write(label)
 		else
-			label = self.labels[value] or self:label(value)
+			if self.nolabels
+				then label = luatype
+				else label = self.labels[value] or self:label(value)
+			end
 			history[value] = label
 			if luatype == "table" then
-				buffer:write("{ --[[",label,"]]")
+				if self.nolabels
+					then buffer:write("{")
+					else buffer:write("{ --[[",label,"]]")
+				end
 				local key, field = next(value)
-				if key then
+				if key ~= nil then
 					if maxdepth == 0 then
 						buffer:write(" ... ")
 					else
 						maxdepth = maxdepth - 1
 						local newprefix = prefix..self.indentation
-						for i = 1, #value do
-							buffer:write(self.linebreak, newprefix)
-							self:writevalue(buffer, value[i], history, newprefix, maxdepth)
-							buffer:write(",")
+						if not self.noarrays then
+							for i = 1, #value do
+								buffer:write(self.linebreak, newprefix, "[", i, "] = ")
+								self:writevalue(buffer, value[i], history, newprefix, maxdepth)
+								buffer:write(",")
+							end
 						end
 						repeat
 							local keytype = type(key)
-							if keytype ~= "number" or key<=0 or key>#value or (key%1)~=0 then
+							if self.noarrays
+							or keytype ~= "number"
+							or key<=0 or key>#value or (key%1)~=0
+							then
 								buffer:write(self.linebreak, newprefix)
-								if keytype == "string" and key:match("^[%a_][%w_]*$") then
+								if not self.nostructs
+								and keytype == "string"
+								and not self.keywords[key]
+								and key:match("^[%a_][%w_]*$")
+								then
 									buffer:write(key)
 								else
 									buffer:write("[")
@@ -81,10 +119,10 @@ function writevalue(self, buffer, value, history, prefix, maxdepth)
 								buffer:write(",")
 							end
 							key, field = next(value, key)
-						until not key
+						until key == nil
 						buffer:write(self.linebreak, prefix)
 					end
-				else
+				elseif not self.nolabels then
 					buffer:write(" ")
 				end
 				buffer:write("}")
@@ -98,7 +136,7 @@ end
 function writeto(self, buffer, ...)
 	local prefix   = self.prefix
 	local maxdepth = self.maxdepth
-	local history  = {}
+	local history  = self.history or {}
 	for i = 1, select("#", ...) do
 		if i ~= 1 then buffer:write(", ") end
 		self:writevalue(buffer, select(i, ...), history, prefix, maxdepth)
@@ -122,7 +160,7 @@ function print(self, ...)
 	local output   = self.output
 	local prefix   = self.prefix
 	local maxdepth = self.maxdepth
-	local history  = {}
+	local history  = self.history or {}
 	local value
 	for i = 1, select("#", ...) do
 		value = select(i, ...)

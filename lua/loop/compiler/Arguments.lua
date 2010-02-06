@@ -61,15 +61,18 @@ function __call(self, ...)
 		
 		-- process option value
 		if kind == "boolean" then
-			if set == "" then -- option value was not set yet, get following argument
+			if set == "" then -- option value was not given, assume the value 'true'
 				val = true
 			else
 				temp = self._boolean[val]
 				if temp ~= nil then val = temp end
 			end
 			self[opt] = val
-		elseif kind ~= "nil" or not self._unknown then
-			if set == "" then -- option value was not set yet, get following argument
+		elseif kind == "nil" and self._unknown then
+			pos, errmsg = nil, self._unknown:format(opt)
+			break
+		else
+			if set == "" then -- option value was not given, get following argument
 				pos = pos + 1
 				if pos <= count then
 					val = select(pos, ...)
@@ -98,9 +101,6 @@ function __call(self, ...)
 			else
 				self[opt] = val
 			end
-		else
-			pos, errmsg = nil, self._unknown:format(opt)
-			break
 		end
 		pos = pos + 1
 	end

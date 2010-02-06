@@ -25,20 +25,28 @@ oo.class(_M, Serializer)
 buffersize = 1024
 
 function write(self, ...)
-	self.file:write(...)
+	assert(self.file:write(...))
 end
 
 function put(self, ...)
 	self:serialize(...)
-	self.file:write("\0")
+	assert(self.file:write("\0"))
 end
 
 function get(self)
 	local lines = {}
 	local line
 	repeat
-		line = self.remains or self.file:read(self.buffersize)
-		self.remains = nil
+		if self.remains == nil then
+			local errmsg
+			line, errmsg = self.file:read(self.buffersize)
+			if line == nil then
+				error(errmsg or "end of file")
+			end
+		else
+			line = self.remains
+			self.remains = nil
+		end
 		if line and line:find("%z") then
 			line, self.remains = line:match("^([^%z]*)%z(.*)$")
 		end

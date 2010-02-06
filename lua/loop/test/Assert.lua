@@ -3,9 +3,9 @@ local error  = error
 local ipairs = ipairs
 local select = select
 local type   = type
-local unpack = unpack
 
-local table = require "loop.table"
+local table = require "table"
+local tabop = require "loop.table"
 local oo    = require "loop.base"
 
 local Viewer = require "loop.debug.Viewer"
@@ -15,7 +15,7 @@ local checks = require "loop.test.checks"
 
 module("loop.test.Assert", oo.class)
 
-table.copy(checks, _M)
+tabop.copy(checks, _M)
 
 viewer = Viewer{ maxdepth = 2 }
 
@@ -24,7 +24,7 @@ local function format(viewer, pattern, ...)
 	for i = 1, select("#", ...) do
 		result[#result+1] = viewer:tostring((select(i, ...)))
 	end
-	return pattern:format(unpack(result))
+	return pattern:format(table.unpack(result))
 end
 
 function results(self, success, message, ...)
@@ -35,7 +35,7 @@ function results(self, success, message, ...)
 		elseif type(message) == "table" then
 			result = {}
 			for _, msg in ipairs(message) do
-				result[#result+1] = format(viewer, unpack(msg, 1, msg.n))
+				result[#result+1] = format(viewer, table.unpack(msg, 1, msg.n))
 			end
 			self:fail(table.concat(result, "\n\t"), 2)
 		end

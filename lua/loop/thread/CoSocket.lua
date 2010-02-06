@@ -54,6 +54,16 @@ local function wrappedsettimeout(self, timeout)
 	self.timeout = timeout or false
 end
 
+local function wrappedsettimeout(self, timeout)
+	self.timeout    = timeout or false
+	self.readevent  = self.__object
+	self.writeevent = self
+	if timeout and timeout > 0 then
+		self.readevent  = EventGroup{ self.readevent , timeout = timeout }
+		self.writeevent = EventGroup{ self.writeevent, timeout = timeout }
+	end
+end
+
 --------------------------------------------------------------------------------
 
 local function wrappedconnect(self, host, port)                                 --[[VERBOSE]] local verbose = self.cosocket.scheduler.verbose
@@ -64,39 +74,36 @@ local function wrappedconnect(self, host, port)                                 
 	return result, errmsg
 end
 
-local function wrappedconnect(self, host, port)
+local function wrappedconnect(self, ...)
 	local socket    = self.__object
-	local event     = self.readevent
+	local timeout   = self.timeout
 	local cosocket  = self.cosocket
-	local readlocks = cosocket.readlocks
 	local scheduler = cosocket.scheduler                                          --[[VERBOSE]] local verbose = scheduler.verbose
 	local current   = scheduler:checkcurrent()                                    --[[VERBOSE]] verbose:cosocket(true, "performing wrapped accept")
-
-	assert(socket, "bad argument #1 to `connect' (wrapped socket expected)")
-	assert(readlocks[socket] == nil, "attempt to write a socket in use")
 	
-	local success, errmsg = socket:connect()
+	assert(socket, "bad argument #1 to `connect' (wrapped socket expected)")
+	
+	local success, errmsg = socket:connect(...)
 	
 	-- check if job has completed
 	if not success and errmsg == "timeout" and timeout ~= 0 then                  --[[VERBOSE]] verbose:cosocket(true, "waiting to connection be established")
-
-		-- subscribing current thread for writing signal
-		writing:add(socket, current)                                                --[[VERBOSE]] verbose:threads(current," subscribed for write signal")
+		local event = self.writeevent
+		local writing = cosocket.writing
+		
+		-- subscribing current socket for writing signal
 	
-		-- lock socket for writing and wait for signal until timeout
-		writelocks[socket] = current
-		scheduler:suspend(timeout)                                                  --[[VERBOSE]] verbose:cosocket(false, "wrapped accept resumed")
-		writelocks[socket] = nil
-
-		-- if thread is still blocked for writing then waiting timed out
-		if writing[socket] == current then
-			writing:remove(socket)                                                    --[[VERBOSE]] verbose:threads(current," unsubscribed for read signal")
-			success, errmsg = nil, "timeout"                                          --[[VERBOSE]] verbose:cosocket(false, "waiting timed out")
+		-- wait for writing signal until timeout
+		writing:add(socket, self)                                                   --[[VERBOSE]] verbose:threads(current," subscribed for write signal")
+		event:activate()
+		local trigger = scheduler:wait(event)                                       --[[VERBOSE]] verbose:cosocket(false, "wrapped accept resumed")    
+		event:deactivate()
+		writing:remove(socket)                                                      --[[VERBOSE]] verbose:threads(current," unsubscribed for write signal")
+		
+		-- if trigger was the socket itself then connection was estabilshed
+		if trigger == self then
+			success, errmsg = socket:connect(...)                                     --[[VERBOSE]] verbose:cosocket(false, "returing results after waiting")
 		else
-			if timeout then
-				sleeping:remove(current)                                                --[[VERBOSE]] verbose:threads(current," removed from sleeping queue")
-			end                                                                       --[[VERBOSE]] verbose:cosocket(false, "returing results after waiting")
-			success, errmsg = 1, nil
+			success, errmsg = nil, "timeout"                                          --[[VERBOSE]] verbose:cosocket(false, "waiting timed out")
 		end
 	end
 	
@@ -105,44 +112,38 @@ end
 
 --------------------------------------------------------------------------------
 
-local function wrappedaccept(self)
+local function wrappedaccept(self, ...)
 	local socket    = self.__object
 	local timeout   = self.timeout
 	local cosocket  = self.cosocket
-	local readlocks = cosocket.readlocks
 	local scheduler = cosocket.scheduler                                          --[[VERBOSE]] local verbose = scheduler.verbose
 	local current   = scheduler:checkcurrent()                                    --[[VERBOSE]] verbose:cosocket(true, "performing wrapped accept")
 
 	assert(socket, "bad argument #1 to `accept' (wrapped socket expected)")
-	assert(readlocks[socket] == nil, "attempt to read a socket in use")
 	
-	local conn, errmsg = socket:accept()
-	if conn then                                                                  --[[VERBOSE]] verbose:cosocket(false, "connection accepted without waiting")
-		return cosocket:wrap(conn)
-	elseif timeout == 0 or errmsg ~= "timeout" then                               --[[VERBOSE]] verbose:cosocket(false, "returning error ",errmsg," without waiting")
-		return nil, errmsg
-	end                                                                           --[[VERBOSE]] verbose:cosocket(true, "waiting for results")
-
-	local sleeping = scheduler.sleeping
-	local reading = scheduler.reading
-
-	-- subscribing current thread for reading signal
-	reading:add(socket, current)                                                  --[[VERBOSE]] verbose:threads(current," subscribed for read signal")
-	
-	-- lock socket for reading and wait for signal until timeout
-	readlocks[socket] = current
-	scheduler:suspend(timeout)                                                    --[[VERBOSE]] verbose:cosocket(false, "wrapped accept resumed")
-	readlocks[socket] = nil
-
-	-- if thread is still blocked for reading then waiting timed out
-	if reading[socket] == current then
+	local result, errmsg = socket:accept(...)
+	if result then                                                                --[[VERBOSE]] verbose:cosocket("connection accepted without waiting")
+		result = cosocket:wrap(result)
+	elseif errmsg == "timeout" and timeout ~= 0 then                              --[[VERBOSE]] verbose:cosocket(true, "waiting for results")
+		local event   = self.readevent
+		local reading = cosocket.reading
+		
+		-- wait for signal until timeout
+		reading:add(socket, socket)                                                 --[[VERBOSE]] verbose:threads(current," subscribed for read signal")
+		event:activate()
+		local trigger = scheduler:wait(event)                                       --[[VERBOSE]] verbose:cosocket(false, "wrapped accept resumed")
+		event:deactivate()
 		reading:remove(socket)                                                      --[[VERBOSE]] verbose:threads(current," unsubscribed for read signal")
-		return nil, "timeout"                                                       --[[VERBOSE]] , verbose:cosocket(false, "waiting timed out")
-	elseif timeout then
-		sleeping:remove(current)                                                    --[[VERBOSE]] verbose:threads(current," removed from sleeping queue")
-	end                                                                           --[[VERBOSE]] verbose:cosocket(false, "returing results after waiting")
+		
+		-- if trigger was the socket itself then connection was estabilshed
+		if trigger == socket then
+			result, errmsg = cosocket:wrap(socket:accept()), nil
+		elseif timeout then
+			result, errmsg = nil, "timeout"                                           --[[VERBOSE]] verbose:cosocket("waiting timed out")
+		end                                                                         --[[VERBOSE]] else verbose:cosocket("returning error ",errmsg," without waiting")
+	end                                                                           --[[VERBOSE]] verbose:cosocket(false)
 	
-	return cosocket:wrap(socket:accept())
+	return result, errmsg
 end
 
 --------------------------------------------------------------------------------
@@ -150,78 +151,54 @@ end
 local function wrappedreceive(self, pattern)
 	local socket    = self.__object
 	local timeout   = self.timeout
-	local readlocks = self.cosocket.readlocks
-	local scheduler = self.cosocket.scheduler                                     --[[VERBOSE]] local verbose = scheduler.verbose
+	local cosocket  = self.cosocket
+	local scheduler = cosocket.scheduler                                          --[[VERBOSE]] local verbose = scheduler.verbose
 	local current   = scheduler:checkcurrent()                                    --[[VERBOSE]] verbose:cosocket(true, "performing wrapped receive")
 
 	assert(socket, "bad argument #1 to `receive' (wrapped socket expected)")
-	assert(readlocks[socket] == nil, "attempt to read a socket in use")
 
 	-- get data already avaliable
 	local result, errmsg, partial = socket:receive(pattern)
 
 	-- check if job has completed
 	if not result and errmsg == "timeout" and timeout ~= 0 then                   --[[VERBOSE]] verbose:cosocket(true, "waiting for remaining of results")
-		local running = scheduler.running
-		local sleeping = scheduler.sleeping
-		local reading = scheduler.reading
+		local event   = self.readevent
+		local reading = cosocket.reading
 		
-		-- set to be waken at timeout, if specified
-		if timeout and timeout > 0 then
-			sleeping:enqueue(current, scheduler:time() + timeout)                     --[[VERBOSE]] verbose:threads(current," registered for signal in ",timeout," seconds")
-		end
-	
-		-- lock socket to avoid use by other coroutines
-		readlocks[socket] = true
-	
-		-- block current thread on the socket
-		reading:add(socket, current)                                                --[[VERBOSE]] verbose:threads(current," subscribed for read signal")
-	
 		-- reduce the number of required bytes
 		if type(pattern) == "number" then
 			pattern = pattern - #partial                                              --[[VERBOSE]] verbose:cosocket("amount of required bytes reduced to ",pattern)
 		end
 		
+		-- subscribing current socket for reading signal
+		reading:add(socket, socket)                                                 --[[VERBOSE]] verbose:threads(current," subscribed for read signal")
+		event:activate()
 		repeat
 			-- stop current thread
-			running:remove(current, self.currentkey)                                  --[[VERBOSE]] verbose:threads(current," suspended")
-			coroutine.yield()                                                         --[[VERBOSE]] verbose:cosocket(false, "wrapped receive resumed")
-		
+			local trigger = scheduler:wait(event)                                     --[[VERBOSE]] verbose:cosocket(false, "wrapped receive resumed")
 			-- check if the socket is ready
-			if reading[socket] == current then
-				reading:remove(socket)                                                  --[[VERBOSE]] verbose:threads(current," unsubscribed for read signal")
-				errmsg = "timeout"                                                      --[[VERBOSE]] verbose:cosocket(false, "wrapped send timed out")
-			else                                                                      --[[VERBOSE]] verbose:cosocket "reading more data from socket"
+			if trigger == socket then                                                 --[[VERBOSE]] verbose:cosocket "reading more data from socket"
 				local newdata
 				result, errmsg, newdata = socket:receive(pattern)
 				if result then                                                          --[[VERBOSE]] verbose:cosocket "received all requested data"
 					result, errmsg, partial = partial..result, nil, nil                   --[[VERBOSE]] verbose:cosocket(false, "returning results after waiting")
 				else                                                                    --[[VERBOSE]] verbose:cosocket "received only partial data"
 					partial = partial..newdata
-					
 					if errmsg == "timeout" then
-						-- block current thread on the socket for more data
-						reading:add(socket, current)                                        --[[VERBOSE]] verbose:threads(current," subscribed for another read signal")
-						
 						-- reduce the number of required bytes
 						if type(pattern) == "number" then
 							pattern = pattern - #newdata                                      --[[VERBOSE]] verbose:cosocket("amount of required bytes reduced to ",pattern)
 						end
-						
 						-- cancel error message
 						errmsg = nil                                                        --[[VERBOSE]] else verbose:cosocket(false, "returning error ",errmsg," after waiting")
 					end
 				end
+			else
+				errmsg = "timeout"                                                      --[[VERBOSE]] verbose:cosocket(false, "wrapped send timed out")
 			end
 		until result or errmsg
-	
-		-- remove from sleeping queue if it was waken because of data on socket.
-		if timeout and timeout > 0 and errmsg ~= "timeout" then
-			sleeping:remove(current)                                                  --[[VERBOSE]] verbose:threads(current," removed from sleeping queue")
-		end
-	
-		-- unlock socket to allow use by other coroutines
-		readlocks[socket] = nil                                                     --[[VERBOSE]] else verbose:cosocket(false, "returning results without waiting")
+		event:deactivate()
+		reading:remove(socket)                                                      --[[VERBOSE]] verbose:threads(current," unsubscribed for read signal")
 	end
 	
 	return result, errmsg, partial
@@ -229,63 +206,42 @@ end
 
 --------------------------------------------------------------------------------
 
-local function wrappedsend(self, data, i, j)                                    --[[VERBOSE]] local verbose = self.cosocket.scheduler.verbose
-	local socket     = self.__object                                              --[[VERBOSE]] verbose:cosocket(true, "performing wrapped send")
-	local timeout    = self.timeout
-	local writelocks = self.cosocket.writelocks
-	local scheduler  = self.cosocket.scheduler
-	local current    = scheduler:checkcurrent()
+local function wrappedsend(self, data, i, j)
+	local socket    = self.__object
+	local timeout   = self.timeout
+	local cosocket  = self.cosocket
+	local scheduler = cosocket.scheduler                                          --[[VERBOSE]] local verbose = scheduler.verbose
+	local current   = scheduler:checkcurrent()                                    --[[VERBOSE]] verbose:cosocket(true, "performing wrapped send")
 
 	assert(socket, "bad argument #1 to `send' (wrapped socket expected)")
-	assert(writelocks[socket] == nil, "attempt to write a socket in use")
 
 	-- fill buffer space already avaliable
 	local sent, errmsg, lastbyte = socket:send(data, i, j)
 
 	-- check if job has completed
 	if not sent and errmsg == "timeout" and timeout ~= 0 then                     --[[VERBOSE]] verbose:cosocket(true, "waiting to send remaining data")
-		local running = scheduler.running
-		local sleeping = scheduler.sleeping
-		local writing = scheduler.writing
-
-		-- set to be waken at timeout, if specified
-		if timeout and timeout > 0 then
-			sleeping:enqueue(current, scheduler:time() + timeout)                     --[[VERBOSE]] verbose:threads(current," registered for signal in ",timeout," seconds")
-		end
-	
-		-- lock socket to avoid use by other coroutines
-		writelocks[socket] = true
-	
-		-- block current thread on the socket
-		writing:add(socket, current)                                                --[[VERBOSE]] verbose:threads(current," subscribed for write signal")
-	
+		local event = self.writeevent
+		local writing = cosocket.writing
+		
+		-- subscribing current socket for writing signal
+		writing:add(socket, self)                                                   --[[VERBOSE]] verbose:threads(current," subscribed for write signal")
+		event:activate()
 		repeat
 			-- stop current thread
-			running:remove(current, self.currentkey)                                  --[[VERBOSE]] verbose:threads(current," suspended")
-			coroutine.yield()                                                         --[[VERBOSE]] verbose:cosocket "wrapped send resumed"
-		
+			local trigger = scheduler:wait(event)                                     --[[VERBOSE]] verbose:cosocket "wrapped send resumed"
 			-- check if the socket is ready
-			if writing[socket] == current then
-				writing:remove(socket)                                                  --[[VERBOSE]] verbose:threads(current," unsubscribed for write signal")
-				errmsg = "timeout"                                                      --[[VERBOSE]] verbose:cosocket "wrapped send timed out"
-			else                                                                      --[[VERBOSE]] verbose:cosocket "writing remaining data into socket"
+			if trigger == self then                                                   --[[VERBOSE]] verbose:cosocket "writing remaining data into socket"
 				sent, errmsg, lastbyte = socket:send(data, lastbyte+1, j)
 				if not sent and errmsg == "timeout" then
-					-- block current thread on the socket to write data
-					writing:add(socket, current)                                          --[[VERBOSE]] verbose:threads(current," subscribed for another write signal")
 					-- cancel error message
 					errmsg = nil                                                          --[[VERBOSE]] elseif sent then verbose:cosocket "sent all supplied data" else verbose:cosocket("returning error ",errmsg," after waiting")
 				end
+			else
+				errmsg = "timeout"                                                      --[[VERBOSE]] verbose:cosocket "wrapped send timed out"
 			end
 		until sent or errmsg
-	
-		-- remove from sleeping queue, if it was waken because of data on socket.
-		if timeout and timeout > 0 and errmsg ~= "timeout" then
-			sleeping:remove(current)                                                  --[[VERBOSE]] verbose:threads(current," removed from sleeping queue")
-		end
-	
-		-- unlock socket to allow use by other coroutines
-		writelocks[socket] = nil                                                    --[[VERBOSE]] verbose:cosocket "send done after waiting" else verbose:cosocket(false, "send done without waiting")
+		event:deactivate()
+		writing:remove(socket)                                                      --[[VERBOSE]] verbose:threads(current," unsubscribed for write signal") else verbose:cosocket(false, "send done without waiting")
 	end
 	
 	return sent, errmsg, lastbyte
@@ -300,75 +256,52 @@ function select(self, recvt, sendt, timeout)
 	local current = scheduler:checkcurrent()                                      --[[VERBOSE]] verbose:cosocket(true, "performing wrapped select")
 		
 	if (recvt and #recvt > 0) or (sendt and #sendt > 0) then
-		local readlocks  = self.readlocks
-		local writelocks = self.writelocks
-		
+		local recv, send
 		-- assert that no thread is already blocked on these sockets
 		if recvt then
-			local new = {}
+			recv = {}
 			for index, wrapper in ipairs(recvt) do
-				local socket = wrapper.__object
-				assert(readlocks[socket] == nil, "attempt to read a socket in use")
-				new[index] = socket
-				new[socket] = wrapper
+				recv[index] = wrapper.__object
 			end
-			recvt = new
 		end
 		if sendt then
-			local new = {}
+			send = {}
 			for index, wrapper in ipairs(sendt) do
-				local socket = wrapper.__object
-				assert(writelocks[socket] == nil, "attempt to write a socket in use")
-				new[index] = socket
-				new[socket] = wrapper
+				send[index] = wrapper.__object
 			end
-			sendt = new
 		end
 		
-		local readok, writeok, errmsg = scheduler.select(recvt, sendt, 0)
-	
+		local readok, writeok, errmsg = scheduler.select(recv, send, 0)
+		
 		if
 			timeout ~= 0 and
 			errmsg == "timeout" and
 			next(readok) == nil and
 			next(writeok) == nil
 		then                                                                        --[[VERBOSE]] verbose:cosocket(true, "waiting for ready socket selection")
-			local running = scheduler.running
-			local sleeping = scheduler.sleeping
-			local reading = scheduler.reading
-			local writing = scheduler.writing
+			local reading = self.reading
+			local writing = self.writing
 	
 			-- block current thread on the sockets and lock them
-			if recvt then
-				for _, socket in ipairs(recvt) do
-					readlocks[socket] = current
-					reading:add(socket, current)                                          --[[VERBOSE]] verbose:threads(current," subscribed for read signal")
+			if recv then
+				for _, socket in ipairs(recv) do
+					reading:add(socket, socket)                                           --[[VERBOSE]] verbose:threads(current," subscribed for read signal")
 				end
 			end
-			if sendt then
-				for _, socket in ipairs(sendt) do
-					writelocks[socket] = current
-					writing:add(socket, current)                                          --[[VERBOSE]] verbose:threads(current," subscribed for write signal")
+			if send then
+				for index, socket in ipairs(send) do
+					local wrapper = sendt[index]
+					recv[#recv+1] = wrapper
+					writing:add(socket, wrapper)                                          --[[VERBOSE]] verbose:threads(current," subscribed for write signal")
 				end
 			end
+			recv.timeout = timeout
+			local event = EventGroup(recv)
 			
-			-- set to be waken at timeout, if specified
-			if timeout and timeout > 0 then
-				sleeping:enqueue(current, scheduler:time() + timeout)                   --[[VERBOSE]] verbose:threads(current," registered for signal in ",timeout," seconds")
-			end
-		
-			-- stop current thread
-			running:remove(current, self.currentkey)                                  --[[VERBOSE]] verbose:threads(current," suspended")
-			coroutine.yield()                                                         --[[VERBOSE]] verbose:cosocket(false, "wrapped select resumed")
-		
-			-- remove from sleeping queue, if it was waken because of data on socket.
-			if timeout and timeout > 0 then
-				if sleeping:remove(current)
-					then errmsg = nil                                                     --[[VERBOSE]] verbose:threads(current," removed from sleeping queue")
-					else errmsg = "timeout"                                               --[[VERBOSE]] verbose:cosocket "wrapped select timed out"
-				end
-			end
-		
+			event:activate()
+			local trigger = scheduler:wait(event)
+			event:deactivate()
+			
 			-- check which sockets are ready and remove block for other sockets
 			if recvt then
 				for _, socket in ipairs(recvt) do

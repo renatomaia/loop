@@ -1,25 +1,14 @@
 --------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
 -- Project: LOOP - Lua Object-Oriented Programming                            --
--- Release: 2.3 beta                                                          --
 -- Title  : General utilities functions for table manipulation                --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 --------------------------------------------------------------------------------
--- These functions are used in many package implementations and may also be   --
--- usefull in applications.                                                   --
---------------------------------------------------------------------------------
 
-local next = next
-local pairs = pairs
-local rawset = rawset
-local setmetatable = setmetatable
+local _G = require "_G"
+local next = _G.next
+local pairs = _G.pairs
+local rawset = _G.rawset
+local setmetatable = _G.setmetatable
 
 module "loop.table"
 
@@ -58,37 +47,32 @@ end
 -- @usage return loop.table.clear(results)
 
 function clear(tab)
-	local elem = next(tab)
-	while elem ~= nil do
-		tab[elem] = nil
-		elem = next(tab)
+	for key in pairs(tab) do
+		rawset(tab, key, nil)
 	end
 	return tab
 end
 
 --------------------------------------------------------------------------------
--- Moves all contents of a table into another.
+-- Creates a memoize table that caches the results of a function.
 
--- All pairs of key and value stored in table 'source' will be moved into
--- table 'destiny'.
+-- Creates a table that caches the results of a function that accepts a single
+-- argument and returns a single value.
 
--- @param source Table containing elements to be copied.
--- @param destiny [optional] Table which elements must be copied into.
+-- @param func Function which returned values must be cached.
+-- @param weak [optional] String used to define the weak mode of the created table.
 
--- @return Table containing copied elements.
+-- @return Memoize table created.
 
--- @usage copied = loop.table.move(results)
--- @usage loop.table.move(results, newcopy)
+-- @usage SquareRootOf = loop.table.memoize(math.sqrt)
 
-function move(source, destiny)
-	if source then
-		if not destiny then destiny = {} end
-		local field, value = next(source)
-		while field ~= nil do
-			source[field] = nil
-			rawset(destiny, field, value)
-			field, value = next(source)
-		end
-	end
-	return destiny
+function memoize(func, weak)
+	return setmetatable({}, {
+		__mode = weak,
+		__index = function(self, input)
+			local output = func(input)
+			rawset(self, input, output)
+			return output
+		end,
+	})
 end

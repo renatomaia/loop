@@ -38,8 +38,8 @@ function predecessor(self, item)
 	return self.back[item]
 end
 
-function backward(self, item)
-	return rawget, self.back, item
+function backward(self, place)
+	return self.predecessor, self, place
 end
 
 function addto(self, place, item)

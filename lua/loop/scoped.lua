@@ -1,126 +1,98 @@
 --------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
 -- Project: LOOP - Lua Object-Oriented Programming                            --
--- Release: 2.3 beta                                                          --
 -- Title  : Scoped Class Model                                                --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 --------------------------------------------------------------------------------
--- Exported API:                                                              --
---   class(class, ...)                                                        --
---   new(class, ...)                                                          --
---   classof(object)                                                          --
---   isclass(class)                                                           --
---   instanceof(object, class)                                                --
---   memberof(class, name)                                                    --
---   members(class)                                                           --
---   superclass(class)                                                        --
---   subclassof(class, super)                                                 --
---   supers(class)                                                            --
---   allmembers(class)                                                        --
---                                                                            --
---   methodfunction(method)                                                   --
---   methodclass(method)                                                      --
---   this(object)                                                             --
---   priv(object, [class])                                                    --
---   prot(object)                                                             --
---------------------------------------------------------------------------------
-
 -- TODO:
 --	 Test replacement of all members of a scope by ClassProxy[scope] = { ... }
 --	 Test static method call.
 --	 Define a default __eq metamethod that compares the object references.
 --	 The best way to relink member with numeric, string and boolean values.
 --	 Replace conditional compiler by static function constructors.
-
 --------------------------------------------------------------------------------
 
-local type         = type
-local pairs        = pairs
-local assert       = assert
-local ipairs       = ipairs
-local setmetatable = setmetatable
-local unpack       = unpack
-local require      = require
-local rawset       = rawset
-local getmetatable = getmetatable
-local rawget       = rawget
+local _G = require "_G"
+local assert = _G.assert
+local getmetatable = _G.getmetatable
+local ipairs = _G.ipairs
+local pairs = _G.pairs
+local rawget = _G.rawget
+local rawset = _G.rawset
+local setmetatable = _G.setmetatable
+local type = _G.type
 
-local debug = require "debug"
 local table = require "table"
+local concat = table.concat
+
 local tabop = require "loop.table"
+local copy = tabop.copy
+local clear = tabop.clear
+local memoize = tabop.memoize
+
+local proto = require "loop.proto"
+local clone = proto.clone
+
+local multiple = require "loop.multiple"
+local multiple_class = multiple.class
+local multiple_instanceof = multiple.instanceof
 
 module "loop.scoped"                                                            -- [[VERBOSE]] local verbose = require "loop.verbose"
 
---------------------------------------------------------------------------------
-local ObjectCache = require "loop.collection.ObjectCache"
-local OrderedSet  = require "loop.collection.OrderedSet"
-local base        = require "loop.multiple"
---------------------------------------------------------------------------------
-tabop.copy(require "loop.cached", _M)
---------------------------------------------------------------------------------
---- SCOPED DATA CHAIN ----------------------------------------------------------
---------------------------------------------------------------------------------
+clone(cached, _M)
+
+function OrderedSet:insert(value, place)
+	if self[value] == nil then
+		self[value] = self[place]
+		self[place] = value
+	end
+end
+
 -- maps private and protected state objects to the object (public) table
 local Object = setmetatable({}, { __mode = "kv" })
---------------------------------------------------------------------------------
-local function newprotected(self, object)                                       -- [[VERBOSE]] verbose:scoped("new 'protected' for 'public' ",object)
-	local protected = self.class()
-	Object[protected] = object
-	return protected
-end
+
 local function ProtectedPool(members)                                           -- [[VERBOSE]] verbose:scoped "new protected pool"
-	return ObjectCache {
-		class = base.class(members),
-		retrieve = newprotected,
-	}
+	local class = multiple_class(members)
+	return memoize(function(object)                                               -- [[VERBOSE]] verbose:scoped("new 'protected' for 'public' ",object)
+		local protected = class()
+		Object[protected] = object
+		return protected
+	end, "k")
 end
---------------------------------------------------------------------------------
-local function newprivate(self, outter)                                         -- [[VERBOSE]] verbose:scoped(true, "retrieving 'private' for reference ",outter)
-	local object = Object[outter]                                                 -- [[VERBOSE]] verbose:scoped("'public' is ",object or outter)
-	local private = rawget(self, object)
-	if not private then
-		private = self.class()                                                      -- [[VERBOSE]] verbose:scoped("new 'private' created: ",private)
-		if object then
-			Object[private] = object                                                  -- [[VERBOSE]] verbose:scoped("'public' ",object," registered for the new 'private' ",private)
-			self[object] = private                                                    -- [[VERBOSE]] verbose:scoped("new 'private' ",private," stored at the pool for 'public' ",object)
-		else
-			Object[private] = outter                                                  -- [[VERBOSE]] verbose:scoped("'public' ",outter," registered for the new 'private' ",private)
-		end                                                                         -- [[VERBOSE]] else verbose:scoped("reusing 'private' ",private," associated to 'public'")
-	end                                                                           -- [[VERBOSE]] verbose:scoped(false, "returning 'private' ",private," for reference ",outter)
-	return private
-end
+
 local function PrivatePool(members)                                             -- [[VERBOSE]] verbose:scoped{"new private pool", members = members}
-	return ObjectCache {
-		class = base.class(members),
-		retrieve = newprivate,
-	}
+	local class = multiple_class(members)
+	return memoize(function(outter)                                               -- [[VERBOSE]] verbose:scoped("new 'protected' for 'public' ",object)
+		local object = Object[outter]                                               -- [[VERBOSE]] verbose:scoped("'public' is ",object or outter)
+		local private = rawget(self, object)
+		if private == nil then
+			private = class()                                                         -- [[VERBOSE]] verbose:scoped("new 'private' created: ",private)
+			if object == nil then
+				Object[private] = outter                                                -- [[VERBOSE]] verbose:scoped("'public' ",outter," registered for the new 'private' ",private)
+			else
+				Object[private] = object                                                -- [[VERBOSE]] verbose:scoped("'public' ",object," registered for the new 'private' ",private)
+				self[object] = private                                                  -- [[VERBOSE]] verbose:scoped("new 'private' ",private," stored at the pool for 'public' ",object)
+			end                                                                       -- [[VERBOSE]] else verbose:scoped("reusing 'private' ",private," associated to 'public'")
+		end                                                                         -- [[VERBOSE]] verbose:scoped(false, "returning 'private' ",private," for reference ",outter)
+		return private
+	end, "k")
 end
---------------------------------------------------------------------------------
+
 local function bindto(class, member)
 	if type(member) == "function" then                                            -- [[VERBOSE]] verbose:scoped("new method closure for ",member)
-		local pool
 		local method = member
 		member = function (self, ...)
-			pool = rawget(class, getmetatable(self))                                  -- [[VERBOSE]] verbose:scoped("method call on reference ",self," (pool: ",pool,")")
-			if pool
-				then return method(pool[self], ...)
-				else return method(self, ...)
+			local pool = rawget(class, getmetatable(self))                            -- [[VERBOSE]] verbose:scoped("method call on reference ",self," (pool: ",pool,")")
+			if pool == nil
+				then return method(self, ...)
+				else return method(pool[self], ...)
 			end
 		end
 	end
 	return member
 end
 --------------------------------------------------------------------------------
-local ConditionalCompiler = require "loop.compiler.Conditional"
-
-local indexer = ConditionalCompiler {
+local IndexerMap = setmetatable({}, { __mode = "k"})
+local IndexerCode = {
 	{[[local Public   = select(1, ...)                      ]],"private or protected" },
 	{[[local meta     = select(2, ...)                      ]],"not (newindex and public and nilindex)" },
 	{[[local class    = select(3, ...)                      ]],"newindex or private" },
@@ -150,43 +122,50 @@ local indexer = ConditionalCompiler {
 	{[[	return result                                       ]],"index and (private or protected)" },
 	{[[end                                                  ]]},
 }
-
-local function createindexer(class, scope, action)
+local IndexerFactory = memoize(function(name)
+	local includes = {}
+	for tag in name:gmatch("[^%s]+") do
+		includes[tag] = true
+	end
+	local func = {}
+	for line, strip in ipairs(IndexerCode) do
+		local cond = strip[2]
+		if cond then
+			cond = assert(loadstring("return "..cond,
+				"compiler condition "..line..":"))
+			setfenv(cond, includes)
+			cond = cond()
+		else
+			cond = true
+		end
+		if cond then
+			assert(type(strip[1]) == "string",
+				"code string is not a string")
+			func[#func+1] = strip[1]
+		end
+	end
+	return loadstring(concat(func, "\n"), name)
+end)
+local function wrapindexer(class, scope, action)
 	local meta = class:getmeta(scope)
 	local index = meta["__"..action]
 	local indextype = type(index).."index"
-	local codename = table.concat({scope,action,index and ("with "..indextype)}," ")
-
-	return indexer:execute({
-			[action]    = true,
-			[scope]     = true,
-			[indextype] = true,
-		},
-		Object,
-		meta,
-		class,
-		bindto,
-		index
-	)
+	local name = scope.." "..action.." "..indextype
+	local factory = IndexerFactory[name]
+	local wrapper = factory(Object, meta, class, bindto, index)
+	IndexerMap[wrapper] = index
+	return wrapper
 end
 
-local function unwrap(meta, tag)
+local function unwrapindexer(meta, tag)
 	local indexer
 	local key = "__"..tag
 	local func = assert(meta[key], "no indexer found in scoped class metatable.")
-	local name, value
-	local i = 1
-	repeat
-		name, value = debug.getupvalue(func, i)
-		i = i + 1
-	until name == nil or name == tag
-	return value
+	return IndexerMap[func]
 end
 --------------------------------------------------------------------------------
---------------------------------------------------------------------------------
---------------------------------------------------------------------------------
 local function supersiterator(stack, class)
-	class = stack:successor(class)
+	class = stack[class]
 	if class then
 		for _, super in ipairs(class.supers) do
 			stack:insert(super, class)
@@ -195,11 +174,10 @@ local function supersiterator(stack, class)
 	end
 end
 local function hierarchyof(class)
-	local stack = OrderedSet()
-	stack:push(class)
-	return supersiterator, stack, OrderedSet.firstkey
+	local stack = OrderedSet{ class }
+	return supersiterator, stack, 1
 end
---------------------------------------------------------------------------------
+
 local function publicproxy_call(_, object)
 	return this(object)
 end
@@ -212,7 +190,7 @@ local function privateproxy_call(_, object, class)
 	return priv(object, class)
 end
 --------------------------------------------------------------------------------
-local ScopedClass = base.class({}, CachedClass)
+local ScopedClass = multiple_class({}, CachedClass)
 
 function ScopedClass:getmeta(scope)
 	return self[scope] and self[scope].class
@@ -227,7 +205,7 @@ function ScopedClass:getmembers(scope)
 end
 
 function ScopedClass:__init(class)
-	if not class then class = { public = {} } end
+	if class == nil then class = { public = {} } end
 	
 	-- adjust class definition to use scoped member tables
 	if type(class.public) ~= "table" then
@@ -238,8 +216,8 @@ function ScopedClass:__init(class)
 		then
 			class.public = {}
 		else
-			local public = tabop.copy(class)
-			tabop.clear(class)
+			local public = copy(class)
+			clear(class)
 			class.public = public
 		end
 	end
@@ -310,7 +288,7 @@ function ScopedClass:updatemembers()
 	--
 	-- metatables to collect with current members
 	--
-	local public = tabop.clear(self.class)
+	local public = clear(self.class)
 	local protected
 	local private
 	
@@ -324,18 +302,18 @@ function ScopedClass:updatemembers()
 		local super = superclasses[i]
 
 		-- copy members from superclass metatables
-		public = tabop.copy(super.class, public)
+		public = copy(super.class, public)
 
-		if base.instanceof(super, ScopedClass) then
+		if multiple_instanceof(super, ScopedClass) then
 			-- copy protected members from superclass metatables
-			protected = tabop.copy(super:getmeta("protected"), protected)
+			protected = copy(super:getmeta("protected"), protected)
 
 			-- extract the __index and __newindex values
-			publicindex    = unwrap(public, "index")    or publicindex
-			publicnewindex = unwrap(public, "newindex") or publicnewindex
+			publicindex    = unwrapindexer(public, "index")    or publicindex
+			publicnewindex = unwrapindexer(public, "newindex") or publicnewindex
 			if protected then
-				protectedindex    = unwrap(protected, "index")    or protectedindex
-				protectednewindex = unwrap(protected, "newindex") or protectednewindex
+				protectedindex    = unwrapindexer(protected, "index")    or protectedindex
+				protectednewindex = unwrapindexer(protected, "newindex") or protectednewindex
 			end
 		end
 	end
@@ -356,8 +334,8 @@ function ScopedClass:updatemembers()
 	--
 	-- setup public metatable with proper indexers
 	--
-	public.__index = createindexer(self, "public", "index")
-	public.__newindex = createindexer(self, "public", "newindex")
+	public.__index = wrapindexer(self, "public", "index")
+	public.__newindex = wrapindexer(self, "public", "newindex")
 	
 	--
 	-- setup proper protected state features: pool, proxy and indexers
@@ -392,12 +370,12 @@ function ScopedClass:updatemembers()
 			end
 		else
 			-- update current metatable with new members
-			protected = tabop.copy(protected, tabop.clear(self.protected.class))
+			protected = copy(protected, clear(self.protected.class))
 		end
 
 		-- setup metatable with proper indexers
-		protected.__index = createindexer(self, "protected", "index")
-		protected.__newindex = createindexer(self, "protected", "newindex")
+		protected.__index = wrapindexer(self, "protected", "index")
+		protected.__newindex = wrapindexer(self, "protected", "newindex")
 
 	elseif self.protected then
 		-- remove old pool from registry in superclasses
@@ -448,12 +426,12 @@ function ScopedClass:updatemembers()
 			end
 		else
 			-- update current metatable with new members
-			private = tabop.copy(private, tabop.clear(self:getmeta("private")))
+			private = copy(private, clear(self:getmeta("private")))
 		end
 
 		-- setup metatable with proper indexers
-		private.__index = createindexer(self, "private", "index")
-		private.__newindex = createindexer(self, "private", "newindex")
+		private.__index = wrapindexer(self, "private", "index")
+		private.__newindex = wrapindexer(self, "private", "newindex")
 
 	elseif self.private then
 		-- remove old pool from registry in superclasses
@@ -510,11 +488,14 @@ function ScopedClass:updatefield(name, member, scope)                           
 	metatable[name] = member
 	if scope ~= "private" then
 		local queue = OrderedSet()
+		local current = self
+		queue:enqueue(self)
 		for sub in pairs(self.subs) do
 			queue:enqueue(sub)
 		end
-		while queue:head() do
-			local current = queue:dequeue()
+		repeat
+			local current = queue[current]
+			if current == nil then break end
 			metatable = current:getmeta(scope)
 			members = current:getmembers(scope)
 			if members and (members[name] == nil) then
@@ -531,7 +512,7 @@ function ScopedClass:updatefield(name, member, scope)                           
 					end
 				end
 			end
-		end
+		until false
 	end                                                                           -- [[VERBOSE]] verbose:scoped(false, "field updated")
 	return old
 end
@@ -542,43 +523,26 @@ function class(class, ...)
 	class:updateinheritance()
 	return class.proxy
 end
---------------------------------------------------------------------------------
-local cached_classof = classof
-function classof(object)
-	return cached_classof(this(object))
-end
--------------------------------------------------------------------------------
-function methodfunction(method)
-	local name, value = debug.getupvalue(method, 5)
-	assert(name == "method", "Oops! Got the wrong upvalue in 'methodfunction'")
-	return value
-end
---------------------------------------------------------------------------------
-function methodclass(method)
-	local name, value = debug.getupvalue(method, 3)
-	assert(name == "class", "Oops! Got the wrong upvalue in 'methodclass'")
-	return value.proxy
-end
---------------------------------------------------------------------------------
+
 function this(object)
 	return Object[object] or object
 end
---------------------------------------------------------------------------------
+
 function priv(object, class)
-	if not class then class = classof(object) end
+	if class == nil then class = classof(object) end
 	class = getclass(class)
 	if class and class.private then
-		if base.classof(object) == class.private.class
+		if classof(object) == class.private.class
 			then return object                 -- private object
 			else return class.private[object]  -- protected or public object
 		end
 	end
 end
---------------------------------------------------------------------------------
+
 function prot(object)
 	local class = getclass(classof(object))
 	if class and class.protected then
-		if base.classof(object) == class.protected.class
+		if classof(object) == class.protected.class
 			then return object                         -- protected object
 			else return class.protected[this(object)]  -- private or public object
 		end

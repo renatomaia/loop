@@ -1,53 +1,53 @@
 --------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
 -- Project: LOOP - Lua Object-Oriented Programming                            --
--- Release: 2.3 beta                                                          --
 -- Title  : Cached Class Model                                                --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 --------------------------------------------------------------------------------
--- Exported API:                                                              --
---   class(class, ...)                                                        --
---   new(class, ...)                                                          --
---   classof(object)                                                          --
---   isclass(class)                                                           --
---   instanceof(object, class)                                                --
---   memberof(class, name)                                                    --
---   members(class)                                                           --
---   superclass(class)                                                        --
---   subclassof(class, super)                                                 --
---   supers(class)                                                            --
---   allmembers(class)                                                        --
---------------------------------------------------------------------------------
 
-local type         = type
-local unpack       = unpack
-local pairs        = pairs
-local rawget       = rawget
-local rawset       = rawset
-local require      = require
-local ipairs       = ipairs
-local setmetatable = setmetatable
-local select       = select
+local _G = require "_G"
+local pairs = _G.pairs
+local rawget = _G.rawget
+local rawset = _G.rawset
+local ipairs = _G.ipairs
+local setmetatable = _G.setmetatable
+local select = _G.select
 
-local table = require "loop.table"
+local table = require "table"
+local unpack = table.unpack
+
+local loop_table = require "loop.table"
+local copy = loop_table.copy
+local clear = loop_table.clear
+
+local proto = require "loop.proto"
+local clone = proto.clone
+
+local multiple = require "loop.multiple"
+local multiple_class = multiple.class
+local multiple_classof = multiple.classof
+local multiple_instanceof = multiple.instanceof
+local multiple_rawnew = multiple.rawnew
+local multiple_supers = multiple.supers
 
 module "loop.cached"
---------------------------------------------------------------------------------
-local OrderedSet  = require "loop.collection.OrderedSet"
-local base        = require "loop.multiple"
---------------------------------------------------------------------------------
-table.copy(base, _M)
---------------------------------------------------------------------------------
+
+clone(multiple, _M)
+
+local EndKey = {}
+OrderedSet = multiple_class{ [EndKey] = EndKey }
+function OrderedSet:enqueue(value)
+	if self[value] == nil then
+		local last = self[EndKey]
+		if value ~= last then
+			self[last] = value
+			self[EndKey] = value
+		end
+	end
+end
+
 local function subsiterator(queue, class)
-	class = queue:successor(class)
-	if class then
+	class = queue[class]
+	if class ~= nil then
 		for sub in pairs(class.subs) do
 			queue:enqueue(sub)
 		end
@@ -55,39 +55,39 @@ local function subsiterator(queue, class)
 	end
 end
 function subs(class)
-	queue = OrderedSet()
+	local queue = OrderedSet()
 	queue:enqueue(class)
-	return subsiterator, queue, OrderedSet.firstkey
+	return subsiterator, queue, EndKey
 end
---------------------------------------------------------------------------------
-local function proxy_newindex(proxy, field, value)
-	return base.classof(proxy):updatefield(field, value)
-end
---------------------------------------------------------------------------------
+
 function getclass(class)
-	local cached = base.classof(class)
-	if base.instanceof(cached, CachedClass) then
+	local cached = multiple_classof(class)
+	if multiple_instanceof(cached, CachedClass) then
 		return cached
 	end
 end
 --------------------------------------------------------------------------------
-local ClassMap = base.new { __mode = "k" }
---------------------------------------------------------------------------------
-CachedClass = base.class()
+local ClassProxyOf = setmetatable({}, { __mode = "k" })
 
+CachedClass = multiple_class()
+
+local function proxy_newindex(proxy, field, value)
+	return multiple_classof(proxy):updatefield(field, value)
+end
 function CachedClass:__init(class)
 	local meta = {}
-	self = base.rawnew(self, {
+	self = multiple_rawnew(self, {
 		__call = new,
 		__index = meta,
 		__newindex = proxy_newindex,
 		supers = {},
 		subs = {},
-		members = table.copy(class, {}),
+		members = copy(class, {}),
 		class = meta,
+		proxy = (class == nil) and {} or clear(class),
 	})
-	self.proxy = setmetatable(class and table.clear(class) or {}, self)
-	ClassMap[self.class] = self.proxy
+	setmetatable(self.proxy, self)
+	ClassProxyOf[meta] = self.proxy
 	return self
 end
 
@@ -103,16 +103,13 @@ function CachedClass:updatehierarchy(...)
 			else supers[#supers + 1] = super
 		end
 	end
-
 	-- remove it from its old superclasses
 	for _, super in ipairs(self.supers) do
 		super:removesubclass(self)
 	end
-	
 	-- update superclasses
 	self.uncached = supers
 	self.supers = caches
-
 	-- register as subclass in all superclasses
 	for _, super in ipairs(self.supers) do
 		super:addsubclass(self)
@@ -146,33 +143,34 @@ function CachedClass:updatesuperclasses()
 	end
 	-- copy inherited uncached superclasses
 	for _, cached in ipairs(self.supers) do
-		for _, super in base.supers(cached.class) do
+		for _, super in multiple_supers(cached.class) do
 			if not uncached[super] then
 				uncached[super] = true
 				uncached[#uncached + 1] = super
 			end
 		end
 	end
-	base.class(self.class, unpack(uncached))
+	multiple_class(self.class, unpack(uncached))
 end
 
 function CachedClass:updatemembers()
-	local class = table.clear(self.class)
+	local class = clear(self.class)
 	for i = #self.supers, 1, -1 do
 		local super = self.supers[i].class
 		-- copy inherited members
-		table.copy(super, class)
+		copy(super, class)
 		-- do not copy the default __index value
 		if rawget(class, "__index") == super then
 			rawset(class, "__index", nil)
 		end
 	end
 	-- copy members defined in the class
-	table.copy(self.members, class)
+	copy(self.members, class)
 	-- set the default __index value
 	if rawget(class, "__index") == nil then
 		rawset(class, "__index", class)
 	end
+	-- set class proxy as the result of getmetatable function
 end
 
 function CachedClass:updatefield(name, member)
@@ -187,11 +185,14 @@ function CachedClass:updatefield(name, member)
 	-- replace old linkage for the new one
 	class[name] = member
 	local queue = OrderedSet()
+	local current = self
+	queue:enqueue(self)
 	for sub in pairs(self.subs) do
 		queue:enqueue(sub)
 	end
-	while queue:head() do
-		local current = queue:dequeue()
+	repeat
+		local current = queue[current]
+		if current == nil then break end
 		class = current.class
 		members = current.members
 		if members[name] == nil then
@@ -208,7 +209,7 @@ function CachedClass:updatefield(name, member)
 				end
 			end
 		end
-	end
+	until false
 	return old
 end
 --------------------------------------------------------------------------------
@@ -218,29 +219,29 @@ function class(class, ...)
 	class:updateinheritance()
 	return class.proxy
 end
---------------------------------------------------------------------------------
+
+function classof(object)
+	local class = multiple_classof(object)
+	return ClassProxyOf[class] or class
+end
+
 function rawnew(class, object)
 	local cached = getclass(class)
 	if cached then class = cached.class end
-	return base.rawnew(class, object)
+	return multiple_rawnew(class, object)
 end
---------------------------------------------------------------------------------
+
 function new(class, ...)
 	if class.__init
 		then return class:__init(...)
 		else return rawnew(class, ...)
 	end
 end
---------------------------------------------------------------------------------
-function classof(object)
-	local class = base.classof(object)
-	return ClassMap[class] or class
-end
---------------------------------------------------------------------------------
+
 function isclass(class)
 	return getclass(class) ~= nil
 end
---------------------------------------------------------------------------------
+
 function superclass(class)
 	local supers = {}
 	local cached = getclass(class)
@@ -250,12 +251,12 @@ function superclass(class)
 		end
 		class = cached.class
 	end
-	for _, super in base.supers(class) do
+	for _, super in multiple_supers(class) do
 		supers[#supers + 1] = super
 	end
 	return unpack(supers)
 end
---------------------------------------------------------------------------------
+
 local function icached(cached, index)
 	local super
 	local supers = cached.supers
@@ -271,10 +272,10 @@ function supers(class)
 	local cached = getclass(class)
 	if cached
 		then return icached, cached, 0
-		else return base.supers(class)
+		else return multiple_supers(class)
 	end
 end
---------------------------------------------------------------------------------
+
 function subclassof(class, super)
 	if class == super then return true end
 	for _, superclass in supers(class) do
@@ -282,31 +283,31 @@ function subclassof(class, super)
 	end
 	return false
 end
---------------------------------------------------------------------------------
+
 function instanceof(object, class)
 	return subclassof(classof(object), class)
 end
---------------------------------------------------------------------------------
+
 function memberof(class, name)
 	local cached = getclass(class)
 	if cached
 		then return cached.members[name]
-		else return base.member(class, name)
+		else return multiple_memberof(class, name)
 	end
 end
---------------------------------------------------------------------------------
+
 function members(class)
 	local cached = getclass(class)
 	if cached
 		then return pairs(cached.members)
-		else return base.members(class)
+		else return multiple_members(class)
 	end
 end
---------------------------------------------------------------------------------
+
 function allmembers(class)
 	local cached = getclass(class)
 	if cached
 		then return pairs(cached.class)
-		else return base.members(class)
+		else return multiple_members(class)
 	end
 end

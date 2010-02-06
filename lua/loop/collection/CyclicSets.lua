@@ -31,20 +31,22 @@ function contains(self, item)
 end
 
 -- [ ? ]           :successor(item) --> [ ? ]            : nil 
--- [ item ]        :successor(item) --> [ item ]         : item
 -- [ item | ? ]    :successor(item) --> [ item | ? ]     : item
 -- [ item, succ ? ]:successor(item) --> [ item, succ ? ] : succ
 function successor(self, item)
 	return self[item]
 end
 
-function forward(self, item)
-	return rawget, self, item
+function forward(self, place)
+	return self.successor, self, place
 end
 
 -- [ ? ]              :addto()            --> [ ? ]               : error "table index is nil"
 -- [ ? ]              :addto(place)       --> [ ? ]               : error "table index is nil"
--- [ ? ]              :addto(nil  , item) --> [ item | ? ]        : item
+-- [ ? ]              :addto(nil, item)   --> [ item | ? ]        : item
+-- [ item ? ]         :addto(nil, item)   --> [ item ? ]          :
+-- [ ? ]              :addto(item, item)  --> [ item | ? ]        : item
+-- [ item ? ]         :addto(item, item)  --> [ item ? ]          :
 -- [ ? ]              :addto(place, item) --> [ place, item | ? ] : item
 -- [ place ? ]        :addto(place, item) --> [ place, item ? ]   : item
 -- [ item ? ]         :addto(place, item) --> [ item ? ]          :

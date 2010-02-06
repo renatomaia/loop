@@ -41,7 +41,7 @@ function Tests.SimpleInheritance(checks)
 		end
 	end)
 	
-	local Sub = oo.class(function(name, age) oo.share(Base(name))
+	local Sub = oo.class(function(name, age) oo.inherit(Base, name)
 		local prvAttrib = "redefined private"
 		pubAttrib = "redefined public"
 
@@ -72,7 +72,7 @@ function Tests.SimpleInheritance(checks)
 end
 
 function Tests.Mutant(checks)
-	local Mutant = oo.class(function(self) oo.share(self)
+	local Mutant = oo.class(function(self) oo.become(self)
 		function whoAmI()
 			return "I'm "..name.."!"
 		end
@@ -86,7 +86,7 @@ function Tests.SeeAll(checks)
 	local package = require "package"
 	
 	local HelloWorld = oo.class(function()
-		package.seeall(oo.this())
+		package.seeall(oo.self())
 		
 		function getPrintFunc()
 			return print

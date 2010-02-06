@@ -15,7 +15,6 @@
 
 local pairs = pairs
 local type = type
-local unpack = unpack
 local select = select
 local getfenv = getfenv
 local tostring = tostring
@@ -25,7 +24,8 @@ local setmetatable = setmetatable
 local getupvalue = debug and debug.getupvalue
 
 local string = require "string"
-local table = require "loop.table"
+local table = require "table"
+local tabop = require "loop.table"
 local oo = require "loop.base"
 
 module("loop.debug.Matcher", oo.class)
@@ -72,13 +72,13 @@ function matchtable(self, value, other)
 		if otherfield == nil then
 			matched = false
 			for otherkey, otherfield in pairs(other) do
-				local matcher = setmetatable(table.copy(self), getmetatable(self))
+				local matcher = setmetatable(tabop.copy(self), getmetatable(self))
 				matcher.error = nil
 				if
 					matcher:match(key, otherkey) and
 					matcher:match(field, otherfield)
 				then
-					table.copy(matcher, self)
+					tabop.copy(matcher, self)
 					keysmatched[otherkey] = true
 					matched = true
 					break

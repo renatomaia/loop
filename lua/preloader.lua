@@ -160,7 +160,7 @@ outc:write([[
 ]])
 local code = [[
 	lua_pushcfunction(L, luaopen_%s);
-	lua_setfield(L, -2, "%s");
+	lua_setfield(L, -2, %q);
 ]]
 for i, input in ipairs(inputs) do
 	if names then

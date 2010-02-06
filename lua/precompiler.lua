@@ -59,7 +59,7 @@ Options:
   -d, -directory  Directory where the output files should be generated. Its
                   default is the current directory.
   
-  -l, -luapath    Sequence os path templates used to infer package names from
+  -l, -luapath    Sequence of path templates used to infer package names from
                   file paths and vice versa. These templates follows the same
                   format of the 'package.path' field of Lua. Its default is the
                   value of 'package.path' that currently is set to:
@@ -208,7 +208,7 @@ for i, input in ipairs(inputs) do
 	outc:write(
 prefix,[[ int luaopen_]],func,[[(lua_State *L) {
 	int arg = lua_gettop(L);
-	luaL_loadbuffer(L,(const char*)B]],i,[[,sizeof(B]],i,[[),"]],input,[[");
+	luaL_loadbuffer(L,(const char*)B]],i,[[,sizeof(B]],i,[[),"]],input,[[") && lua_error(L);
 	lua_insert(L,1);
 	lua_call(L,arg,1);
 	return 1;

@@ -5,7 +5,7 @@ local function newsub()
 	return function(...)
 		local prev = data
 		data = { n = select("#", ...), ... }
-		return unpack(prev, 1, prev.n)
+		return table.unpack(prev, 1, prev.n)
 	end
 end
 

@@ -1,75 +1,65 @@
 --------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
 -- Project: LOOP - Lua Object-Oriented Programming                            --
--- Release: 2.3 beta                                                          --
 -- Title  : Simple Inheritance Class Model                                    --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 --------------------------------------------------------------------------------
--- Exported API:                                                              --
---   class(class, super)                                                      --
---   new(class, ...)                                                          --
---   classof(object)                                                          --
---   isclass(class)                                                           --
---   instanceof(object, class)                                                --
---   memberof(class, name)                                                    --
---   members(class)                                                           --
---   superclass(class)                                                        --
---   subclassof(class, super)                                                 --
---------------------------------------------------------------------------------
 
-local require = require
-local rawget  = rawget
-local pairs   = pairs
+local _G = require "_G"
+local pairs = _G.pairs
+local setmetatable = _G.setmetatable
+local rawget = _G.rawget
 
 local table = require "loop.table"
+local memoize = table.memoize
+
+local base = require "loop.base"
+local base_class = base.class
+local base_isclass = base.isclass
+
+local proto = require "loop.proto"
+local clone = proto.clone
 
 module "loop.simple"
---------------------------------------------------------------------------------
-local ObjectCache = require "loop.collection.ObjectCache"
-local base        = require "loop.base"
---------------------------------------------------------------------------------
-table.copy(base, _M)
---------------------------------------------------------------------------------
-local DerivedClass = ObjectCache {
-	retrieve = function(self, super)
-		return base.class { __index = super, __call = new }
-	end,
-}
+
+clone(base, _M)
+
+local DerivedMeta = memoize(function(super)
+	return { __index = super, __call = new }
+end, "k")
+
 function class(class, super)
-	if super
-		then return DerivedClass[super](initclass(class))
-		else return base.class(class)
+	if super == nil
+		then return base_class(class)
+		else return setmetatable(initclass(class), DerivedMeta[super])
 	end
 end
---------------------------------------------------------------------------------
+
 function isclass(class)
 	local metaclass = classof(class)
-	if metaclass then
-		return metaclass == rawget(DerivedClass, metaclass.__index) or
-		       base.isclass(class)
+	if metaclass ~= nil then
+		return metaclass == rawget(DerivedClassMeta, metaclass.__index) or
+		       base_isclass(class)
 	end
 end
---------------------------------------------------------------------------------
+
 function superclass(class)
 	local metaclass = classof(class)
-	if metaclass then return metaclass.__index end
+	if metaclass ~= nil then
+		local super = metaclass.__index
+		if metaclass == rawget(DerivedMeta, super) then
+			return super
+		end
+	end
 end
---------------------------------------------------------------------------------
+
 function subclassof(class, super)
-	while class do
+	while class ~= nil do
 		if class == super then return true end
 		class = superclass(class)
 	end
 	return false
 end
---------------------------------------------------------------------------------
+
 function instanceof(object, class)
 	return subclassof(classof(object), class)
 end

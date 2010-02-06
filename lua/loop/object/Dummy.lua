@@ -4,7 +4,7 @@ local class = oo.class
 local classof = oo.classof
 local rawnew = oo.rawnew
 
-module("loop.object.Dummy", class)
+module(..., class)
 
 function nothing() end
 function self(dummy) return dummy end

@@ -8,7 +8,7 @@ local Suite = require "loop.test.Suite"
 
 local Tests = {
 	AddPorts = require "loop.tests.component.AddPorts",
-	Context  = require "loop.tests.component.Context",
+	--Context  = require "loop.tests.component.Context",
 }
 
 local FullSuite = Suite()

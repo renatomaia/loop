@@ -18,92 +18,89 @@ local CyclicSets = require "loop.collection.CyclicSets"
 
 local rawnew   = oo.rawnew
 local addto    = CyclicSets.addto
-local getsucc  = CyclicSets.successor
 local removeat = CyclicSets.removefrom
-
-local INIT = newproxy()
-local LAST = newproxy()
 
 module(..., oo.class)
 
 contains = CyclicSets.contains
-
-function __init(self, object)
-	self = rawnew(self, object)
-	addto(self, nil, INIT)
-	self[LAST] = INIT
-	return self
-end
+sequence = CyclicSets.forward
 
 function empty(self)
-	return self[INIT] == INIT
+	return self[self] == nil
 end
 
 function first(self)
-	local item = self[INIT]
-	if item ~= INIT then return item end
+	return self[ self[self] ]
 end
 
 function last(self)
-	local item = self[LAST]
-	if item ~= INIT then return item end
+	return self[self]
 end
 
 function successor(self, item)
-	item = getsucc(self, item)
-	if item ~= INIT then return item end
-end
-
-local function iterator(next, prev)
-	local item = next[prev]
-	if item ~= INIT then return item, prev end
-end
-function sequence(self, from)
-	if from == nil then from = INIT end
-	return iterator, self, from
+	local last = self[self]
+	if item ~= last then
+		if item == nil then item = last end
+		return self[item]
+	end
 end
 
 function insert(self, item, place)
-	local last = self[LAST]
+	local last = self[self]
 	if place == nil then place = last end
 	if self:contains(place) and addto(self, place, item) == item then
-		if place == last then self[LAST] = item end
+		if place == last then self[self] = item end
 		return item
 	end
 end
 
 function removefrom(self, place)
-	local last = self[LAST]
+	local last = self[self]
 	if place ~= last then
+		if place == nil then place = last end
 		local item = removeat(self, place)
 		if item ~= nil then
-			if item == last then self[LAST] = place end
+			if item == last then self[self] = place end
 			return item
 		end
 	end
 end
 
-function previous(self, item, from)
-	if self:contains(item) then
-		for found, previous in self:sequence(from) do
-			if found == item then return previous end
-		end
+--function previous(self, item, from)
+--	if self:contains(item) then
+--		for found, previous in self:sequence(from) do
+--			if found == item then return previous end
+--		end
+--	end
+--end
+--
+--function remove(self, item, ...)
+--	return self:removefrom(self:previous(item, ...))
+--end
+
+function pushfront(self, item)
+	local last = self[self]
+	if addto(self, last, item) == item then
+		if last == nil then self[self] = item end
+		return item
 	end
 end
 
-function remove(self, item, ...)
-	return self:removefrom(self:previous(item, ...))
-end
-
-function pushfront(self, item)
-	return self:insert(item, INIT)
-end
-
 function popfront(self)
-	return self:removefrom(INIT)
+	local last = self[self]
+	if self[last] == last then
+		self[self] = nil
+	end
+	return removefrom(self, last)
 end
 
-pushback = insert
+function pushback(self, item)
+	local last = self[self]
+	if addto(self, last, item) == item then
+		self[self] = item
+		return item
+	end
+end
 
 --------------------------------------------------------------------------------
 
@@ -120,8 +117,6 @@ enqueue = pushback
 dequeue = popfront
 head = first
 tail = last
-
-firstkey = INIT
 
 --------------------------------------------------------------------------------
 
