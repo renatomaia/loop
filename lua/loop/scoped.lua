@@ -15,6 +15,8 @@ local _G = require "_G"
 local assert = _G.assert
 local getmetatable = _G.getmetatable
 local ipairs = _G.ipairs
+local loadin = _G.loadin
+local loadstring = _G.loadstring
 local pairs = _G.pairs
 local rawget = _G.rawget
 local rawset = _G.rawset
@@ -36,6 +38,8 @@ local multiple = require "loop.multiple"
 local multiple_class = multiple.class
 local multiple_instanceof = multiple.instanceof
 
+local cached = require "loop.cached"
+
 module "loop.scoped"                                                            -- [[VERBOSE]] local verbose = require "loop.verbose"
 
 clone(cached, _M)
@@ -52,18 +56,21 @@ local Object = setmetatable({}, { __mode = "kv" })
 
 local function ProtectedPool(members)                                           -- [[VERBOSE]] verbose:scoped "new protected pool"
 	local class = multiple_class(members)
-	return memoize(function(object)                                               -- [[VERBOSE]] verbose:scoped("new 'protected' for 'public' ",object)
+	local pool = memoize(function(object)                                         -- [[VERBOSE]] verbose:scoped("new 'protected' for 'public' ",object)
 		local protected = class()
 		Object[protected] = object
 		return protected
 	end, "k")
+	pool.class = class
+	return pool
 end
 
 local function PrivatePool(members)                                             -- [[VERBOSE]] verbose:scoped{"new private pool", members = members}
 	local class = multiple_class(members)
-	return memoize(function(outter)                                               -- [[VERBOSE]] verbose:scoped("new 'protected' for 'public' ",object)
+	local pool
+	pool = memoize(function(outter)                                               -- [[VERBOSE]] verbose:scoped("new 'protected' for 'public' ",object)
 		local object = Object[outter]                                               -- [[VERBOSE]] verbose:scoped("'public' is ",object or outter)
-		local private = rawget(self, object)
+		local private = rawget(pool, object)
 		if private == nil then
 			private = class()                                                         -- [[VERBOSE]] verbose:scoped("new 'private' created: ",private)
 			if object == nil then
@@ -75,6 +82,8 @@ local function PrivatePool(members)                                             
 		end                                                                         -- [[VERBOSE]] verbose:scoped(false, "returning 'private' ",private," for reference ",outter)
 		return private
 	end, "k")
+	pool.class = class
+	return pool
 end
 
 local function bindto(class, member)
@@ -131,10 +140,8 @@ local IndexerFactory = memoize(function(name)
 	for line, strip in ipairs(IndexerCode) do
 		local cond = strip[2]
 		if cond then
-			cond = assert(loadstring("return "..cond,
-				"compiler condition "..line..":"))
-			setfenv(cond, includes)
-			cond = cond()
+			cond = assert(loadin(includes, "return "..cond,
+				"compiler condition "..line..":"))()
 		else
 			cond = true
 		end
@@ -149,8 +156,7 @@ end)
 local function wrapindexer(class, scope, action)
 	local meta = class:getmeta(scope)
 	local index = meta["__"..action]
-	local indextype = type(index).."index"
-	local name = scope.." "..action.." "..indextype
+	local name = scope.." "..action.." "..type(index).."index"
 	local factory = IndexerFactory[name]
 	local wrapper = factory(Object, meta, class, bindto, index)
 	IndexerMap[wrapper] = index

@@ -8,4 +8,4 @@ local results = Results{
 }
 --results:test("LOOP", require("loop.tests.Suite"), results)
 
-results:test("LOOP Scheduler", require("loop.tests.library.Scheduler"), results)
+results:test("LOOP Scheduler", require("loop.tests.library.Scheduler2"), results)

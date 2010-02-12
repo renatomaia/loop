@@ -78,7 +78,9 @@ end
 function subclassof(class, super)
 	if class == super then return true end
 	for _, superclass in supers(class) do
-		if subclassof(superclass, super) then return true end
+		if subclassof(superclass, super) then
+			return true
+		end
 	end
 	return false
 end

@@ -79,24 +79,26 @@ function removeall(self, item)
 end
 
 function movetofrom(self, newplace, oldplace, lastitem)
-	local theitem = self[oldplace]
-	if theitem ~= nil then
-		if lastitem == nil then lastitem = theitem end
-		local oldsucc = self[lastitem]
-		local newsucc
-		if newplace == nil or newplace == theitem then
-			newplace, newsucc = lastitem, theitem
-		else
-			newsucc = self[newplace]
-			if newsucc == nil then
-				newsucc = newplace
+	if newplace ~= oldplace then
+		local theitem = self[oldplace]
+		if theitem ~= nil then
+			if lastitem == nil then lastitem = theitem end
+			local oldsucc = self[lastitem]
+			local newsucc
+			if newplace == nil or newplace == theitem then
+				newplace, newsucc = lastitem, theitem
+			else
+				newsucc = self[newplace]
+				if newsucc == nil then
+					newsucc = newplace
+				end
 			end
+			local back = self.back
+			self[oldplace], back[oldsucc] = oldsucc, oldplace
+			self[lastitem], back[newsucc] = newsucc, lastitem
+			self[newplace], back[theitem] = theitem, newplace
+			return theitem
 		end
-		local back = self.back
-		self[oldplace], back[oldsucc] = oldsucc, oldplace
-		self[lastitem], back[newsucc] = newsucc, lastitem
-		self[newplace], back[theitem] = theitem, newplace
-		return theitem
 	end
 end
 
@@ -117,9 +119,5 @@ function disjoint(self)
 end
 
 function __tostring(self, ...)
-	local back
-	back, self.back = self.back, nil
-	local result = CyclicSets.__tostring(self, ...)
-	if back then self.back = back end
-	return result
+	return CyclicSets.__tostring(self.back, ...)
 end

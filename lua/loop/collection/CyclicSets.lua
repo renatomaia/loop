@@ -100,7 +100,9 @@ end
 -- [ ? ]                              :movetofrom()               --> [ ? ]                          :
 -- [ ? ]                              :movetofrom(nil, old, ...)  --> [ ? ]                          :
 -- [ ? ]                              :movetofrom(new, old, ...)  --> [ ? ]                          :
+-- [ ? ]                              :movetofrom(new, new, ...)  --> [ ? ]                          :
 -- [ new ? ]                          :movetofrom(new, old, ...)  --> [ new ? ]                      :
+-- [ old ? ]                          :movetofrom(old, old, ...)  --> [ old ? ]                      :
 --
 -- [ old | ? ]                        :movetofrom(nil, old)       --> [ old | ? ]                    : old
 -- [ old | ? ]                        :movetofrom(new, old)       --> [ new, old | ? ]               : old
@@ -128,23 +130,25 @@ end
 -- [ old, item ? | last..new ?? ]     :movetofrom(new, old, last) --> UNKNOWN STATE. MAYBE VALID?    : item
 -- [ old, item ? | last ?? | new ??? ]:movetofrom(new, old, last) --> UNKNOWN STATE. MAYBE VALID?    : item
 function movetofrom(self, newplace, oldplace, lastitem)
-	local theitem = self[oldplace]
-	if theitem ~= nil then
-		if lastitem == nil then lastitem = theitem end
-		local oldsucc = self[lastitem]
-		local newsucc
-		if newplace == nil or newplace == theitem then
-			newplace, newsucc = lastitem, theitem
-		else
-			newsucc = self[newplace]
-			if newsucc == nil then
-				newsucc = newplace
+	if newplace ~= oldplace then
+		local theitem = self[oldplace]
+		if theitem ~= nil then
+			if lastitem == nil then lastitem = theitem end
+			local oldsucc = self[lastitem]
+			local newsucc
+			if newplace == nil or newplace == theitem then
+				newplace, newsucc = lastitem, theitem
+			else
+				newsucc = self[newplace]
+				if newsucc == nil then
+					newsucc = newplace
+				end
 			end
+			self[oldplace] = oldsucc
+			self[lastitem] = newsucc
+			self[newplace] = theitem
+			return theitem
 		end
-		self[oldplace] = oldsucc
-		self[lastitem] = newsucc
-		self[newplace] = theitem
-		return theitem
 	end
 end
 
@@ -174,6 +178,11 @@ function __tostring(self, tostring, concat)
 	while start ~= nil do
 		local item = start
 		repeat
+			if missing[item] == nil then
+				result[#result+1] = "<?>" -- data structure is corrupted!
+				result[#result+1] = ""
+				break
+			end
 			result[#result+1] = tostring(item)
 			result[#result+1] = ", "
 			missing[item] = nil

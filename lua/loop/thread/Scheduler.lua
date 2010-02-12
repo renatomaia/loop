@@ -1,19 +1,11 @@
 --------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
 -- Project: LOOP Class Library                                                --
 -- Release: 2.3 beta                                                          --
 -- Title  : Cooperative Threads Scheduler based on Coroutines                 --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 --------------------------------------------------------------------------------
 
-local global       = require "_G"
+local _G           = require "_G"
 local coroutine    = require "coroutine"
 local os           = require "os"
 local oo           = require "loop.base"
@@ -21,11 +13,11 @@ local CyclicSets   = require "loop.collection.CyclicSets"
 local BiCyclicSets = require "loop.collection.BiCyclicSets"
 local SortedMap    = require "loop.collection.SortedMap"
 
-local luaerror     = global.error
-local assert       = global.assert
-local getmetatable = global.getmetatable
-local luapcall     = global.pcall
-local rawget       = global.rawget
+local luaerror     = _G.error
+local assert       = _G.assert
+local getmetatable = _G.getmetatable
+local luapcall     = _G.pcall
+local rawget       = _G.rawget
 local newthread    = coroutine.create
 local runthread    = coroutine.resume
 local yield        = coroutine.yield
@@ -37,15 +29,15 @@ local difftime     = os.difftime
 local StartTime  = gettime()
 local WeakValues = oo.class{ __mode = "v" }
 local WeakKeys   = oo.class{ __mode = "k" }
-local HaltKey    = global.newproxy()
-local traceback  = global.debug and
-                   	global.debug.traceback or
+local HaltKey    = _G.newproxy()
+local traceback  = _G.debug and
+                   	_G.debug.traceback or
                    	function(_, err) return err end
 
---[[VERBOSE]] local type        = global.type
---[[VERBOSE]] local rawget      = global.rawget
---[[VERBOSE]] local select      = global.select
---[[VERBOSE]] local tostring    = global.tostring
+--[[VERBOSE]] local type        = _G.type
+--[[VERBOSE]] local rawget      = _G.rawget
+--[[VERBOSE]] local select      = _G.select
+--[[VERBOSE]] local tostring    = _G.tostring
 --[[VERBOSE]] local string      = require "string"
 --[[VERBOSE]] local table       = require "table"
 --[[VERBOSE]] local math        = require "math"

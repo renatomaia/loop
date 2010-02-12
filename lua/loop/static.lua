@@ -35,7 +35,9 @@ function inherit(class, ...)
 end
 
 function become(object)
-	setfenv(2, object)
+	if object ~= nil then
+		setfenv(2, object)
+	end
 end
 
 function self(level)
