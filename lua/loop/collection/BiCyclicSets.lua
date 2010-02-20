@@ -1,33 +1,30 @@
 --------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
 -- Project: LOOP Class Library                                                --
 -- Release: 2.3 beta                                                          --
 -- Title  : Interchangeable Disjoint Bidirectional Cyclic Sets                --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 --------------------------------------------------------------------------------
 
-local global     = require "_G"
-local oo         = require "loop.simple"
-local CyclicSets = require "loop.collection.CyclicSets"
+local _G = require "_G"
+local rawget = _G.rawget
 
-local rawget = global.rawget
+local table = require "loop.table"
+local memoize = table.memoize
+
+local oo = require "loop.simple"
+local class = oo.class
 local rawnew = oo.rawnew
+
+local CyclicSets = require "loop.collection.CyclicSets"
 
 module(...)
 
-oo.class(_M, CyclicSets)
+class(_M, CyclicSets)
 
-function __init(self, object)
-	self = rawnew(self, object)
-	self.back = self.back or {}
-	return self
+local invertedof = memoize(function() return {} end, "k")
+
+function inverted(self)
+	return invertedof[self]
 end
 
 -- []:predecessor(item)               : nil --> []
@@ -35,14 +32,14 @@ end
 -- [ item ]:predecessor(item)         : item --> [ item ]
 -- [ pred, item ? ]:predecessor(item) : pred --> [ pred, item ? ]
 function predecessor(self, item)
-	return self.back[item]
+	return invertedof[self][item]
 end
 
 function backward(self, place)
 	return self.predecessor, self, place
 end
 
-function addto(self, place, item)
+function add(self, item, place)
 	if self[item] == nil then
 		local succ
 		if place == nil then
@@ -53,7 +50,7 @@ function addto(self, place, item)
 				succ = place
 			end
 		end
-		local back = self.back
+		local back = invertedof[self]
 		self[item] , back[succ] = succ, item
 		self[place], back[item] = item, place
 		return item
@@ -63,7 +60,7 @@ end
 function removefrom(self, place)
 	local item = self[place]
 	if item ~= nil then
-		local back = self.back
+		local back = invertedof[self]
 		local succ = self[item]
 		self[place], back[succ] = succ, place
 		self[item] , back[item] = nil, nil
@@ -71,29 +68,29 @@ function removefrom(self, place)
 	end
 end
 
-function removeall(self, item)
-	local back = self.back
+function removeset(self, item)
+	local back = invertedof[self]
 	repeat
 		item, self[item], back[item] = self[item], nil, nil
 	until item == nil
 end
 
-function movetofrom(self, newplace, oldplace, lastitem)
-	if newplace ~= oldplace then
-		local theitem = self[oldplace]
-		if theitem ~= nil then
-			if lastitem == nil then lastitem = theitem end
-			local oldsucc = self[lastitem]
-			local newsucc
-			if newplace == nil or newplace == theitem then
-				newplace, newsucc = lastitem, theitem
-			else
-				newsucc = self[newplace]
-				if newsucc == nil then
-					newsucc = newplace
-				end
+function movefrom(self, oldplace, newplace, lastitem)
+	local theitem = self[oldplace]
+	if theitem ~= nil then
+		if lastitem == nil then lastitem = theitem end
+		local oldsucc = self[lastitem]
+		local newsucc
+		if newplace == nil or newplace == theitem then
+			newplace, newsucc = lastitem, theitem
+		else
+			newsucc = self[newplace]
+			if newsucc == nil then
+				newsucc = newplace
 			end
-			local back = self.back
+		end
+		if newplace ~= oldplace then
+			local back = invertedof[self]
 			self[oldplace], back[oldsucc] = oldsucc, oldplace
 			self[lastitem], back[newsucc] = newsucc, lastitem
 			self[newplace], back[theitem] = theitem, newplace
@@ -103,21 +100,12 @@ function movetofrom(self, newplace, oldplace, lastitem)
 end
 
 function remove(self, item)
-	return self:removefrom(self.back[item])
+	return self:removefrom(invertedof[self][item])
 end
 
-function moveto(self, place, item, last)
-	return self:movetofrom(place, self.back[item], last)
-end
-
-function disjoint(self)
-	local back
-	back, self.back = self.back, nil
-	local result = CyclicSets.disjoint(self)
-	if back then self.back = back end
-	return result
-end
-
-function __tostring(self, ...)
-	return CyclicSets.__tostring(self.back, ...)
+function move(self, item, place, last)
+	local oldplace = invertedof[self][item]
+	if oldplace ~= nil then
+		return self:movefrom(oldplace, place, last)
+	end
 end

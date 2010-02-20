@@ -1,28 +1,21 @@
 --------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
 -- Project: LOOP Class Library                                                --
 -- Release: 2.3 beta                                                          --
 -- Title  : Interchangeable Disjoint Cyclic Sets                              --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 --------------------------------------------------------------------------------
 
-local global = require "_G"
-local table  = require "loop.table"
-local oo     = require "loop.base"
+local _G = require "_G"
+local next = _G.next
+local rawget = _G.rawget
 
-local next   = global.next
-local rawget = global.rawget
-local copy   = table.copy
-local rawnew = oo.rawnew
+local table = require "loop.table"
+local copy = table.copy
 
-module(..., oo.class)
+local oo = require "loop.base"
+local class = oo.class
+
+module(..., class)
 
 -- [ ? ]     :contains(item) --> [ ? ]      : false
 -- [ item ? ]:contains(item) --> [ item ? ] : true
@@ -41,18 +34,18 @@ function forward(self, place)
 	return self.successor, self, place
 end
 
--- [ ? ]              :addto()            --> [ ? ]               : error "table index is nil"
--- [ ? ]              :addto(place)       --> [ ? ]               : error "table index is nil"
--- [ ? ]              :addto(nil, item)   --> [ item | ? ]        : item
--- [ item ? ]         :addto(nil, item)   --> [ item ? ]          :
--- [ ? ]              :addto(item, item)  --> [ item | ? ]        : item
--- [ item ? ]         :addto(item, item)  --> [ item ? ]          :
--- [ ? ]              :addto(place, item) --> [ place, item | ? ] : item
--- [ place ? ]        :addto(place, item) --> [ place, item ? ]   : item
--- [ item ? ]         :addto(place, item) --> [ item ? ]          :
--- [ place, item ? ]  :addto(place, item) --> [ place, item ? ]   :
--- [ place ? item ?? ]:addto(place, item) --> [ place ? item ?? ] :
-function addto(self, place, item)
+-- [ ? ]              :add()            --> [ ? ]               : error "table index is nil"
+-- [ ? ]              :add(nil, place)  --> [ ? ]               : error "table index is nil"
+-- [ ? ]              :add(item)        --> [ item | ? ]        : item
+-- [ item ? ]         :add(item)        --> [ item ? ]          :
+-- [ ? ]              :add(item, item)  --> [ item | ? ]        : item
+-- [ item ? ]         :add(item, item)  --> [ item ? ]          :
+-- [ ? ]              :add(item, place) --> [ place, item | ? ] : item
+-- [ place ? ]        :add(item, place) --> [ place, item ? ]   : item
+-- [ item ? ]         :add(item, place) --> [ item ? ]          :
+-- [ place, item ? ]  :add(item, place) --> [ place, item ? ]   :
+-- [ place ? item ?? ]:add(item, place) --> [ place ? item ?? ] :
+function add(self, item, place)
 	if self[item] == nil then
 		local succ
 		if place == nil then
@@ -82,11 +75,11 @@ function removefrom(self, place)
 	end
 end
 
--- [ ? ]             :removeall()     --> [ ? ] :
--- [ ? ]             :removeall(item) --> [ ? ] :
--- [ item | ? ]      :removeall(item) --> [ ? ] : item
--- [ item..last | ? ]:removeall(item) --> [ ? ] : item
-function removeall(self, item)
+-- [ ? ]             :removeset()     --> [ ? ] :
+-- [ ? ]             :removeset(item) --> [ ? ] :
+-- [ item | ? ]      :removeset(item) --> [ ? ] : item
+-- [ item..last | ? ]:removeset(item) --> [ ? ] : item
+function removeset(self, item)
 	local succ = self[item]
 	if succ ~= nil then
 		self[item] = nil
@@ -97,53 +90,79 @@ function removeall(self, item)
 	end
 end
 
--- [ ? ]                              :movetofrom()               --> [ ? ]                          :
--- [ ? ]                              :movetofrom(nil, old, ...)  --> [ ? ]                          :
--- [ ? ]                              :movetofrom(new, old, ...)  --> [ ? ]                          :
--- [ ? ]                              :movetofrom(new, new, ...)  --> [ ? ]                          :
--- [ new ? ]                          :movetofrom(new, old, ...)  --> [ new ? ]                      :
--- [ old ? ]                          :movetofrom(old, old, ...)  --> [ old ? ]                      :
+-- # moving inexistent value
+-- [ ? ]    :movefrom()              --> [ ? ]     :
+-- [ ? ]    :movefrom(val)           --> [ ? ]     :
+-- [ ? ]    :movefrom(val, val)      --> [ ? ]     :
+-- [ ? ]    :movefrom(val, nil, val) --> [ ? ]     :
+-- [ ? ]    :movefrom(val, val, val) --> [ ? ]     :
+-- [ ? ]    :movefrom(val, nil, end) --> [ ? ]     :
+-- [ ? ]    :movefrom(val, val, end) --> [ ? ]     :
+-- [ ? ]    :movefrom(val, new)      --> [ ? ]     :
+-- [ ? ]    :movefrom(val, new, end) --> [ ? ]     :
+-- [ new ? ]:movefrom(val, new)      --> [ new ? ] :
+-- [ new ? ]:movefrom(val, new, end) --> [ new ? ] :
+-- 
+-- # moving value to the same old place
+-- [ old | ? ]        :movefrom(old)            --> [ old | ? ]         :
+-- [ old | ? ]        :movefrom(old, nil, old)  --> [ old | ? ]         :
+-- [ old ? ]          :movefrom(old, old)       --> [ old ? ]           :
+-- [ old, val ? ]     :movefrom(old, old, val)  --> [ old, val ? ]      :
+-- [ old, val..end ? ]:movefrom(old, old, end)  --> [ old, val..end ? ] :
+-- 
+-- # moving value to itself
+-- [ old, val ? ]     :movefrom(old)             --> [ old ? | val ]      : val
+-- [ old, val ? ]     :movefrom(old, val)        --> [ old ? | val ]      : val
+-- [ old, val ? ]     :movefrom(old, val, val)   --> [ old ? | val ]      : val
+-- [ old, val..end ? ]:movefrom(old, nil, end)   --> [ old ? | val..end ] : val
+-- [ old, val..end ? ]:movefrom(old, val, end)   --> [ old ? | val..end ] : val
+-- 
+-- # moving value to an inexistent set
+-- [ old | ? ]        :movefrom(old, new)       --> [ new, old | ? ]          : old
+-- [ old | ? ]        :movefrom(old, new, old)  --> [ new, old | ? ]          : old
+-- [ old, val ? ]     :movefrom(old, new)       --> [ old ? | new, val ]      : val
+-- [ old, val ? ]     :movefrom(old, new, val)  --> [ old ? | new, val ]      : val
+-- [ old, val..end ? ]:movefrom(old, new, end)  --> [ old ? | new, val..end ] : val
 --
--- [ old | ? ]                        :movetofrom(nil, old)       --> [ old | ? ]                    : old
--- [ old | ? ]                        :movetofrom(new, old)       --> [ new, old | ? ]               : old
--- [ old | new ? ]                    :movetofrom(new, old)       --> [ new, old ? ]                 : old
--- [ old, new ? ]                     :movetofrom(new, old)       --> [ new | old ? ]                : new
--- [ old, new..last ? ]               :movetofrom(new, old, last) --> [ old, ? | new..last ]         : new
+-- # moving value to a different set
+-- [ old | new ? ]             :movefrom(old, new)       --> [ new, old ? ]               : old
+-- [ old | new ? ]             :movefrom(old, new, old)  --> [ new, old ? ]               : old
+-- [ old, val ? | new ?? ]     :movefrom(old, new)       --> [ old ? | new, val ?? ]      : val
+-- [ old, val ? | new ?? ]     :movefrom(old, new, val)  --> [ old ? | new, val ?? ]      : val
+-- [ old, val..end ? | new ?? ]:movefrom(old, new, end)  --> [ old ? | new, val..end ?? ] : val
 --
--- [ old, item ? ]                    :movetofrom(nil, old)       --> [ old ? | item ]               : item
--- [ old, item ? ]                    :movetofrom(new, old)       --> [ old ? | new, item ]          : item
--- [ old, item..new ? ]               :movetofrom(new, old)       --> [ old..new, item ? ]           : item
--- [ old, item ? | new ?? ]           :movetofrom(new, old)       --> [ old ? | new, item ?? ]       : item
+-- # moving value to a different place in the same set
+-- [ old, val..new ? ]      :movefrom(old, new)       --> [ old..new, val ? ]       : val
+-- [ old, val..end...new ? ]:movefrom(old, new, end)  --> [ old...new, val..end ? ] : val
+-- 
+-- # specifing an end of a sequence that does not belong to the set
+-- [ old ? ]         :movefrom(old, old, end) --> CORRUPTED : ???
+-- [ old ? ]         :movefrom(old, new, end) --> CORRUPTED : ???
+-- [ old..new ? ]    :movefrom(old, new, end) --> CORRUPTED : ???
+-- [ old ? | new ?? ]:movefrom(old, new, end) --> CORRUPTED : ???
+-- 
+-- # specifing a sequence which values do not belong to the same set
+-- [ old, val ? | end ?? ]          :movefrom(old, nil, end) --> UNKNOWN STATE. MAYBE VALID? : val
+-- [ old, val ? | end ?? ]          :movefrom(old, new, end) --> UNKNOWN STATE. MAYBE VALID? : val
+-- [ old, val..new ? | end ?? ]     :movefrom(old, new, end) --> UNKNOWN STATE. MAYBE VALID? : val
+-- [ old, val ? | end..new ?? ]     :movefrom(old, new, end) --> UNKNOWN STATE. MAYBE VALID? : val
+-- [ old, val ? | end ?? | new ??? ]:movefrom(old, new, end) --> UNKNOWN STATE. MAYBE VALID? : val
 --
--- [ old, item..last ? ]              :movetofrom(nil, old, last) --> [ old ? | item..last ]         : item
--- [ old, item..last ? ]              :movetofrom(new, old, last) --> [ old ? | new, item..last ]    : item
--- [ old, item..last...new ? ]        :movetofrom(new, old, last) --> [ old...new, item..last ? ]    : item
--- [ old, item..last ? | new ?? ]     :movetofrom(new, old, last) --> [ old ? | new, item..last ?? ] : item
---
--- [ old ? ]                          :movetofrom(new, old, last) --> CORRUPTED                      : ???
--- [ old..new ? ]                     :movetofrom(new, old, last) --> CORRUPTED                      : ???
--- [ old ? | new ?? ]                 :movetofrom(new, old, last) --> CORRUPTED                      : ???
---
--- [ old, item ? | last ?? ]          :movetofrom(nil, old, last) --> UNKNOWN STATE. MAYBE VALID?    : item
--- [ old, item ? | last ?? ]          :movetofrom(new, old, last) --> UNKNOWN STATE. MAYBE VALID?    : item
--- [ old, item..new ? | last ?? ]     :movetofrom(new, old, last) --> UNKNOWN STATE. MAYBE VALID?    : item
--- [ old, item ? | last..new ?? ]     :movetofrom(new, old, last) --> UNKNOWN STATE. MAYBE VALID?    : item
--- [ old, item ? | last ?? | new ??? ]:movetofrom(new, old, last) --> UNKNOWN STATE. MAYBE VALID?    : item
-function movetofrom(self, newplace, oldplace, lastitem)
-	if newplace ~= oldplace then
-		local theitem = self[oldplace]
-		if theitem ~= nil then
-			if lastitem == nil then lastitem = theitem end
-			local oldsucc = self[lastitem]
-			local newsucc
-			if newplace == nil or newplace == theitem then
-				newplace, newsucc = lastitem, theitem
-			else
-				newsucc = self[newplace]
-				if newsucc == nil then
-					newsucc = newplace
-				end
+function movefrom(self, oldplace, newplace, lastitem)
+	local theitem = self[oldplace]
+	if theitem ~= nil then
+		if lastitem == nil then lastitem = theitem end
+		local oldsucc = self[lastitem]
+		local newsucc
+		if newplace == nil or newplace == theitem then
+			newplace, newsucc = lastitem, theitem
+		else
+			newsucc = self[newplace]
+			if newsucc == nil then
+				newsucc = newplace
 			end
+		end
+		if newplace ~= oldplace then
 			self[oldplace] = oldsucc
 			self[lastitem] = newsucc
 			self[newplace] = theitem
@@ -169,8 +188,8 @@ function disjoint(self)
 end
 
 function __tostring(self, tostring, concat)
-	tostring = tostring or global.tostring
-	concat = concat or global.table.concat
+	tostring = tostring or _G.tostring
+	concat = concat or _G.table.concat
 	local result = {}
 	local missing = copy(self)
 	local start = next(missing)

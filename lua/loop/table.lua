@@ -71,7 +71,9 @@ function memoize(func, weak)
 		__mode = weak,
 		__index = function(self, input)
 			local output = func(input)
-			rawset(self, input, output)
+			if output ~= nil then
+				rawset(self, input, output)
+			end
 			return output
 		end,
 	})

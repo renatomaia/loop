@@ -56,6 +56,7 @@ function newlevel(self)
 end
 
 function nextto(self, node)
+	if node == nil then node = self end
 	return node[1]
 end
 

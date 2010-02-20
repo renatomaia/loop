@@ -1,23 +1,15 @@
 --------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
 -- Project: LOOP Class Library                                                --
 -- Release: 2.3 beta                                                          --
 -- Title  : Ordered Set Optimized for Insertions and Removals                 --
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 --------------------------------------------------------------------------------
 
-local oo         = require "loop.base"
-local CyclicSets = require "loop.collection.CyclicSets"
-
+local oo = require "loop.base"
 local rawnew   = oo.rawnew
-local addto    = CyclicSets.addto
+
+local CyclicSets = require "loop.collection.CyclicSets"
+local addto = CyclicSets.add
 local removeat = CyclicSets.removefrom
 
 module(..., oo.class)
