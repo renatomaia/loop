@@ -13,7 +13,7 @@ local function create(spec)
 	for set in spec:gmatch("([^|]+)") do
 		local last
 		for item in set:gmatch("([^, ]+)") do
-			instance:addto(last, item)
+			instance:add(item, last)
 			last = item
 		end
 	end

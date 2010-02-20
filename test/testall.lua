@@ -1,3 +1,5 @@
+package.path = "../lua/?.lua;"..package.path
+
 local Results  = require "loop.test.Results"
 local Reporter = require "loop.test.Reporter"
 
@@ -7,5 +9,4 @@ local results = Results{
 	},
 }
 --results:test("LOOP", require("loop.tests.Suite"), results)
-
-results:test("LOOP Scheduler", require("loop.tests.library.Scheduler2"), results)
+results:test("CoThread", require("cothread.tests.Suite"), results)
