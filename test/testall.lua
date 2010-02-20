@@ -8,5 +8,5 @@ local results = Results{
 		time = socket and socket.gettime,
 	},
 }
---results:test("LOOP", require("loop.tests.Suite"), results)
+results:test("LOOP", require("loop.tests.Suite"), results)
 results:test("CoThread", require("cothread.tests.Suite"), results)

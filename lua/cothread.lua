@@ -323,7 +323,7 @@ function notify(signal, how, what)
 		if scheduled[signal] == signal then                                         --[[VERBOSE]] verbose:threads("no more threads waiting for signal ",signal)
 			scheduled:removefrom(signal)
 		end
-		return signal, thread
+		return thread
 	end                                                                           --[[VERBOSE]] verbose:threads("no threads waiting for signal ",signal)
 end
 
@@ -340,7 +340,7 @@ function notifyall(signal, how, what)
 		local last = placeof[signal]
 		scheduled:movefrom(signal, place, last)
 		scheduled:removefrom(signal)                                                --[[VERBOSE]] verbose:threads("all threads waiting for signal ",signal," are ready for execution")
-		return signal, thread, last
+		return thread, last
 	end
 end
 
