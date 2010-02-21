@@ -1,0 +1,19 @@
+<%
+local result = {}
+local itmfmt = "<h3>%s</h3>"
+local subfmt = "\t<li>%s</li>"
+for _, item in ipairs(item) do
+	result[#result+1] = itmfmt:format(link(item))
+	if #item > 0 then
+		result[#result+1] = "<ol>"
+		for _, subitem in ipairs(item) do
+			result[#result+1] = subfmt:format(link(subitem))
+		end
+		result[#result+1] = "</ol>"
+	else
+		result[#result+1] = "<br>"
+	end
+	result[#result+1] = ""
+end
+return table.concat(result, '\n')
+%>
