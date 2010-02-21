@@ -1,9 +1,14 @@
---------------------------------------------------------------------------------
--- Project: LOOP Class Library                                                --
--- Release: 2.3 beta                                                          --
--- Title  : Interchangeable Disjoint Bidirectional Cyclic Sets                --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP Class Library
+-- Release: 2.3 beta
+-- Title  : Interchangeable Disjoint Bidirectional Cyclic Sets
+-- Author : Renato Maia <maia@inf.puc-rio.br>
+-- Notes  :
+--   Can be used as a module that provides functions instead of methods.
+--   Instance of this class should not store the name of methods as values.
+--   To avoid the previous issue, use this class as a module on a simple table.
+--   Each element is stored as a key mapping to its successor.
+--   An extra table stores each element as a key mapping to its predecessor.
+
 
 local _G = require "_G"
 local rawget = _G.rawget
@@ -21,10 +26,10 @@ module(...)
 
 class(_M, CyclicSets)
 
-local invertedof = memoize(function() return {} end, "k")
+local reverseof = memoize(function() return {} end, "k")
 
-function inverted(self)
-	return invertedof[self]
+function reverse(self)
+	return reverseof[self]
 end
 
 -- []:predecessor(item)               : nil --> []
@@ -32,7 +37,7 @@ end
 -- [ item ]:predecessor(item)         : item --> [ item ]
 -- [ pred, item ? ]:predecessor(item) : pred --> [ pred, item ? ]
 function predecessor(self, item)
-	return invertedof[self][item]
+	return reverseof[self][item]
 end
 
 function backward(self, place)
@@ -50,7 +55,7 @@ function add(self, item, place)
 				succ = place
 			end
 		end
-		local back = invertedof[self]
+		local back = reverseof[self]
 		self[item] , back[succ] = succ, item
 		self[place], back[item] = item, place
 		return item
@@ -60,7 +65,7 @@ end
 function removefrom(self, place)
 	local item = self[place]
 	if item ~= nil then
-		local back = invertedof[self]
+		local back = reverseof[self]
 		local succ = self[item]
 		self[place], back[succ] = succ, place
 		self[item] , back[item] = nil, nil
@@ -69,7 +74,7 @@ function removefrom(self, place)
 end
 
 function removeset(self, item)
-	local back = invertedof[self]
+	local back = reverseof[self]
 	repeat
 		item, self[item], back[item] = self[item], nil, nil
 	until item == nil
@@ -90,7 +95,7 @@ function movefrom(self, oldplace, newplace, lastitem)
 			end
 		end
 		if newplace ~= oldplace then
-			local back = invertedof[self]
+			local back = reverseof[self]
 			self[oldplace], back[oldsucc] = oldsucc, oldplace
 			self[lastitem], back[newsucc] = newsucc, lastitem
 			self[newplace], back[theitem] = theitem, newplace
@@ -100,11 +105,11 @@ function movefrom(self, oldplace, newplace, lastitem)
 end
 
 function remove(self, item)
-	return self:removefrom(invertedof[self][item])
+	return self:removefrom(reverseof[self][item])
 end
 
 function move(self, item, place, last)
-	local oldplace = invertedof[self][item]
+	local oldplace = reverseof[self][item]
 	if oldplace ~= nil then
 		return self:movefrom(oldplace, place, last)
 	end

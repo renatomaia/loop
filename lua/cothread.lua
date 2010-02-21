@@ -1,9 +1,7 @@
---------------------------------------------------------------------------------
--- Project: LuaCooperative                                                    --
--- Release: 2.0 beta                                                          --
--- Title  : Cooperative Threads Scheduler based on Coroutines                 --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: CoThread
+-- Release: 1.0 beta
+-- Title  : Cooperative Threads Scheduler based on Coroutines
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
 --[============================================================================[
 <thread|nil> = yield("schedule"  , thread, ["after",[thread] | "wait",signal | <"delay"|"defer">,time])
@@ -48,29 +46,27 @@ local rawnew = oo.rawnew
 local BiCyclicSets = require "loop.collection.BiCyclicSets"
 local SortedMap = require "loop.collection.SortedMap"
 
+module(...)
 
-local StartTime  = gettime()
 local WeakValues = class{ __mode = "v" }
 local WeakKeys   = class{ __mode = "k" }
-local HaltKey    = _G.newproxy()
+local default    = {}
 local traceback  = _G.debug and
                    	_G.debug.traceback or
                    	function(_, err) return err end
-
-module(...)
-
-local default = {}
 
 --------------------------------------------------------------------------------
 -- Customizable Behavior -------------------------------------------------------
 --------------------------------------------------------------------------------
 
+local StartTime = gettime()
 function default.now()
 	return difftime(gettime(), StartTime)
 end
 
+local getnow = default.now
 function default.idle(timeout)                                                  --[[VERBOSE]] verbose:scheduler("starting busy-waiting for ",timeout-now()," seconds")
-	repeat until now() > timeout                                                  --[[VERBOSE]] verbose:scheduler("busy-waiting ended")
+	repeat until getnow() > timeout                                               --[[VERBOSE]] verbose:scheduler("busy-waiting ended")
 end
 
 function default.error(thread, errmsg)                                          --[[VERBOSE]] verbose:scheduler("re-raising error of ",thread,": ",errmsg)
@@ -87,7 +83,6 @@ local paramtypes = {
 	pause = false,
 	yield = "thread",
 	resume = "thread",
-	--wait = "signal"
 	delay = "number",
 	defer = "number",
 }
@@ -134,31 +129,28 @@ local ready = false -- Token marking of the head of the list of threads ready
                     -- for execution. When it is not 'false' it also indicate
                     -- the last resumed thread from the list of threads ready
                     -- for execution.
-local scheduled = BiCyclicSets()     -- Table containing all scheduled threads.
-local placeof = scheduled:inverted() -- It is organized as disjoint sets, which
-scheduled:add(ready)                 -- values are arranged in cyclic order.
-                                     -- The sets are organized as follows:
-                                     -- 
-                                     -- 1)One set of threads ready for excution.
-                                     --   This set is always present containing
-                                     --   the value 'false' that also indicates
-                                     --   the "start" and "end" of the set.
-                                     --   
-                                     -- 2)At most one set of delayed threads.
-                                     --   This set contains threads in ascending
-                                     --   order of the time they must wake
-                                     --   (except for the point were the last
-                                     --   thread to be waken is followed by the
-                                     --   first one). The exact time each thread
-                                     --   must be waken is maintained in table
-                                     --   'wakeindex'.
-                                     --   
-                                     -- 3)Zero or more sets of threads waiting
-                                     --   for a signal. Each set contains the
-                                     --   value of the signal followed by the
-                                     --   threads waiting for it. There is no
-                                     --   set containing only a signal and no
-                                     --   threads.
+local scheduled = BiCyclicSets()    -- Table containing all scheduled threads.
+local placeof = scheduled:reverse() -- It is organized as disjoint sets, which
+scheduled:add(ready)                -- values are arranged in cyclic order.
+                                    -- The sets are organized as follows:
+                                    -- 1. One set of threads ready for excution.
+                                    --    This set is always present containing
+                                    --    the value 'false' that also indicates
+                                    --    the "start" and "end" of the set.
+                                    -- 2. At most one set of delayed threads.
+                                    --    This set contains threads in ascending
+                                    --    order of the time they must wake
+                                    --    (except for the point were the last
+                                    --    thread to be waken is followed by the
+                                    --    first one). The exact time each thread
+                                    --    must be waken is maintained in table
+                                    --    'wakeindex'.
+                                    -- 3. Zero or more sets of threads waiting
+                                    --    for a signal. Each set contains the
+                                    --    value of the signal followed by the
+                                    --    threads waiting for it. There is no
+                                    --    set containing only a signal and no
+                                    --    threads.
 local wakeindex = SortedMap() -- List of wake times of delayed threads in
                               -- ascesding order. Each entry contains a
                               -- reference to the first thread in 'scheduled'
@@ -211,12 +203,12 @@ local function cancelwake(thread)
 		local path = {}
 		local found = wakeindex:findnode(entry.key, path)
 		if found == entry then -- yes, it is sleeping.
-			local nextentry = wakeindex:nextto(entry)
+			local nextentry = wakeindex:nextnode(entry)
 			local nextthread = scheduled[thread]
 			if (nextentry and nextentry.value == nextthread) -- only one in this entry
 			or (nextthread == wakeindex:head())            -- the last in sleeping set
 			then -- no other thread is waiting here
-				wakeindex:removefrom(entry, path)
+				wakeindex:removefrom(path, entry)
 			else -- other thread is waiting to wake at the same time
 				entry.value = nextthread
 				wakeentry[nextthread] = entry
@@ -372,7 +364,10 @@ end
 --	values to be passed to the thread that will be resume or returned by
 --  'run' if 'scheduled == false' and there are no scheduled threads.
 --
-local yieldops = {
+local yieldops = {                                                              --[[VERBOSE]] verbose = function() return verbose end,
+	now = now,
+	idle = idle,
+	error = error,
 	schedule = schedule,
 	unschedule = unschedule,
 	notify = notify,
@@ -484,7 +479,7 @@ end
 local function wakeupdelayed()
 	local first = wakeindex:head()
 	if first then
-		local remains, time = wakeindex:cropuntil(now(), true)
+		local remains, time = wakeindex:cropuntil(now(), "orLater") -- exclusive
 		if remains ~= first then
 			local last = placeof[remains or first]
 			scheduled:move(first, ready, last)                                        --[[VERBOSE]] verbose:threads("delayed ",first," to ",last," are ready for execution")
@@ -611,12 +606,12 @@ end
 --[[VERBOSE]] 		
 --[[VERBOSE]] 		output:write(newline,"Delayed:")
 --[[VERBOSE]] 		local start = now()
---[[VERBOSE]] 		local last = wakeindex:nextto()
+--[[VERBOSE]] 		local last = wakeindex:nextnode()
 --[[VERBOSE]] 		local first = last and last.value
 --[[VERBOSE]] 		while last ~= nil do
 --[[VERBOSE]] 			local waketime = last.key
 --[[VERBOSE]] 			output:write(" [",waketime-start,"]:")
---[[VERBOSE]] 			local next = wakeindex:nextto(last)
+--[[VERBOSE]] 			local next = wakeindex:nextnode(last)
 --[[VERBOSE]] 			local limit = (next ~= nil) and next.value or first
 --[[VERBOSE]] 			local thread = last.value
 --[[VERBOSE]] 			repeat

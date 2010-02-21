@@ -1,9 +1,20 @@
---------------------------------------------------------------------------------
--- Project: LOOP Class Library                                                --
--- Release: 2.3 beta                                                          --
--- Title  : Ordered Set Optimized for Insertions and Removals                 --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP Class Library
+-- Release: 2.3 beta
+-- Title  : Ordered Set Optimized for Insertions and Removals
+-- Author : Renato Maia <maia@inf.puc-rio.br>
+-- Notes  :
+--   Can be used as a module that provides functions instead of methods.
+--   Instance of this class should not store the name of methods as values.
+--   To avoid the previous issue, use this class as a module on a simple table.
+--   It cannot store itself, because this place is reserved.
+--   Each element is stored as a key mapping to its successor.
+
+
+local _G = require "_G"
+local tostring = _G.tostring
+
+local table = require "table"
+local concat = table.concat
 
 local oo = require "loop.base"
 local rawnew   = oo.rawnew
@@ -40,7 +51,7 @@ end
 function insert(self, item, place)
 	local last = self[self]
 	if place == nil then place = last end
-	if self:contains(place) and addto(self, place, item) == item then
+	if self:contains(place) and addto(self, item, place) == item then
 		if place == last then self[self] = item end
 		return item
 	end
@@ -58,21 +69,9 @@ function removefrom(self, place)
 	end
 end
 
---function previous(self, item, from)
---	if self:contains(item) then
---		for found, previous in self:sequence(from) do
---			if found == item then return previous end
---		end
---	end
---end
---
---function remove(self, item, ...)
---	return self:removefrom(self:previous(item, ...))
---end
-
 function pushfront(self, item)
 	local last = self[self]
-	if addto(self, last, item) == item then
+	if addto(self, item, last) == item then
 		if last == nil then self[self] = item end
 		return item
 	end
@@ -94,7 +93,16 @@ function pushback(self, item)
 	end
 end
 
---------------------------------------------------------------------------------
+function __tostring(self)
+	local result = { "[ " }
+	for item in self:sequence() do
+		result[#result+1] = tostring(item)
+		result[#result+1] = ", "
+	end
+	local last = #result
+	result[last] = (last == 1) and "[]" or " ]"
+	return concat(result)
+end
 
 -- set aliases
 add = pushback
@@ -108,19 +116,3 @@ top = first
 enqueue = pushback
 dequeue = popfront
 head = first
-tail = last
-
---------------------------------------------------------------------------------
-
-function __tostring(self, tostring, concat)
-	tostring = tostring or global.tostring
-	concat = concat or global.table.concat
-	local result = { "[ " }
-	for item in self:sequence() do
-		result[#result+1] = tostring(item)
-		result[#result+1] = ", "
-	end
-	local last = #result
-	result[last] = (last == 1) and "[]" or " ]"
-	return concat(result)
-end

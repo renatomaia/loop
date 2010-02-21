@@ -71,9 +71,9 @@ local table     = require "table"
 local string    = require "string"
 local coroutine = require "coroutine"
 
-local oo          = require "loop.base"
-local ObjectCache = require "loop.collection.ObjectCache"
-local Viewer      = require "loop.debug.Viewer"
+local tabop  = require "loop.table"
+local oo     = require "loop.base"
+local Viewer = require "loop.debug.Viewer"
 
 module("loop.debug.Verbose", oo.class)
 
@@ -86,12 +86,13 @@ viewer = Viewer{ maxdepth = 2 }
 
 function __init(class, verbose)
 	verbose = oo.rawnew(class, verbose)
-	verbose.flags    = {}
-	verbose.tabcount = ObjectCache{ default = 0 }
-	verbose.groups   = rawget(verbose, "groups")  or {}
-	verbose.custom   = rawget(verbose, "custom")  or {}
-	verbose.inspect  = rawget(verbose, "inspect") or {}
-	verbose.timed    = rawget(verbose, "timed")   or {}
+	verbose.flags      = {}
+	verbose.tabdefault = 0
+	verbose.tabcount   = tabop.memoize(function() return verbose.tabdefault end, "k")
+	verbose.groups     = rawget(verbose, "groups")  or {}
+	verbose.custom     = rawget(verbose, "custom")  or {}
+	verbose.inspect    = rawget(verbose, "inspect") or {}
+	verbose.timed      = rawget(verbose, "timed")   or {}
 	return verbose
 end
 
@@ -177,7 +178,7 @@ function updatetabs(self, shift)
 	local current = rawget(self, "current")
 	local tabcount = self.tabcount
 	local viewer = self.viewer
-	local tabs = tabcount[current] or tabcount.default
+	local tabs = current and tabcount[current] or self.tabdefault
 	if shift then
 		tabs = math.max(tabs + shift, 0)
 		if current

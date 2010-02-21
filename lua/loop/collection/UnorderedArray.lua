@@ -1,22 +1,22 @@
---------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
--- Project: LOOP Class Library                                                --
--- Release: 2.3 beta                                                          --
--- Title  : Array Optimized for Insertion/Removal that Doesn't Garantee Order --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP Class Library
+-- Release: 2.3 beta
+-- Title  : Array Optimized for Insertion/Removal that Doesn't Garantee Order
+-- Author : Renato Maia <maia@inf.puc-rio.br>
+-- Notes  :
+--   Can be used as a module that provides funcitons instead of methods.
+--   Removal is replacing the element by the last one, which is then removed.
 
-local global = _G -- only if available
-local oo     = require "loop.base"
 
-module(..., oo.class)
+local _G = require "_G"
+local tostring = _G.tostring
+
+local table = require "table"
+local concat = table.concat
+
+local oo = require "loop.base"
+local class = oo.class
+
+module(..., class)
 
 function add(self, value)
 	self[#self + 1] = value
@@ -31,12 +31,10 @@ function remove(self, index)
 	end
 end
 
-function __tostring(self, tostring, concat)
-	tostring = tostring or global.tostring
-	concat = concat or global.table.concat
+function __tostring(self)
 	local result = { "{ " }
-	for _, value in global.ipairs(self) do
-		result[#result+1] = tostring(value)
+	for i = 1, #self do
+		result[#result+1] = tostring(self[i])
 		result[#result+1] = ", "
 	end
 	local last = #result

@@ -1,32 +1,31 @@
---------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
--- Project: LOOP Class Library                                                --
--- Release: 2.3 beta                                                          --
--- Title  : Unordered Array Optimized for Containment Check                   --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
--- Notes:                                                                     --
---   Can only store non-numeric values.                                       --
---   Storage of strings equal to the name of one method prevents its usage.   --
---------------------------------------------------------------------------------
+-- Project: LOOP Class Library
+-- Release: 2.3 beta
+-- Title  : Unordered Array Optimized for Containment Check
+-- Author : Renato Maia <maia@inf.puc-rio.br>
+-- Notes  :
+--   Can be used as a module that provides functions instead of methods.
+--   Instance of this class should not store the name of methods as values.
+--   To avoid the previous issue, use this class as a module on a simple table.
+--   Cannot store positive integer numbers.
 
-local global = require "_G"
-local oo     = require "loop.base"
 
-module(..., oo.class)
+local _G = require "_G"
+local rawget = _G.rawget
+local tostring = _G.tostring
 
-valueat = global.rawget
+local table = require "table"
+local concat = table.concat
+
+local oo = require "loop.base"
+local class = oo.class
+
+
+module(..., class)
+
+valueat = rawget
 
 function indexof(self, value)
-	local set = self.set or self
-	return set[value]
+	return self[value]
 end
 
 function contains(self, value)
@@ -34,26 +33,24 @@ function contains(self, value)
 end
 
 function add(self, value)
-	local set = self.set or self
-	if set[value] == nil then
+	if self[value] == nil then
 		self[#self+1] = value
-		set[value] = #self
+		self[value] = #self
 		return value
 	end
 end
 
 function remove(self, value)
-	local set = self.set or self
-	local index = set[value]
+	local index = self[value]
 	if index ~= nil then
 		local size = #self
 		if index ~= size then
 			local last = self[size]
 			self[index] = last
-			set[last]   = index
+			self[last] = index
 		end
 		self[size] = nil
-		set[value] = nil
+		self[value] = nil
 		return value
 	end
 end
@@ -62,12 +59,10 @@ function removeat(self, index)
 	return remove(self, self[index])
 end
 
-function __tostring(self, tostring, concat)
-	tostring = tostring or global.tostring
-	concat = concat or global.table.concat
+function __tostring(self)
 	local result = { "{ " }
-	for _, value in global.ipairs(self) do
-		result[#result+1] = tostring(value)
+	for i = 1, #self do
+		result[#result+1] = tostring(self[i])
 		result[#result+1] = ", "
 	end
 	local last = #result

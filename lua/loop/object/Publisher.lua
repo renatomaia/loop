@@ -15,20 +15,18 @@
 
 local pairs = pairs
 
-local oo          = require "loop.base"
-local ObjectCache = require "loop.collection.ObjectCache"
+local tabop = require "loop.table"
+local oo    = require "loop.base"
 
 module("loop.object.Publisher", oo.class)
 
-__index = ObjectCache{
-	retrieve = function(_, method)
-		return function(self, ...)
-			for _, object in pairs(self) do
-				object[method](object, ...)
-			end
+__index = tabop.memoize(function(method)
+	return function(self, ...)
+		for _, object in pairs(self) do
+			object[method](object, ...)
 		end
 	end
-}
+end, "k")
 
 function __newindex(self, key, value)
 	for _, object in pairs(self) do

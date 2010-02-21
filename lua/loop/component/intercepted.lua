@@ -28,9 +28,9 @@ local rawset       = rawset
 local tostring     = tostring
 local type         = type
 
-local ObjectCache = require "loop.collection.ObjectCache"
-local oo          = require "loop.cached"
-local base        = require "loop.component.base"
+local tabop = require "loop.table"
+local oo    = require "loop.cached"
+local base  = require "loop.component.base"
 
 module "loop.component.intercepted"
 
@@ -73,8 +73,7 @@ function Wrapper:__init(object)
 	return oo.rawnew(self, object)
 end
 
-MethodCache = ObjectCache()
-function MethodCache:retrieve(method)
+MethodCache = tabop.memoize(function(method)
 	return function(self, ...)
 		local object = self:__get()
 		local iceptor = rawget(self, "  method") or self.__factory[self.__methodkey]
@@ -90,7 +89,7 @@ function MethodCache:retrieve(method)
 		end
 		return method(object, ...)
 	end
-end
+end, "k")
 
 local function getfield(table, field)
 	return table[field]

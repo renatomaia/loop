@@ -1,3 +1,8 @@
+-- Project: CoThread
+-- Release: 1.0 beta
+-- Title  : Object Used to Wait for Multiple Signals or a Timeout
+-- Author : Renato Maia <maia@inf.puc-rio.br>
+
 local _G = require "_G"
 local ipairs = _G.ipairs
 
@@ -12,18 +17,16 @@ local memoize = tabop.memoize
 local oo = require "loop.base"
 local class = oo.class
 
-module(..., oo.class)
-
--- Internal --------------------------------------------------------------------
+module(..., class)
 
 local function activate(self)
 	if not self.active then
 		for index, event in ipairs(self) do
-			if event then
-				yield("schedule", thread, "wait", event)
-			else
-				yield("schedule", thread, "delay", self.timeout)
-			end
+			yield("schedule", thread, "wait", event)
+		end
+		local timer = self.timer
+		if timer then
+			yield("schedule", timer, "delay", self.timeout)
 		end
 		self.active = true
 	end
@@ -36,14 +39,12 @@ local function deactivate(self)
 	end
 end
 
-
-
-local function notifierbody(group, event)
+local function notifierbody(group, event, ...)
 	yield() -- initialization finished
 	while true do
 		deactivate(group)
 		yield("notifyall", group, "after")
-		yield("suspend", event)
+		yield("suspend", event, ...)
 	end
 end
 
@@ -53,24 +54,23 @@ local function notifier(group, ...)
 	return thread
 end
 
--- Members ---------------------------------------------------------------------
 
-function __init(self, ...)
-	self = oo.rawnew(self, ...)
+
+function __init(self, group, ...)
+	self = oo.rawnew(self, group, ...)
 	for index, event in ipairs(self) do
-		self[index] = notifier(self, event)
+		self[index] = notifier(self, event, ...)
 	end
 	local timeout = self.timeout
 	if timeout then
-		self.timeout = notifier(self)
+		self.timer = notifier(self, nil, ...)
 	end
 	return self
 end
 
 function wait(self, ...)
 	if not self.active then activate(self) end
-	local trigged = yield("wait", self, ...)
-	yield("reschedule", trigged) -- pass the trigged event to the next thread
+	yield("pause", yield("wait", self, ...)) -- pass values received to the next thread
 	return event
 end
 
@@ -99,6 +99,5 @@ end
 --	else
 --		yield("wait", socket)
 --	end
---	local result, partial = socket:receive(0)
---	return result or partial
+--	return socket:receive()
 --end

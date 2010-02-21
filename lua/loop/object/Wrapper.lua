@@ -13,19 +13,18 @@
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 --------------------------------------------------------------------------------
 
-local type        = type
-local oo          = require "loop.base"
-local ObjectCache = require "loop.collection.ObjectCache"
+local type = type
+
+local tabop = require "loop.table"
+local oo    = require "loop.base"
 
 module("loop.object.Wrapper", oo.class)
 
-local methods = ObjectCache{
-	retrieve = function(_, method)
-		return function(self, ...)
-			return method(self.__object, ...)
-		end
-	end,
-}
+local methods = tabop.memoize(function(method)
+	return function(self, ...)
+		return method(self.__object, ...)
+	end
+end)
 
 function __index(self, key)
 	local value = self.__object[key]

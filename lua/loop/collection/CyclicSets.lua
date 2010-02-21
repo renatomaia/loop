@@ -1,16 +1,24 @@
---------------------------------------------------------------------------------
--- Project: LOOP Class Library                                                --
--- Release: 2.3 beta                                                          --
--- Title  : Interchangeable Disjoint Cyclic Sets                              --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP Class Library
+-- Release: 2.3 beta
+-- Title  : Interchangeable Disjoint Cyclic Sets
+-- Author : Renato Maia <maia@inf.puc-rio.br>
+-- Notes  :
+--   Can be used as a module that provides functions instead of methods.
+--   Instance of this class should not store the name of methods as values.
+--   To avoid the previous issue, use this class as a module on a simple table.
+--   Each element is stored as a key mapping to its successor.
+
 
 local _G = require "_G"
 local next = _G.next
 local rawget = _G.rawget
+local tostring = _G.tostring
 
-local table = require "loop.table"
-local copy = table.copy
+local table = require "table"
+local concat = table.concat
+
+local tabop = require "loop.table"
+local copy = tabop.copy
 
 local oo = require "loop.base"
 local class = oo.class
@@ -187,9 +195,7 @@ function disjoint(self)
 	return result
 end
 
-function __tostring(self, tostring, concat)
-	tostring = tostring or _G.tostring
-	concat = concat or _G.table.concat
+function __tostring(self)
 	local result = {}
 	local missing = copy(self)
 	local start = next(missing)

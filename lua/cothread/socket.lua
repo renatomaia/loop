@@ -1,9 +1,8 @@
---------------------------------------------------------------------------------
--- Project: LuaCooperative                                                    --
--- Release: 2.0 beta                                                          --
--- Title  : Lua Socket Wrapper for Cooperative Scheduling                     --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: CoThread
+-- Release: 1.0 beta
+-- Title  : Lua Socket Wrapper for Cooperative Scheduling
+-- Author : Renato Maia <maia@inf.puc-rio.br>
+
 
 local _G = require "_G"
 local assert = _G.assert
@@ -66,8 +65,8 @@ local selectsockets = socketcore.select
 local createtcp = socketcore.tcp
 local createudp = socketcore.udp
 
-local function idle(timeout)
-	sleep(timeout-now())
+local function idle(timeout)                                                    --[[VERBOSE]] verbose:scheduler("process sleeping for ",timeout-now()," seconds")
+	sleep(timeout-now())                                                          --[[VERBOSE]] verbose:scheduler("sleeping ended")
 end
 
 
@@ -169,7 +168,7 @@ function CoSocket:settimeout(timeout)                                           
 					while true do
 						local thread = self[op]
 						unschedule(thread)
-						yield("abdicate", thread, TimeOutToken)
+						yield("yield", thread, TimeOutToken)
 					end
 				end)
 			end
