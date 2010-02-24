@@ -9,8 +9,10 @@ require "cothread"
 return Suite{
 	schedule = require "cothread.tests.schedule",
 	unschedule = require "cothread.tests.unschedule",
-	--unblock = require "cothread.tests.unblock",
+	--notify = require "cothread.tests.notify",
 	--cancel = require "cothread.tests.cancel",
+	suspend = require "cothread.tests.suspend",
+	rescheduled = require "cothread.tests.rescheduled",
 	delay = require "cothread.tests.delay",
 	resume_blocked = require "cothread.tests.resume_blocked",
 	socket = require "cothread.tests.socket",

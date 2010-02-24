@@ -3,24 +3,6 @@
 -- Title  : Cooperative Threads Scheduler based on Coroutines
 -- Author : Renato Maia <maia@inf.puc-rio.br>
 
---[============================================================================[
-<thread|nil> = yield("schedule"  , thread, ["after",[thread] | "wait",signal | <"delay"|"defer">,time])
-<thread|nil> = yield("notify"    , signal, ["after",[thread] | "wait",signal | <"delay"|"defer">,time])
-<thread|nil> = yield("notifyall" , signal, ["after",[thread] | "wait",signal | <"delay"|"defer">,time])
-<thread|nil> = yield("unschedule", thread)
-<thread|nil> = yield("cancel"    , signal)
-<thread|nil> = yield("cancelall" , signal)
-
-... = yield("halt"   , ...)
-... = yield("suspend", ...)
-... = yield("pause"  , ...)
-... = yield("yield"  , thread, ...)
-... = yield("resume" , thread, ...)
-... = yield("wait"   , signal, ...)
-... = yield("delay"  , time, ...)
-... = yield("defer"  , time, ...)
---]============================================================================]
-
 local _G = require "_G"
 local luaerror = _G.error
 local pairs = _G.pairs
@@ -125,13 +107,16 @@ function new(attribs)
 -- Initialization Code ---------------------------------------------------------
 --------------------------------------------------------------------------------
 
-local ready = false -- Token marking of the head of the list of threads ready
-                    -- for execution. When it is not 'false' it also indicate
-                    -- the last resumed thread from the list of threads ready
-                    -- for execution.
+local rescheduled = false -- flag indicating whether the last resumed ready
+                          -- thread was explcicitly rescheduled as ready in the
+                          -- the same position it was before.
+local lastready = false -- Token marking of the head of the list of threads
+                        -- ready for execution. When it is not 'false' it also
+                        -- indicate the last resumed thread from the list of
+                        -- threads ready for execution.
 local scheduled = BiCyclicSets()    -- Table containing all scheduled threads.
 local placeof = scheduled:reverse() -- It is organized as disjoint sets, which
-scheduled:add(ready)                -- values are arranged in cyclic order.
+scheduled:add(lastready)            -- values are arranged in cyclic order.
                                     -- The sets are organized as follows:
                                     -- 1. One set of threads ready for excution.
                                     --    This set is always present containing
@@ -159,8 +144,8 @@ local wakeentry = WeakValues() -- Table mapping threads to its last entry in the
                                -- 'wakeindex'. This last entry may be old thus
                                -- not belonging to the 'wakeindex' anymore, i.e.
                                -- invalid.
-traps = WeakKeys() -- Table mapping threads to the function that must be
-                   -- executed when the thread finishes.
+traps = traps or WeakKeys() -- Table mapping threads to the function that must
+                            -- be executed when the thread finishes.
 
 --------------------------------------------------------------------------------
 -- Internal Functions ----------------------------------------------------------
@@ -235,10 +220,21 @@ local function dummy() end
 local findplace = rawnew{ __index = function() return dummy end }
 
 function findplace.after(thread, place)
-	if place ~= thread and scheduled[place] ~= nil then
+	if place == thread then
+		return lastready
+	elseif scheduled[place] ~= nil then
 		return place
 	end
-	return ready
+end
+
+function findplace.wait(_, signal)
+	if signal and type(signal) ~= "thread" then
+		local place = placeof[signal]
+		if signal and place == nil then                                             --[[VERBOSE]] verbose:threads("new signal ",signal," will be registered")
+			place = signal
+		end
+		return place
+	end
 end
 
 function findplace.defer(thread, time)
@@ -259,30 +255,29 @@ function findplace.delay(thread, time)
 	return defer(thread, now()+time)
 end
 
-function findplace.wait(_, signal)
-	if type(signal) ~= "thread" then
-		local place = placeof[signal]
-		if signal and place == nil then                                               --[[VERBOSE]] verbose:threads("new signal ",signal," will be registered")
-			place = signal
-		end
-		return place
-	end
-end
-
 
 
 function schedule(thread, how, what)
 	local place
 	if how == nil then
-		if thread == ready then return thread end
-		place = placeof[ready]                                                      --[[VERBOSE]] verbose:threads(thread, " will be scheduled for later execution")
+		if thread == lastready then
+			rescheduled = true
+			return thread
+		end
+		place = placeof[lastready]                                                  --[[VERBOSE]] verbose:threads(thread, " will be scheduled for later execution")
 	else
 		place = findplace[how](thread, what)
 		if place == nil then return end
-		if thread == ready then
-			local oldplace = placeof[ready]
-			if place == oldplace then return thread end
-			ready = oldplace
+		if thread == lastready then
+			local previous = placeof[thread]
+			if place == thread then
+				lastready = previous
+				return thread
+			elseif place == previous then
+				rescheduled = true
+				return thread
+			end
+			lastready = previous
 		end                                                                         --[[VERBOSE]] verbose:threads(thread, " will be scheduled after ",place)
 	end
 	local oldplace = placeof[thread]
@@ -293,8 +288,8 @@ function schedule(thread, how, what)
 end
 
 function unschedule(thread)
-	if thread == ready then
-		ready = placeof[ready]
+	if thread == lastready then
+		lastready = placeof[lastready]
 	elseif not cancelwake(thread) then
 		cancelblock(thread)
 	end                                                                           --[[VERBOSE]] verbose:threads(thread, " will be unscheduled")
@@ -306,10 +301,11 @@ function notify(signal, how, what)
 	if thread ~= nil then
 		local place
 		if how == nil then
-			place = placeof[ready]
+			place = placeof[lastready]
 		else
 			place = findplace[how](thread, what)
 			if place == nil then return end
+			if place == thread then return end
 		end
 		scheduled:movefrom(signal, place)                                           --[[VERBOSE]] verbose:threads(thread, " waiting for signal ",signal," is ready for execution")
 		if scheduled[signal] == signal then                                         --[[VERBOSE]] verbose:threads("no more threads waiting for signal ",signal)
@@ -324,10 +320,11 @@ function notifyall(signal, how, what)
 	if thread ~= nil then
 		local place
 		if how == nil then
-			place = placeof[ready]
+			place = placeof[lastready]
 		else
 			place = findplace[how](thread, what)
 			if place == nil then return end
+			if place == thread then return end
 		end
 		local last = placeof[signal]
 		scheduled:movefrom(signal, place, last)
@@ -342,10 +339,6 @@ function cancel(signal)                                                         
 		scheduled:removefrom(signal)                                                --[[VERBOSE]] else verbose:threads("no threads waiting signal ",signal)
 	end
 	return thread
-end
-
-function cancelall(signal)                                                      --[[VERBOSE]] verbose:threads("cancel all threads waiting for signal ",signal)
-	return scheduled:removeset(signal)
 end
 
 
@@ -370,10 +363,9 @@ local yieldops = {                                                              
 	error = error,
 	schedule = schedule,
 	unschedule = unschedule,
+	cancel = cancel,
 	notify = notify,
 	notifyall = notifyall,
-	cancel = cancel,
-	cancelall = cancelall,
 }
 for name, op in pairs(yieldops) do
 	yieldops[name] = function (current, ...)
@@ -382,16 +374,16 @@ for name, op in pairs(yieldops) do
 end
 
 function yieldops.pause(current, ...)
-	if current ~= ready then
-		scheduled:add(current, placeof[ready])
+	if current ~= lastready then
+		scheduled:add(current, placeof[lastready])
 	end                                                                           --[[VERBOSE]] verbose:threads(current," paused and will be resumed later")
 	return false, ...
 end
 
 function yieldops.suspend(current, ...)
-	if current == ready then
-		ready = placeof[ready]
-		scheduled:removefrom(ready)
+	if current == lastready and not rescheduled then
+		lastready = placeof[lastready]
+		scheduled:removefrom(lastready)
 	end                                                                           --[[VERBOSE]] verbose:threads(current," suspended itself")
 	return false, ...
 end
@@ -418,9 +410,9 @@ for name, findplace in pairs(findplace) do
 	yieldops[name] = function(current, place, ...)                                --[[VERBOSE]] verbose:threads(current, " will ",name," for ",place)
 		place = findplace(current, place)
 		if place == nil then return current, ... end
-		if current == ready then
-			ready = placeof[ready]
-			scheduled:movefrom(ready, place)
+		if current == lastready then
+			lastready = placeof[lastready]
+			scheduled:movefrom(lastready, place)
 		else
 			scheduled:add(current, place)
 		end                                                                         --[[VERBOSE]] verbose:threads(current, " scheduled after ",place)
@@ -438,7 +430,7 @@ local function dothread(thread, success, operation, ...)
 	unschedule(thread)
 	local trap = traps[thread]
 	if trap then                                                                  --[[VERBOSE]] verbose:threads("executing trap of ",thread)
-		return false, trap(_M, thread, success, operation, ...)
+		return false, trap(thread, success, operation, ...)
 	elseif not success then                                                       --[[VERBOSE]] verbose:threads("handling error of ",thread)
 		error(thread, operation, ...)
 	end
@@ -462,8 +454,9 @@ end                            -- by the returned values
 -- 
 local function resumeready(thread, ...)
 	if thread == false then
-		ready = scheduled[ready] -- get successor
-		thread = ready
+		lastready = scheduled[lastready] -- get successor
+		rescheduled = false
+		thread = lastready
 	end
 	if thread then                                                                --[[VERBOSE]] verbose:threads(true, "resuming ",thread)
 		return resumeready(dothread(thread, resume(thread, ...)))
@@ -482,7 +475,7 @@ local function wakeupdelayed()
 		local remains, time = wakeindex:cropuntil(now(), "orLater") -- exclusive
 		if remains ~= first then
 			local last = placeof[remains or first]
-			scheduled:move(first, ready, last)                                        --[[VERBOSE]] verbose:threads("delayed ",first," to ",last," are ready for execution")
+			scheduled:move(first, lastready, last)                                    --[[VERBOSE]] verbose:threads("delayed ",first," to ",last," are ready for execution")
 		end
 		return time
 	end
@@ -523,7 +516,7 @@ local function stepcont(thread, ...)
 end
 function step(thread, ...)                                                      --[[VERBOSE]] verbose:scheduler(true, "scheduling round started")
 	wakeupdelayed()
-	return stepcont(resumeready(thread or ready, ...))
+	return stepcont(resumeready(thread or lastready, ...))
 end
 
 ---
@@ -534,7 +527,7 @@ end
 --	values to be passed to the first resumed thread
 --
 --@return nextstep
---	true : no more threads to be scheduled, so no use for other step
+--	true : no more threads to be scheduled, so no use for other run
 --	false: scheduling was halted
 --@return ...
 --	values yielded by the last resumed thread
@@ -542,7 +535,7 @@ end
 local function runcont(nextstep, ...)
 	if nextstep then
 		if nextstep > 0 then idle(nextstep) end
-		return run(ready, ...)
+		return run(lastready, ...)
 	end
 	return nextstep == false, ...
 end
@@ -597,7 +590,7 @@ end
 --[[VERBOSE]] 			end
 --[[VERBOSE]] 			missing[thread] = nil
 --[[VERBOSE]] 			if not thread then break end
---[[VERBOSE]] 			if thread == ready then sep = " [" end
+--[[VERBOSE]] 			if thread == lastready then sep = " [" end
 --[[VERBOSE]] 			output:write(sep,labels[thread])
 --[[VERBOSE]] 			if     sep == " [" then sep = "] "
 --[[VERBOSE]] 			elseif sep == "] " then sep = "  " end
