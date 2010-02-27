@@ -91,7 +91,8 @@ function writevalue(self, buffer, value, history, prefix, maxdepth)
 						local newprefix = prefix..self.indentation
 						if not self.noarrays then
 							for i = 1, #value do
-								buffer:write(self.linebreak, newprefix, "[", i, "] = ")
+								buffer:write(self.linebreak, newprefix)
+								if not self.noindices then buffer:write("[", i, "] = ") end
 								self:writevalue(buffer, value[i], history, newprefix, maxdepth)
 								buffer:write(",")
 							end
@@ -205,7 +206,7 @@ function package(self, name, pack)
 	end
 end
 
-if loaded then
+function getpackageinfo(self, loaded)
 	local luapacks = {
 		coroutine = true,
 		package   = true,
@@ -219,7 +220,7 @@ if loaded then
 	labels = { __mode = "k" }
 	setmetatable(labels, labels)
 	-- cache names of global functions
-	for name, func in pairs(_G) do
+	for name, func in pairs(loaded["_G"]) do
 		if type(func) == "function" then
 			labels[func] = name
 		end
@@ -227,12 +228,14 @@ if loaded then
 	-- label loaded Lua library packages
 	for name in pairs(luapacks) do
 		local pack = loaded[name]
-		if pack then package(_M, name, pack) end
+		if pack then self:package(name, pack) end
 	end
 	-- label other loaded packages
 	for name, pack in pairs(loaded) do
 		if not luapacks[name] and type(pack) == "table" then
-			package(_M, name, pack)
+			self:package(name, pack)
 		end
 	end
 end
+
+if loaded then _M:getpackageinfo(loaded) end

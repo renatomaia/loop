@@ -98,7 +98,7 @@ function crawlthread(self, value)
 			local stack
 			if value == nil
 				then stack = getinfo(lvl, "nSf")
-				else stack = getinfo(value, lvl, "nsf")
+				else stack = getinfo(value, lvl, "nSf")
 			end
 			if stack == nil then break end
 			self:found(stack.func     , value, "callfunc"        , stack, lvl)
@@ -108,7 +108,7 @@ function crawlthread(self, value)
 			self:found(stack.short_src, value, "callfuncsrc"     , stack, lvl)
 			self:found(stack.what     , value, "callfuncwhat"    , stack, lvl)
 			if getlocal then
-				for loc = 1, huge do
+				for loc = 0, huge do
 					local locname, locvalue
 					if value == nil
 						then locname, locvalue = getlocal(lvl, loc)

@@ -87,7 +87,7 @@ end
 
 function pushback(self, item)
 	local last = self[self]
-	if addto(self, last, item) == item then
+	if addto(self, item, last) == item then
 		self[self] = item
 		return item
 	end

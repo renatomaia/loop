@@ -18,10 +18,7 @@ module(..., class)
 -- default definitions ---------------------------------------------------------
 
 levelprob = .5
-
-function before(key, other)
-	return key < other
-end
+before = function(key, other) return key < other end
 
 -- internal operations ---------------------------------------------------------
 
@@ -73,7 +70,7 @@ function popnode(self)
 end
 
 function findnode(self, key, path)
-	local before = self.before
+	local before = self.before or before
 	local prev, node = self
 	for level = #self, 1, -1 do
 		node = prev

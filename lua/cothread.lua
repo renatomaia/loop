@@ -110,8 +110,8 @@ function new(attribs)
 local rescheduled = false -- flag indicating whether the last resumed ready
                           -- thread was explcicitly rescheduled as ready in the
                           -- the same position it was before.
-local lastready = false -- Token marking of the head of the list of threads
-                        -- ready for execution. When it is not 'false' it also
+local lastready = false -- Token marking the head of the list of threads ready
+                        -- for execution. When it is not 'false' it also
                         -- indicate the last resumed thread from the list of
                         -- threads ready for execution.
 local scheduled = BiCyclicSets()    -- Table containing all scheduled threads.
