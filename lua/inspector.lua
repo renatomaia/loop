@@ -44,6 +44,7 @@ local format = string.format
 
 local table = require "table"
 local sort = table.sort
+local unpack = table.unpack
 
 local io = require "io"
 local stdin = io.stdin
@@ -298,9 +299,9 @@ commands = {
 				end
 			end
 		end
+		local output = viewer.output
 		local lines = source[path]
 		if lines then
-			local output = viewer.output
 			for line = first, #lines do
 				if not last or line <= last then
 					output:write(format("%-5d ", line), lines[line] or "missing line","\n")
@@ -513,7 +514,7 @@ end
 function upv(_, which, ...)
 	local stack = currentfunc -- backup
 	if stack == nil then stack = getfuncinfo(2) end
-	if stack then
+	if stack and stack.func then
 		local func = stack.func
 		local output = viewer.output
 		for index = 1, inf do
