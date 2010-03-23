@@ -10,7 +10,9 @@ end
 
 return function(cpack, ppack)
 	return function(checks)
-		local comp = cpack.Template()()() -- template, factory, component
+		local template = cpack.Template()
+		local factory = template()
+		local comp = factory() -- template, factory, component
 		
 		cpack.addport(comp, "facet", ppack.Facet         , constructor("facet"))
 		cpack.addport(comp, "recep", ppack.Receptacle    , constructor("recep"))

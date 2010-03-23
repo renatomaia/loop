@@ -1,9 +1,11 @@
+local portno = 4321
+
 return function(checks)
 	local socket = require "cothread.socket"
 	
 	Server = newtask("Server", function(name)
 		local port = assert(socket.tcp())
-		assert(port:bind("*", 1234))
+		assert(port:bind("*", portno))
 		assert(port:listen())
 		local i = 1
 		while true do
@@ -31,7 +33,7 @@ return function(checks)
 	for i = 1, 3 do
 		local Client = newtask("Client"..i, function(name)
 			local conn = socket.tcp()
-			assert(conn:connect("localhost", 1234))
+			assert(conn:connect("localhost", portno))
 			for j = 1, i do
 				assert(conn:send(")"..i..";"..j.."("))
 				yield("delay", .1)

@@ -1,7 +1,7 @@
---------------------------------------------------------------------------------
--- Project: LOOP - Lua Object-Oriented Programming                            --
--- Title  : Scoped Class Model                                                --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
+-- Project: LOOP - Lua Object-Oriented Programming
+-- Release: 3.0 beta
+-- Title  : Scoped Class Model
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 --------------------------------------------------------------------------------
 -- TODO:
 --	 Test replacement of all members of a scope by ClassProxy[scope] = { ... }
@@ -39,6 +39,7 @@ local multiple_class = multiple.class
 local multiple_instanceof = multiple.instanceof
 
 local cached = require "loop.cached"
+local CachedClass = cached.CachedClass
 
 module "loop.scoped"                                                            -- [[VERBOSE]] local verbose = require "loop.verbose"
 
@@ -210,7 +211,7 @@ function ScopedClass:getmembers(scope)
 	return self.members[scope]
 end
 
-function ScopedClass:__init(class)
+function ScopedClass:__new(class)
 	if class == nil then class = { public = {} } end
 	
 	-- adjust class definition to use scoped member tables
@@ -229,7 +230,7 @@ function ScopedClass:__init(class)
 	end
 
 	-- initialize scoped cached class
-	self = CachedClass.__init(self, class)
+	self = CachedClass.__new(self, class)
 	self.registry = { [self.class] = false }
 
 	-- define scoped class proxy for public state
@@ -554,3 +555,11 @@ function prot(object)
 		end
 	end
 end
+--------------------------------------------------------------------------------
+ScopedClass.new = new
+ScopedClass.rawnew = rawnew
+ScopedClass.getmember = getmember
+ScopedClass.members = members
+ScopedClass.getsuper = getsuper
+ScopedClass.supers = supers
+ScopedClass.allmembers = allmembers

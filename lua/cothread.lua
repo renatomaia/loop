@@ -5,6 +5,7 @@
 
 local _G = require "_G"
 local luaerror = _G.error
+local next = _G.next
 local pairs = _G.pairs
 local setmetatable = _G.setmetatable
 local type = _G.type
@@ -98,10 +99,11 @@ end
 --------------------------------------------------------------------------------
 
 function new(attribs)
+	if attribs == nil then attribs = {} end
 	for field, value in pairs(default) do
 		if attribs[field] == nil then attribs[field] = value end
 	end
-	_G.setfenv(1, attribs) -- Lua 5.2: in attribs do
+	_G.setfenv(1, attribs) -- Lua 5.2: _ENV = attribs
 
 --------------------------------------------------------------------------------
 -- Initialization Code ---------------------------------------------------------
@@ -118,7 +120,7 @@ local scheduled = BiCyclicSets()    -- Table containing all scheduled threads.
 local placeof = scheduled:reverse() -- It is organized as disjoint sets, which
 scheduled:add(lastready)            -- values are arranged in cyclic order.
                                     -- The sets are organized as follows:
-                                    -- 1. One set of threads ready for excution.
+                                    -- 1. One set of threads ready for execution.
                                     --    This set is always present containing
                                     --    the value 'false' that also indicates
                                     --    the "start" and "end" of the set.
@@ -136,14 +138,13 @@ scheduled:add(lastready)            -- values are arranged in cyclic order.
                                     --    threads waiting for it. There is no
                                     --    set containing only a signal and no
                                     --    threads.
-local wakeindex = SortedMap() -- List of wake times of delayed threads in
-                              -- ascesding order. Each entry contains a
-                              -- reference to the first thread in 'scheduled'
-                              -- that must be waken at that time.
-local wakeentry = WeakValues() -- Table mapping threads to its last entry in the
-                               -- 'wakeindex'. This last entry may be old thus
-                               -- not belonging to the 'wakeindex' anymore, i.e.
-                               -- invalid.
+local wakeindex = SortedMap{ -- Linked list of wake times of delayed threads in
+	nodepool = WeakValues(),   -- ascesding order. Each entry contains a reference
+}                            -- to the first thread in 'scheduled' that must be
+                             -- waken at that time.
+local waketime = WeakValues() -- Table mapping threads to its last wake time.
+                              -- This last wake time may be old thus the thread
+                              -- may not be sleeping anymore.
 traps = traps or WeakKeys() -- Table mapping threads to the function that must
                             -- be executed when the thread finishes.
 
@@ -157,37 +158,37 @@ traps = traps or WeakKeys() -- Table mapping threads to the function that must
 -- Arrows indicate changes performed by the method.
 -- No arrows means no change.
 --
--- wakeentry = { ... }
+-- waketime  = { ... }
 -- wakeindex = { ... }
 -- scheduled = [ ... ]
 --
--- wakeentry = { ... [thread] = entry }  --> { ... }
+-- waketime  = { ... [thread] = time }  --> { ... }
 -- wakeindex = { ... }
 -- scheduled = [ ... ]
 --
--- wakeentry = { ... [thread]    = entry }  --> { ... }
+-- waketime  = { ... [thread]    = time   }  --> { ... }
 -- wakeindex = { ... [entry.key] = thread } --> { ... }
 -- scheduled = [ ... thread ]
 --
--- wakeentry = { ... [thread]    = entry  } --> { ... [nextthread] = entry      }
--- wakeindex = { ... [entry.key] = thread } --> { ... [entry.key]  = nextthread }
+-- waketime  = { ... [thread] = time   } --> { ... [nextthread] = time        }
+-- wakeindex = { ... [time]   = thread } --> { ... [time]       = nextthread }
 -- scheduled = [ ... thread, nextthread... ]
 --
--- wakeentry = { ... [thread]    = entry , [nextentry.value] = nextentry...       } --> { ... [nextentry.value] = nextentry...       }
--- wakeindex = { ... [entry.key] = thread, [nextentry.key]   = nextentry.value... } --> { ... [nextentry.key]   = nextentry.value... }
+-- waketime  = { ... [thread] = time  , [nextentry.value] = nextentry.key...   } --> { ... [nextentry.value] = nextentry...       }
+-- wakeindex = { ... [time]   = thread, [nextentry.key]   = nextentry.value... } --> { ... [nextentry.key]   = nextentry.value... }
 -- scheduled = [ ... thread, nextentry.value... ]
 --
--- wakeentry = { ... [thread]    = entry , [nextentry.value] = nextentry       } --> { [nextthread] = entry     , [nextentry.value] = nextentry       }
--- wakeindex = { ... [entry.key] = thread, [nextentry.key]   = nextentry.value } --> { [entry.key]  = nextthread, [nextentry.key]   = nextentry.value }
+-- waketime  = { ... [thread] = time  , [nextentry.value] = nextentry.key   } --> { [nextthread] = time      , [nextentry.value] = nextentry.key   }
+-- wakeindex = { ... [time]   = thread, [nextentry.key]   = nextentry.value } --> { [time]       = nextthread, [nextentry.key]   = nextentry.value }
 -- scheduled = [ ... thread, nextthread..nextentry.value... ]
 --
 local function cancelwake(thread)
-	local entry = wakeentry[thread]
-	if entry then -- 'thread' *may* be sleeping.
-		wakeentry[thread] = nil
+	local timestamp = waketime[thread]
+	if timestamp then -- 'thread' *may* be sleeping.
+		waketime[thread] = nil
 		local path = {}
-		local found = wakeindex:findnode(entry.key, path)
-		if found == entry then -- yes, it is sleeping.
+		local entry = wakeindex:findnode(timestamp, path)
+		if entry ~= nil and entry.value == thread then -- yes, it is sleeping.
 			local nextentry = wakeindex:nextnode(entry)
 			local nextthread = scheduled[thread]
 			if (nextentry and nextentry.value == nextthread) -- only one in this entry
@@ -196,7 +197,7 @@ local function cancelwake(thread)
 				wakeindex:removefrom(path, entry)
 			else -- other thread is waiting to wake at the same time
 				entry.value = nextthread
-				wakeentry[nextthread] = entry
+				waketime[nextthread] = timestamp
 			end                                                                       --[[VERBOSE]] verbose:threads("wake time of delayed thread ",thread," was cancelled")
 			return true
 		end
@@ -205,16 +206,68 @@ end
 
 local function cancelblock(thread)
 	local signal = scheduled[thread]
-	if signal
+	if signal -- is not 'nil' nor 'false'
 	and scheduled[signal] == thread
 	and type(signal) ~= "thread"
 	then
 		scheduled:remove(signal)
-		if cancelsignal then cancelsignal(signal) end
+		if signalcanceled then signalcanceled(signal) end
 	end
 end
 
+--------------------------------------------------------------------------------
+-- Introspection Support -------------------------------------------------------
+--------------------------------------------------------------------------------
 
+function isscheduled(thread)
+	return scheduled[thread] ~= nil
+end
+
+local function nextthread(ending, previous)
+	if previous == nil then return ending end
+	local thread = scheduled[previous]
+	if thread ~= ending then return thread end
+end
+function ready()
+	return nextthread, false, false
+end
+function waiting(signal)
+	if signal
+		then return nextthread, signal, signal
+		else return nextthread, wakeindex:head(), nil
+	end
+end
+
+local function nextdelayed(state, previous, timestamp)
+	if previous == nil then return state.first, timestamp end
+	local thread = scheduled[previous]
+	if thread == state.first then return end
+	local nextwake = state.nextwake
+	if nextwake and nextwake.value == thread then
+		state.nextwake = wakeindex:nextnode(nextwake)
+		timestamp = nextwake.key
+	end
+	return thread, timestamp
+end
+function delayed()
+	local first = wakeindex:nextnode()
+	if first == nil then return nextthread, nil, nil end
+	local state = { first = first.value, nextwake = wakeindex:nextnode(first) }
+	return nextdelayed, state, nil, first.key
+end
+
+local function nextsignal(_, signal)
+	repeat signal = next(scheduled, signal)
+	until signal == nil or (signal and type(signal) ~= "thread")
+	return signal
+end
+function signals()
+	return nextsignal
+end
+
+--------------------------------------------------------------------------------
+-- Scheduling Operations -------------------------------------------------------
+--------------------------------------------------------------------------------
 
 local function dummy() end
 local findplace = rawnew{ __index = function() return dummy end }
@@ -245,7 +298,7 @@ function findplace.defer(thread, time)
 	else
 		previous = previous.value
 		wakeindex:addto(entry, entry)
-		wakeentry[thread] = entry                                                   --[[VERBOSE]] verbose:threads("wake time of ",thread," was registered")
+		waketime[thread] = time                                                     --[[VERBOSE]] verbose:threads("wake time of ",thread," was registered")
 	end
 	return previous or thread
 end
@@ -296,26 +349,7 @@ function unschedule(thread)
 	return scheduled:remove(thread)
 end
 
-function notify(signal, how, what)
-	local thread = scheduled[signal]
-	if thread ~= nil then
-		local place
-		if how == nil then
-			place = placeof[lastready]
-		else
-			place = findplace[how](thread, what)
-			if place == nil then return end
-			if place == thread then return end
-		end
-		scheduled:movefrom(signal, place)                                           --[[VERBOSE]] verbose:threads(thread, " waiting for signal ",signal," is ready for execution")
-		if scheduled[signal] == signal then                                         --[[VERBOSE]] verbose:threads("no more threads waiting for signal ",signal)
-			scheduled:removefrom(signal)
-		end
-		return thread
-	end                                                                           --[[VERBOSE]] verbose:threads("no threads waiting for signal ",signal)
-end
-
-function notifyall(signal, how, what)
+function wakeall(signal, how, what)
 	local thread = scheduled[signal]
 	if thread ~= nil then
 		local place
@@ -329,16 +363,20 @@ function notifyall(signal, how, what)
 		local last = placeof[signal]
 		scheduled:movefrom(signal, place, last)
 		scheduled:removefrom(signal)                                                --[[VERBOSE]] verbose:threads("all threads waiting for signal ",signal," are ready for execution")
+		--if signalcanceled then signalcanceled(signal) end
 		return thread, last
 	end
 end
 
 function cancel(signal)                                                         --[[VERBOSE]] verbose:threads("cancel one thread waiting for signal ",signal)
 	local thread = scheduled:removefrom(signal)
-	if thread ~= nil and scheduled[signal] == signal then
-		scheduled:removefrom(signal)                                                --[[VERBOSE]] else verbose:threads("no threads waiting signal ",signal)
+	if thread ~= nil then                                                         --[[VERBOSE]] verbose:threads(thread, " waiting for signal ",signal," was unscheduled")
+		if scheduled[signal] == signal then
+			scheduled:removefrom(signal)
+			--if signalcanceled then signalcanceled(signal) end
+		end
+		return thread                                                               --[[VERBOSE]] else verbose:threads("no threads waiting signal ",signal)
 	end
-	return thread
 end
 
 
@@ -361,11 +399,17 @@ local yieldops = {                                                              
 	now = now,
 	idle = idle,
 	error = error,
+	
+	isscheduled = isscheduled,
+	ready = ready,
+	waiting = waiting,
+	delayed = delayed,
+	signals = signals,
+	
 	schedule = schedule,
 	unschedule = unschedule,
+	wakeall = wakeall,
 	cancel = cancel,
-	notify = notify,
-	notifyall = notifyall,
 }
 for name, op in pairs(yieldops) do
 	yieldops[name] = function (current, ...)
@@ -422,6 +466,23 @@ end
 
 
 
+---
+--@return nextwake
+--	number: timestamp of the moment for the next sleeping thread to be waken
+--	nil   : no more sleeping threads left
+-- 
+local function wakeupdelayed()
+	local first = wakeindex:head()
+	if first then
+		local remains, time = wakeindex:cropuntil(now(), "orLater") -- exclusive
+		if remains ~= first then
+			local last = placeof[remains or first]
+			scheduled:move(first, lastready, last)                                    --[[VERBOSE]] verbose:threads("delayed ",first," to ",last," are ready for execution")
+		end
+		return time
+	end
+end
+
 local function dothread(thread, success, operation, ...)
 	if status(thread) == "suspended" then                                         --[[VERBOSE]] verbose:threads(false, thread," yielded with operation ",operation)
 		return yieldops[operation](thread, ...)
@@ -464,43 +525,26 @@ local function resumeready(thread, ...)
 	return thread, ...
 end
 
----
---@return nextwake
---	number: timestamp of the moment for the next sleeping thread to be waken
---	nil   : no more sleeping threads left
--- 
-local function wakeupdelayed()
-	local first = wakeindex:head()
-	if first then
-		local remains, time = wakeindex:cropuntil(now(), "orLater") -- exclusive
-		if remains ~= first then
-			local last = placeof[remains or first]
-			scheduled:move(first, lastready, last)                                    --[[VERBOSE]] verbose:threads("delayed ",first," to ",last," are ready for execution")
-		end
-		return time
-	end
-end
-
 --------------------------------------------------------------------------------
 -- Control Functions -----------------------------------------------------------
 --------------------------------------------------------------------------------
 
 ---
 --@param thread
---	thread      : thread to be resumed first during the scheduling step
+--	thread      : thread to be resumed first during the scheduling round
 --	false or nil: indicates that a scheduled thread must be resumed first
 --@param ...
 --	values to be passed to the first resumed thread
 --
---@return nextstep
+--@return nextround
 --	0     : there are threads ready for execution
---	number: timestamp of the moment when the step will have threads to schedule
---	false : no more threads to be scheduled, so no use for other step
+--	number: timestamp of the moment when the round will have threads to schedule
+--	false : no more threads to be scheduled, so no use for other round
 --	nil   : scheduling was halted
 --@return ...
 --	values yielded by the last resumed thread
 --
-local function stepcont(thread, ...)
+local function roundcont(thread, ...)
 	local nextwake
 	if thread == false then                                                       --[[VERBOSE]] verbose:scheduler(false, "scheduling round finished")
 		if scheduled[false] ~= false then
@@ -514,9 +558,9 @@ local function stepcont(thread, ...)
 	end
 	return nextwake, ...
 end
-function step(thread, ...)                                                      --[[VERBOSE]] verbose:scheduler(true, "scheduling round started")
+function round(thread, ...)                                                      --[[VERBOSE]] verbose:scheduler(true, "scheduling round started")
 	wakeupdelayed()
-	return stepcont(resumeready(thread or lastready, ...))
+	return roundcont(resumeready(thread or lastready, ...))
 end
 
 ---
@@ -526,21 +570,21 @@ end
 --@param ...
 --	values to be passed to the first resumed thread
 --
---@return nextstep
+--@return nextround
 --	true : no more threads to be scheduled, so no use for other run
 --	false: scheduling was halted
 --@return ...
 --	values yielded by the last resumed thread
 --
-local function runcont(nextstep, ...)
-	if nextstep then
-		if nextstep > 0 then idle(nextstep) end
+local function runcont(nextround, ...)
+	if nextround then
+		if nextround > 0 then idle(nextround) end
 		return run(lastready, ...)
 	end
-	return nextstep == false, ...
+	return nextround == false, ...
 end
 function run(thread, ...)
-	return runcont(step(thread, ...))
+	return runcont(round(thread, ...))
 end
 
 --------------------------------------------------------------------------------
@@ -556,7 +600,6 @@ end
 --[[VERBOSE]] 
 --[[VERBOSE]] 
 --[[VERBOSE]] 
---[[VERBOSE]] local next = _G.next
 --[[VERBOSE]] local select = _G.select
 --[[VERBOSE]] local copy = tabop.copy
 --[[VERBOSE]] function verbose.custom:threads(...)
@@ -577,7 +620,6 @@ end
 --[[VERBOSE]] 	
 --[[VERBOSE]] 	if self.flags.state then
 --[[VERBOSE]] 		local missing = copy(scheduled)
---[[VERBOSE]] 		missing.back = nil
 --[[VERBOSE]] 		
 --[[VERBOSE]] 		local newline = "\n"..viewer.prefix..viewer.indentation
 --[[VERBOSE]] 		
@@ -621,12 +663,11 @@ end
 --[[VERBOSE]] 		
 --[[VERBOSE]] 		output:write(newline,"Blocked:")
 --[[VERBOSE]] 		while next(missing) ~= nil do
---[[VERBOSE]] 			output:write(newline,"  ")
 --[[VERBOSE]] 			local signalfound
 --[[VERBOSE]] 			for signal in pairs(missing) do
 --[[VERBOSE]] 				if signal and type(signal) ~= "thread" then
 --[[VERBOSE]] 					signalfound = true
---[[VERBOSE]] 					output:write(labels[signal],":")
+--[[VERBOSE]] 					output:write(newline,"  ",labels[signal],":")
 --[[VERBOSE]] 					for thread in scheduled:forward(signal) do
 --[[VERBOSE]] 						if missing[thread] == nil then
 --[[VERBOSE]] 							output:write("<STATE CORRUPTION>")
@@ -646,16 +687,11 @@ end
 --[[VERBOSE]] 	end
 --[[VERBOSE]] end
 
---[[DEBUG]] local Inspector = _G.require "loop.debug.Inspector"
---[[DEBUG]] verbose.I = Inspector{ viewer = verbose.viewer }
---[[DEBUG]] function verbose.inspect:debug() self.I:stop(4) end
---[[DEBUG]] verbose:flag("debug", true)
-
 --------------------------------------------------------------------------------
 -- End of Instantiation Code -------------------------------------------------
 --------------------------------------------------------------------------------
 
-	_G.setfenv(1, default) -- Lua 5.2: end
+	_G.setfenv(1, default) -- Lua 5.2:
 	return attribs
 end
 

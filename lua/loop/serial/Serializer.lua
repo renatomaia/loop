@@ -72,7 +72,7 @@ function addmembers(self, pack)
 	end
 end
 
-function __init(self, object)
+function __new(self, object)
 	self = oo.rawnew(self, object)
 	self.environment = self.environment or Environment()
 	self.environment[self.namespace] = self

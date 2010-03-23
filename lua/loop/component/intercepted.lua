@@ -63,9 +63,9 @@ end
 
 Wrapper = oo.class()
 
-function Wrapper:__init(object)
+function Wrapper:__new(object)
 	local name = object.__name
-	object.__init        = false
+	object.__new         = false
 	object.__methodkey   = "  method"..name
 	object.__indexkey    = "  index"..name
 	object.__newindexkey = "  newindex"..name
@@ -96,7 +96,7 @@ local function getfield(table, field)
 end
 function Wrapper:__index(field)
 	-- NOTE: retrieve class members first
-	local class = oo.classof(self)
+	local class = oo.getclass(self)
 	if class[field] then return class[field] end
 
 	local object = self:__get()
@@ -192,8 +192,8 @@ loop.component.intercepted.intercept(MyComponent, "MyPort", event, iceptor)
 
 Facet = oo.class({}, Wrapper)
 
-function Facet:__init(state, key, context)
-	local wrapper = Wrapper.__init(self, {
+function Facet:__new(state, key, context)
+	local wrapper = Wrapper.__new(self, {
 		__state = state,
 		__context = context,
 		__key = key,
@@ -216,8 +216,8 @@ end
 
 Receptacle = oo.class({}, Wrapper)
 
-function Receptacle:__init(state, key, context)
-	local wrapper = Wrapper.__init(self, {
+function Receptacle:__new(state, key, context)
+	local wrapper = Wrapper.__new(self, {
 		__state = state,
 		__context = context,
 		__key = key,
@@ -255,7 +255,7 @@ Receptacle.__hasany = Receptacle.__get
 
 local ReceptacleWrapper = oo.class()
 
-function ReceptacleWrapper:__init(state, key, context)
+function ReceptacleWrapper:__new(state, key, context)
 	self = oo.rawnew(self, state[key])
 	
 	local connections
@@ -267,7 +267,7 @@ function ReceptacleWrapper:__init(state, key, context)
 		break
 	end
 	
-	rawset(self, "__new", oo.class(Wrapper:__init{
+	rawset(self, "__new", oo.class(Wrapper:__new{
 		__get = Receptacle.__get,
 		__state = state,
 		__context = context,
@@ -327,7 +327,7 @@ end
 
 MultipleReceptacle = oo.class()
 
-function MultipleReceptacle:__init(segments, name, context)
+function MultipleReceptacle:__new(segments, name, context)
 	segments[name] = { __receptacle = oo.rawnew(self, segments[name]) }
 	return ReceptacleWrapper(segments, name, context)
 end

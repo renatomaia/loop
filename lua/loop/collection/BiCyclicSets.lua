@@ -114,3 +114,5 @@ function move(self, item, place, last)
 		return self:movefrom(oldplace, place, last)
 	end
 end
+
+__tostring = CyclicSets.__tostring

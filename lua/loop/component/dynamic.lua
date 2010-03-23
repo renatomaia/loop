@@ -1,3 +1,5 @@
+local _G = _G
+
 --------------------------------------------------------------------------------
 ---------------------- ##       #####    #####   ######  -----------------------
 ---------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
@@ -61,7 +63,7 @@ function InternalState:__index(name)
 	if manager == nil then
 		local factory = state.__factory
 		local class = factory[name]
-		if oo.classof(class) == DynamicPort then
+		if oo.getclass(class) == DynamicPort then
 			local context = self.__internal
 			self[class] = class(state, class, context)
 			port, manager = state[class], self[class]
@@ -78,7 +80,7 @@ function InternalState:__newindex(name, value)
 	if manager == nil then
 		local factory = state.__factory
 		local class = factory[name]
-		if oo.classof(class) == DynamicPort then
+		if oo.getclass(class) == DynamicPort then
 			local context = self.__internal
 			self[class] = class(state, class, context)
 			manager = self[class]
@@ -90,6 +92,9 @@ function InternalState:__newindex(name, value)
 	elseif manager ~= nil then
 		state[name] = value
 	else
+
+if state.__component == nil then _G.print(_G.debug.traceback()) end
+
 		state.__component[name] = value
 	end
 end
@@ -132,18 +137,18 @@ templateof = base.templateof
 local function portiterator(container, name)
 	local factory = container.__state.__factory
 	local port = factory[name]
-	if oo.classof(port) == DynamicPort then
+	if oo.getclass(port) == DynamicPort then
 		name = port
 	end
 	repeat
 		name = next(container, name)
 		if name == nil then
 			return nil
-		elseif oo.classof(name) == DynamicPort then
+		elseif oo.getclass(name) == DynamicPort then
 			return name.name, name.port
 		end
 	until name:find("^%a[%w_]*$")
-	return name, oo.classof(factory)[name]
+	return name, oo.getclass(factory)[name]
 end
 
 function ports(component)
@@ -157,7 +162,7 @@ end
 function segmentof(comp, name)
 	local state = comp.container.__state
 	local port = state.__factory[name]
-	if oo.classof(port) == DynamicPort then
+	if oo.getclass(port) == DynamicPort then
 		name = port
 	end
 	return state[port]
@@ -166,7 +171,7 @@ end
 --------------------------------------------------------------------------------
 
 function addport(scope, name, port, class)
-	if oo.isclass(scope) or oo.instanceof(scope, BaseTemplate) then
+	if oo.isclass(scope) or oo.isinstanceof(scope, BaseTemplate) then
 		scope[name] = DynamicPort{
 			name = name,
 			port = port,
@@ -178,7 +183,7 @@ function addport(scope, name, port, class)
 end
 
 function removeport(scope, name)
-	if oo.isclass(scope) or oo.instanceof(scope, BaseTemplate) then
+	if oo.isclass(scope) or oo.isinstanceof(scope, BaseTemplate) then
 		scope[name] = nil
 	else
 		base.removeport(scope, name)

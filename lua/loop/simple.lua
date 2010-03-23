@@ -1,8 +1,7 @@
---------------------------------------------------------------------------------
--- Project: LOOP - Lua Object-Oriented Programming                            --
--- Title  : Simple Inheritance Class Model                                    --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP - Lua Object-Oriented Programming
+-- Release: 3.0 beta
+-- Title  : Simple Inheritance Class Model
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
 local _G = require "_G"
 local pairs = _G.pairs
@@ -23,8 +22,9 @@ module "loop.simple"
 
 clone(base, _M)
 
+local MetaClassMeta
 local DerivedMeta = memoize(function(super)
-	return { __index = super, __call = new }
+	return setmetatable({ __index = super, __call = new }, MetaClassMeta)
 end, "k")
 
 function class(class, super)
@@ -35,15 +35,15 @@ function class(class, super)
 end
 
 function isclass(class)
-	local metaclass = classof(class)
+	local metaclass = getclass(class)
 	if metaclass ~= nil then
 		return metaclass == rawget(DerivedClassMeta, metaclass.__index) or
 		       base_isclass(class)
 	end
 end
 
-function superclass(class)
-	local metaclass = classof(class)
+function getsuper(class)
+	local metaclass = getclass(class)
 	if metaclass ~= nil then
 		local super = metaclass.__index
 		if metaclass == rawget(DerivedMeta, super) then
@@ -52,14 +52,24 @@ function superclass(class)
 	end
 end
 
-function subclassof(class, super)
+function issubclassof(class, super)
 	while class ~= nil do
 		if class == super then return true end
-		class = superclass(class)
+		class = getsuper(class)
 	end
 	return false
 end
 
-function instanceof(object, class)
-	return subclassof(classof(object), class)
+function isinstanceof(object, class)
+	return issubclassof(getclass(object), class)
 end
+
+MetaClassMeta = {
+	__index = {
+		new = new,
+		rawnew = rawnew,
+		getmember = getmember,
+		members = members,
+		getsuper = getsuper,
+	},
+}

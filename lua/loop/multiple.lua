@@ -1,8 +1,7 @@
---------------------------------------------------------------------------------
--- Project: LOOP - Lua Object-Oriented Programming                            --
--- Title  : Multiple Inheritance Class Model                                  --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP - Lua Object-Oriented Programming
+-- Release: 3.0 beta
+-- Title  : Multiple Inheritance Class Model
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
 local _G = require "_G"
 local ipairs = _G.ipairs
@@ -21,43 +20,45 @@ local clone = proto.clone
 local simple = require "loop.simple"
 local simple_class = simple.class
 local simple_isclass = simple.isclass
-local simple_superclass = simple.superclass
+local simple_getsuper = simple.getsuper
 
 module "loop.multiple"
 
 clone(simple, _M)
 
-local MultipleClass = {
-	__call = new,
-	__index = function (self, field)
-		self = classof(self)
-		for _, super in ipairs(self) do
-			local value = super[field]
-			if value ~= nil then return value end
-		end
-	end,
-}
+local function inherit(self, field)
+	self = getclass(self)
+	for _, super in ipairs(self) do
+		local value = super[field]
+		if value ~= nil then return value end
+	end
+end
+
+local MetaClassMeta
 
 function class(class, ...)
-	if select("#", ...) > 1
-		then return setmetatable(initclass(class), copy(MultipleClass, {...}))
-		else return simple_class(class, ...)
+	if select("#", ...) > 1 then
+		local metaclass = { __call = new, __index = inherit, ... }
+		setmetatable(metaclass, MetaClassMeta)
+		return setmetatable(initclass(class), metaclass)
+	else
+		return simple_class(class, ...)
 	end
 end
 
 function isclass(class)
-	local metaclass = classof(class)
+	local metaclass = getclass(class)
 	if metaclass then
-		return metaclass.__index == MultipleClass.__index or
+		return metaclass.__index == inherit or
 		       simple_isclass(class)
 	end
 end
 
-function superclass(class)
-	local metaclass = classof(class)
+function getsuper(class)
+	local metaclass = getclass(class)
 	if metaclass then
 		local indexer = metaclass.__index
-		if (indexer == MultipleClass.__index)
+		if (indexer == inherit)
 			then return unpack(metaclass)
 			else return metaclass.__index
 		end
@@ -70,27 +71,38 @@ local function isingle(single, index)
 	end
 end
 function supers(class)
-	local metaclass = classof(class)
+	local metaclass = getclass(class)
 	if metaclass then
 		local indexer = metaclass.__index
-		if indexer == MultipleClass.__index
+		if indexer == inherit
 			then return ipairs(metaclass)
-			else return isingle, simple_superclass(class)
+			else return isingle, simple_getsuper(class)
 		end
 	end
 	return isingle
 end
 
-function subclassof(class, super)
+function issubclassof(class, super)
 	if class == super then return true end
 	for _, superclass in supers(class) do
-		if subclassof(superclass, super) then
+		if issubclassof(superclass, super) then
 			return true
 		end
 	end
 	return false
 end
 
-function instanceof(object, class)
-	return subclassof(classof(object), class)
+function isinstanceof(object, class)
+	return issubclassof(getclass(object), class)
 end
+
+MetaClassMeta = {
+	__index = {
+		new = new,
+		rawnew = rawnew,
+		getmember = getmember,
+		members = members,
+		getsuper = getsuper,
+		supers = supers,
+	},
+}

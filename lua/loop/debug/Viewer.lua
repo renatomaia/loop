@@ -1,42 +1,39 @@
---------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
--- Project: LOOP Class Library                                                --
--- Release: 2.3 beta                                                          --
--- Title  : Visualization of Lua Values                                       --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP Class Library
+-- Release: 2.3 beta
+-- Title  : Visualization of Lua Values
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
-local _G           = _G
-local select       = select
-local type         = type
-local next         = next
-local pairs        = pairs
-local rawget       = rawget
-local rawset       = rawset
-local getmetatable = getmetatable
-local setmetatable = setmetatable
-local luatostring  = tostring
-local loaded       = package and package.loaded
+local _G = require "_G"
+local select = _G.select
+local type = _G.type
+local next = _G.next
+local pairs = _G.pairs
+local rawget = _G.rawget
+local rawset = _G.rawset
+local getmetatable = _G.getmetatable
+local setmetatable = _G.setmetatable
+local luatostring = _G.tostring
+local loaded = _G.package and _G.package.loaded -- only if available
 
 local string = require "string"
-local table  = require "table"
-local io     = require "io"
-local oo     = require "loop.base"
+local format = string.format
 
-module("loop.debug.Viewer", oo.class)
+local table = require "table"
+local concat = table.concat
+
+local io = require "io"
+local defaultoutput = io.output
+
+local oo = require "loop.base"
+local class = oo.class
+
+module(..., class)
 
 maxdepth = -1
 indentation = "  "
 linebreak = "\n"
 prefix = ""
-output = io.output()
+output = defaultoutput()
 keywords = {
 	["and"] = true,
 	["break"] = true,
@@ -66,7 +63,7 @@ function writevalue(self, buffer, value, history, prefix, maxdepth)
 	if luatype == "nil" or luatype == "boolean" or luatype == "number" then
 		buffer:write(luatostring(value))
 	elseif luatype == "string" then
-		buffer:write(string.format("%q", value))
+		buffer:write(format("%q", value))
 	else
 		local label = history[value]
 		if label then
@@ -150,7 +147,7 @@ end
 function tostring(self, ...)
 	local buffer = { write = add }
 	self:writeto(buffer, ...)
-	return table.concat(buffer)
+	return concat(buffer)
 end
 
 function write(self, ...)

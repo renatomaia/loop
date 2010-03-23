@@ -34,7 +34,7 @@ end
 function checkend(checks, scheduler)
 	resetlog()
 	for i=1, 3 do
-		checks:assert(scheduler.step(), checks.is(false))
+		checks:assert(scheduler.round(), checks.is(false))
 		checks:assert(EventLog, checks.similar{})
 	end
 end

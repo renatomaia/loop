@@ -55,10 +55,10 @@ function new(attribs)
 --------------------------------------------------------------------------------
 
 local now = scheduler.now
-local step = scheduler.step
+local round = scheduler.round
 local schedule = scheduler.schedule
 local unschedule = scheduler.unschedule
-local notifyall = scheduler.notifyall                                           --[[VERBOSE]] local verbose = scheduler.verbose
+local wakeall = scheduler.wakeall                                               --[[VERBOSE]] local verbose = scheduler.verbose
 
 local sleep = socketcore.sleep
 local selectsockets = socketcore.select
@@ -103,10 +103,10 @@ local function watchsockets(timeout)
 	end                                                                           --[[VERBOSE]] verbose:socket(true, "waiting for network events for ",timeout," seconds")
 	local recvok, sendok, errmsg = selectsockets(reading, writing, timeout)
 	for _, socket in ipairs(recvok) do
-		notifyall(socket)
+		wakeall(socket)
 	end
 	for _, socket in ipairs(sendok) do
-		notifyall(WrapperOf[socket])
+		wakeall(WrapperOf[socket])
 	end                                                                           --[[VERBOSE]] verbose:socket(false, "done processing network events")
 	wasidle = true
 end
@@ -127,20 +127,20 @@ local function forgetsocket(socket, opset)
 	end
 end
 
-local function stepcont(result, ...)
+local function roundcont(result, ...)
 	if result == false and #reading > 0 or #writing > 0 then
 		result = huge
 	end
 	return result, ...
 end
-function scheduler.step(...)
+function scheduler.round(...)
 	if not wasidle then watchsockets(0) end
 	wasidle = nil
-	return stepcont(step(...))
+	return roundcont(round(...))
 end
 
 
-function scheduler.cancelsignal(socket)
+function scheduler.signalcanceled(socket)
 	if reading[socket] then
 		forgetsocket(socket, reading)
 	elseif writing[socket] then
@@ -472,6 +472,25 @@ end
 function waitevent(timeout)
 	return watchsockets(now()+timeout)
 end
+
+--[[VERBOSE]] local old = verbose.custom.threads
+--[[VERBOSE]] function verbose.custom:threads(...)
+--[[VERBOSE]] 	old(self, ...)
+--[[VERBOSE]] 	local viewer = self.viewer
+--[[VERBOSE]] 	local output = self.viewer.output
+--[[VERBOSE]] 	local labels = self.viewer.labels
+--[[VERBOSE]] 	if self.flags.state then
+--[[VERBOSE]] 		local newline = "\n"..viewer.prefix..viewer.indentation
+--[[VERBOSE]] 		output:write(newline,"Reading:")
+--[[VERBOSE]] 		for _, socket in ipairs(reading) do
+--[[VERBOSE]] 			output:write(" ",labels[socket])
+--[[VERBOSE]] 		end
+--[[VERBOSE]] 		output:write(newline,"Writing:")
+--[[VERBOSE]] 		for _, socket in ipairs(writing) do
+--[[VERBOSE]] 			output:write(" ",labels[socket])
+--[[VERBOSE]] 		end
+--[[VERBOSE]] 	end
+--[[VERBOSE]] end
 
 --------------------------------------------------------------------------------
 -- End of Instantiation Code -------------------------------------------------

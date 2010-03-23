@@ -1,26 +1,19 @@
---------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
--- Project: LOOP Class Library                                                --
--- Release: 2.3 beta                                                          --
--- Title  : Class of Dynamic Wrapper Objects for Method Invocation            --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP Class Library
+-- Title  : Dynamic Wrapper for Method Invocation
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
-local type = type
+local _G = require "_G"
+local type = _G.type
 
 local tabop = require "loop.table"
-local oo    = require "loop.base"
+local memoize = tabop.memoize
 
-module("loop.object.Wrapper", oo.class)
+local oo = require "loop.base"
+local class = oo.class
 
-local methods = tabop.memoize(function(method)
+module(..., class)
+
+local methods = memoize(function(method)
 	return function(self, ...)
 		return method(self.__object, ...)
 	end

@@ -1,34 +1,33 @@
---------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
--- Project: LOOP Class Library                                                --
--- Release: 2.3 beta                                                          --
--- Title  : Matcher of Lua Values                                             --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP Class Library
+-- Release: 2.3 beta
+-- Title  : Matcher of Lua Values
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
-local pairs = pairs
-local type = type
-local select = select
-local getfenv = getfenv
-local tostring = tostring
-local newproxy = newproxy
-local getmetatable = getmetatable
-local setmetatable = setmetatable
-local getupvalue = debug and debug.getupvalue
+local _G = require "_G"
+local pairs = _G.pairs
+local type = _G.type
+local select = _G.select
+local getfenv = _G.getfenv
+local tostring = _G.tostring
+local getmetatable = _G.getmetatable
+local setmetatable = _G.setmetatable
+local getupvalue = _G.debug and _G.debug.getupvalue -- only if available
 
 local string = require "string"
-local table = require "table"
-local tabop = require "loop.table"
-local oo = require "loop.base"
+local format = string.format
+local dump = string.dump
 
-module("loop.debug.Matcher", oo.class)
+local table = require "table"
+local insert = table.insert
+local concat = table.concat
+
+local tabop = require "loop.table"
+local copy = tabop.copy
+
+local oo = require "loop.base"
+local class = oo.class
+
+module(..., class)
 
 __mode = "k"
 
@@ -36,31 +35,31 @@ isomorphic = true
 environment = getfenv
 upvalue = getupvalue
 
-metakey = newproxy()
-envkey = newproxy()
+metakey = {}
+envkey = {}
 
 function error(self, message)
 	local path = { "value" }
 	for i = 2, #self do
 		local key = self[i]
 		if key == metakey then
-			table.insert(path, 1, "getmetatable(")
+			insert(path, 1, "getmetatable(")
 			key = ")"
 		elseif key == envkey then
-			table.insert(path, 1, "getfenv(")
+			insert(path, 1, "getfenv(")
 			key = ")"
 		elseif type(key) == "string" then
 			if key:match("^[%a_][%w_]*$") then
 				key = "."..key
 			else
-				key = string.format("[%q]", key)
+				key = format("[%q]", key)
 			end
 		else
-			key = string.format("[%s]", tostring(key))
+			key = format("[%s]", tostring(key))
 		end
 		path[#path+1] = key
 	end
-	return string.format("%s: %s", table.concat(path), message)
+	return format("%s: %s", concat(path), message)
 end
 
 function matchtable(self, value, other)
@@ -72,13 +71,13 @@ function matchtable(self, value, other)
 		if otherfield == nil then
 			matched = false
 			for otherkey, otherfield in pairs(other) do
-				local matcher = setmetatable(tabop.copy(self), getmetatable(self))
+				local matcher = setmetatable(copy(self), getmetatable(self))
 				matcher.error = nil
 				if
 					matcher:match(key, otherkey) and
 					matcher:match(field, otherfield)
 				then
-					tabop.copy(matcher, self)
+					copy(matcher, self)
 					keysmatched[otherkey] = true
 					matched = true
 					break
@@ -115,7 +114,6 @@ function matchtable(self, value, other)
 	return matched, errmsg
 end
 
-local dump = string.dump
 function matchfunction(self, func, other)
 	local matched, errmsg = (dump(func) == dump(other))
 	if matched then

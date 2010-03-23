@@ -3,34 +3,48 @@
 <p><code>cothread</code> is a library for cooperative multithreading in Lua using coroutines.
 Its main design goals are:
 <dl>
-	<dt>Functionality</dt>
+	<dt>Full-Featured</dt>
 	<dd>Provide most fundamental functionality commonly required when developing cooperative multithreading applications.
-	In particular, allow any coroutine to resume any other coroutine at any time (emulating symmetric coroutines) and schedule to coroutine to be automatically resumed after a timeout or a signaled event.</dd>
-	<dt>Controllability</dt>
+	In particular, allow any coroutine to resume any other coroutine at any time (emulating symmetric coroutines) and schedule a coroutine to be automatically resumed after a timeout or a signaled event.</dd>
+	<dt>Full-Control</dt>
 	<dd>Provide means for the application to have full control of the scheduling mechanism.
-	For example, the application must be able to change the order coroutines ready for execution should be resumed, resume coroutines still waiting for timeout or events or unschedule coroutines registered in the scheduler.</dd>
-	<dt>Efficiency and Scalability</dt>
+	For example, the application must be able to change the order coroutines should be resumed, resume coroutines that are waiting for timeout or event, or unschedule coroutines registered to be resumed.</dd>
+	<dt>Efficient and Scalable</dt>
 	<dd>The overhead of the scheduling process should be small and its performance should not degrade as the amount of scheduled coroutines increases.
 	In particular, all operations related to the scheduling and resuming of coroutines should be sub-linear relative to the number of coroutines in the application.</dd>
 </dl>
 </p>
 
+<p>Moreover, the design of <code>cothread</code>'s API usually trades a higher error proneness in favor of fewer operations, more features and options or better performance.
+In particular, most operations does not do parameter or pre-condition checking, so it is up to the programmer to guarantee the functions are called accordingly to the conditions stated in this manual.
+It is also expected that additional libraries built on top of <code>cothread</code> provide this kind of protection.</p>
+
 <h2>Basic Model</h2>
 
-<p>This library basically implements a coroutine scheduler that supports two operations:
-resuming the execution of coroutines, which we will call threads from now on;
-and scheduling of threads to be resumed later.
-Each scheduled thread is either on a queue to be resumed as soon as possible (ready threads) or is scheduled to be resumed after some particular event (blocked threads), which can be a timeout or a signal from the application.
+<p>This library basically implements a coroutine scheduler that supports two operations over coroutines (which we will call threads from now on):
+	<ol>
+		<li>schedule threads to be resumed later;</li>
+		<li>replace the running thread by another.</li>
+	</ol>
+</p>
+
+<p>Each scheduled thread is either on a queue to be resumed as soon as possible (ready threads) or on one of the queues of threads to be resumed after some particular event (waiting threads), which can be a timeout or a signal from the application.
 A signal can be any single Lua value, except <code>nil</code>, <code>false</code> and threads.
-It is not possible for a thread to be scheduled more than once at one given moment.
-In particular, it is not possible for a thread to be scheduled to be resumed as soon as possible and also when a timeout is reached or a signal is notified.</p>
+A timeout is an special kind of internal signal automatically emitted by the scheduler itself after que time of the system reaches some value.
+On the other hand, the application or an external library can emit ordinary signals that also represent timeouts thus providing an alternative timeout mechanism.
+Ordinary signals does not interfer with the internal timeout mechanism of the scheduler.</p>
 
-<p>Whenever a thread is resumed it can finish (by returning the main function) or suspend.
-A suspended thread won't be resumed again by the scheduler unless it is explicitly scheduled again.
-The suspension does not cancels a previous scheduling of the suspended thread, so the thread may schedule itself to be resumed later before suspension.</p>
+<p>It is not possible for a thread to be scheduled more than once at one given moment.
+In particular, it is not possible for a thread to be scheduled to be resumed as soon as possible and also when a timeout is reached or a signal is notified.
+At any given moment, a thread must be either <em>ready</em> or <em>waiting</em> but not both.
+Moreover, a thread cannot be scheduled to be resumed after different signals.</p>
 
-<p>When a thread suspends, it can yield its turn to execute to another thread that will be immediately resumed.
-In such case, this operation of resuming a thread does not change the current scheduling.
+<p>Whenever a ready thread is resumed it can finish (by returning the main function) or suspend.
+A suspended thread won't be resumed again by the scheduler unless it is explicitly scheduled once more.
+The suspension does not cancel a previous scheduling of the suspending thread, so the thread may schedule itself before suspension to be resumed later.</p>
+
+<p>When a thread suspends, it can yield its turn to execute to another thread that will be immediately resumed replacing the original executing thread.
+In such case, this yield operation does not change the current scheduling.
 This means that if the resumed thread is already scheduled somehow, it will remain scheduled in the same way.
 Likewise, if the resumed thread is not scheduled it won't be scheduled before being resumed.
 In particular, a running thread that yields its turn to another thread is the most efficient way to resume a thread because it does not change the internal state of the scheduler.</p>
@@ -41,8 +55,8 @@ In particular, a running thread that yields its turn to another thread is the mo
 
 <h4><code>timestamp = cothread.now()</code></h4>
 <p>Function used by the scheduler to get the current time of the system, which is used to check whether threads waiting for a timeout must be resumed.</p>
-<p>By default, this function uses the standard Lua function <code>io.gettime()</code> which has precision of seconds.
-This function must return a non-negative number indicating the number of seconds form a fixed moment in the past.</p>
+<p>This function must return a non-negative number indicating the number of seconds form a fixed moment in the past.
+By default, this function uses the standard Lua function <code>io.gettime()</code> which has precision of seconds.</p>
 
 <h4><code>cothread.idle(timestamp)</code></h4>
 <p>Function used by the scheduler to remain idle until the current time of the system reaches <code>timestamp</code>.</p>
@@ -52,19 +66,27 @@ This function must return a non-negative number indicating the number of seconds
 <p>Table used by the application to map each thread to a function that must be invoked when the thread finishes.
 When the function is invoked it receives as parameters the thread that finished, a boolean value indicating whether it finished normally (<code>true</code>) or raising an error (<code>false</code>), and the results of the function if it finished normally or the error raised otherwise.</p>
 <p>By default, this table has weak keys, which means that registering a trap for a thread does not prevent it from being collected.
-To provide a default trap function for all threads you can replace this table by one with a metatable that returns the same function for any indexed thread.
-You shall not change the metatable of the default <code>trap</code> table.</p>
+To provide a default trap function for all threads you can replace this table by one with a metatable that returns the same function for any indexed thread.</p>
+<p><strong>Caution!</strong> You shall not change the metatable of the default <code>trap</code> table.</p>
 
 <h4><code>cothread.error(thread, errorvalue)</code></h4>
 <p>Function used by the scheduler to handle the error <code>errorvalue</code> raised by thread <code>thread</code> that does not have a trap function registered.</p>
 <p>By default, this function re-raises the error, which makes the scheduler to stop raising the same error raised by the thread.
 Change this function to avoid that an error in a thread stops the scheduler.</p>
 
+<h4><code>cothread.signalcanceled(signal)</code></h4>
+<p>Field containing a callback function that must be called by the scheduler whenever the last thread waiting for a signal <code>signal</code> is unscheduled.
+<!--
+The main purpose of this callback is to notify a signal emitter that a thread waiting for this signal was unscheduled.
+Therefore, this callback is not called when <code>wakeall</code> or <code>cancel</code> functions are called because these functions are typically invoked by the emitter itself.</p>
+-->
+<p>By default, this field is <code>nil</code>, which means no function should be called.</p>
+
 <h3>Scheduler Operation</h3>
 
-<h4><code>timestamp, ... = cothread.step([thread, ...])</code></h4>
-<p>Function that executes a scheduling step, which consists of resuming and waiting for completion or suspension of every thread scheduled to be resumed as soon as possible.</p>
-<p>It optionally takes as argument a thread to be resumed before any scheduled thread and the values that must be passed to the first thread resumed in this scheduling step.
+<h4><code>timestamp, ... = cothread.round([thread, ...])</code></h4>
+<p>Function that executes a scheduling round, which consists of resuming and waiting for completion or suspension of every thread ready for execution.</p>
+<p>It optionally takes as argument a thread to be resumed before any scheduled thread and the values that must be passed to the first thread resumed in this scheduling round.
 If <code>thread</code> is <code>nil</code> the first thread resumed is the first one scheduled to be resumed.</p>
 <p>It returns a <code>timestamp</code> indicating when the scheduler will have more threads to resume.
 The meaning of the <code>timestamp</code> is as follows:
@@ -74,19 +96,19 @@ The meaning of the <code>timestamp</code> is as follows:
 	<dt><code>timestamp > 0</code></dt>
 	<dd>all threads are scheduled to be resumed after the time of the system reaches this value.</dd>
 	<dt><code>timestamp == false</code></dt>
-	<dd>no more threads are scheduled to be resumed so there is not use to call <code>step</code> again, unless new threads are scheduled.</dd>
+	<dd>no more threads are scheduled to be resumed so there is not use to call <code>round</code> again, unless new threads are scheduled.</dd>
 	<dt><code>timestamp == nil</code></dt>
-	<dd>the scheduling step was explicitly halted by a thread and may be resumed at any time by a call to <code>step</code> or <code>run</code>.</dd>
+	<dd>the scheduling round was explicitly halted by a thread and may be resumed at any time by a call to <code>round</code> or <code>run</code>.</dd>
 </dl>
 </p>
-<p>The additional values returned are the values provided by the last resumed thread or the original values passed to <code>step</code> if no threads were resumed.</p>
+<p>The additional values returned are the values provided by the last resumed thread or the original values passed to <code>round</code> if no threads were resumed.</p>
 
 <h4><code>ended, ... = cothread.run([thread, ...])</code></h4>
 <p>Function that starts the scheduling of threads.</p>
-<p>It optionally takes as argument a thread to be resumed before any scheduled thread and the values that must be passed to the first thread resumed in this scheduling step.
+<p>It optionally takes as argument a thread to be resumed before any scheduled thread and the values that must be passed to the first thread resumed in this scheduling round.
 If <code>thread</code> is <code>nil</code> the first thread resumed is the first one scheduled to be resumed.</p>
 <p>This function only returns when there are no more threads to be scheduled or the scheduling is halted by a thread.
-The first value returned in a boolean indicating whether the scheduling completed normally (<code>true</code>) or was halted (<code>false</code>).</p>
+The first value returned is a boolean indicating whether the scheduling completed normally (<code>true</code>) or was halted (<code>false</code>).</p>
 <p>The additional values returned are the values provided by the last resumed thread or the original values passed to <code>run</code> if no threads were resumed.</p>
 
 <h3>Scheduling Management</h3>
@@ -113,31 +135,50 @@ The first value returned in a boolean indicating whether the scheduling complete
 <p>Function that removes thread <code>thread</code> from the scheduling, so it will not be resumed by the scheduler.</p>
 <p>If <code>thread</code> was indeed scheduled and was successfully removed from the scheduling then this functions return the <code>thread</code> or <code>nil</code> otherwise.</p>
 
-<h4><code>thread = cothread.notify(signal [, how, param])</code></h4>
-<p>Function that gets a single thread waiting for signal <code>signal</code> and reschedules it to be resumed later.</p>
+<h4><code>thread, last = cothread.wakeall(signal [, how [, param]])</code></h4>
+<p>Function that reschedules all threads waiting for signal <code>signal</code> as a single operation.</p>
 <p>This function accepts the same optional parameters <code>how</code> and <code>param</code> of function <code>schedule</code> to indicate how the thread should be rescheduled.</p>
-<p>If the chosen thread is rescheduled successfully this functions return this thread or <code>nil</code> otherwise.
-In particular, the chosen thread cannot be scheduled after itself, so in this case the function fails and returns <code>nil</code>.</p>
-
-<h4><code>thread, last = cothread.notifyall(signal [, how [, param]])</code></h4>
-<p>Function that behaves similar to <code>cothread.notify</code> but it reschedules all threads waiting for the signal as a single operation.</p>
 <p>If the threads are rescheduled successfully this functions return the first and the last thread rescheduled as a continuous sequence of threads, or <code>nil</code> otherwise.</p>
-<p><strong>Caution!</strong> If the threads waiting for the signal are rescheduled after any one of the themselves, then the internal state of the scheduler will be corrupted and the behavior of the scheduler from there on will be entirely undefined.</p>
+<p><strong>Caution!</strong> If the threads waiting for the signal are rescheduled after any one of themselves, then the internal state of the scheduler will be corrupted and the behavior of the scheduler from there on will be entirely undefined.</p>
 
 <h4><code>thread = cothread.cancel(signal)</code></h4>
 <p>Function that gets a single thread waiting for signal <code>signal</code> and remove it from the scheduling, so it is not resumed later by the scheduler.</p>
 <p>If a thread is successfully removed from the scheduling then this functions return the removed thread or <code>nil</code> otherwise.
 
+<h3>Scheduling Instrospection</h3>
+
+<h4><code>flag = cothread.isscheduled(thread|signal)</code></h4>
+<p>Function that returns <code>true</code> if <code>thread</code> is currently scheduled to be resumed later (as a ready or waiting thread) or if there are threads waiting for <code>signal</code>.
+It returns <code>false</code> otherwise.</p>
+
+<h4><code>for thread in cothread.ready() do</code></h4>
+<p>Function that returns a iterator for all threads scheduled to be resumed as soon as possible (ready threads).</p>
+
+<h4><code>for thread in cothread.waiting([signal]) do</code></h4>
+<p>Function that returns a iterator for all threads scheduled to be resumed after some event, which is defined by parameter <code>signal</code>.
+When <code>signal</code> is not provided this function returns an iterator for all threads waiting for a timeout.</p>
+
+<h4><code>for thread, timestamp in cothread.delayed() do</code></h4>
+<p>Function that returns a iterator for all threads scheduled to be resumed after a timeout.
+The iteration variables indicate the thread and the timestamp it is scheduled to be resumed.
+This iterator is slower than <code>cothread.waiting()</code>.</p>
+
+<h4><code>for signal in cothread.signals() do</code></h4>
+<p>Function that returns a iterator for all signals where some thread is waiting.
+The performance of this iterator is poor and degrades linearly to the number of all scheduled threads and not only the number of signals.</p>
+
 <h3>Thread Suspension</h3>
 
-<p>All the following functions can only be performed by threads resumed by the scheduler since they suspend the thread execution yielding the control back to the scheduler requesting the execution of a particular scheduling operation.
-These functions are type-checked functions equivalent to <code>coroutine.yield("funcname", ...)</code>.</p>
+<p>All the following functions can only be performed by threads resumed by the scheduler since they suspend the thread execution yielding the control back to the scheduler requesting the execution of a particular scheduling operation.</p>
 
-<p>The following functions receives additional parameters that are passed to the next resumed thread or returned by <code>cothread.step</code> or <code>cothread.run</code> if not more threads are resumed.
-When the suspended thread is resumed again this function returns the values provided by the previous resumed thread or the additional parameters provided to the functions <code>cothread.step</code> or <code>cothread.run</code>.</p>
+<p>These functions are type-checked functions equivalent to <code>coroutine.yield("funcname", ...)</code>, where <code>funcname</code> is the name of the function and <code>...</code> are the function's parameters.
+Therefore, when writing libraries or performance critical code favor <code>coroutine.yield("yield", thread, ...)</code> instead of <code>cothread.yield(thread, ...)</code>.</p>
+
+<p>The following functions receives additional parameters that are passed to the next resumed thread or returned by <code>cothread.round</code> or <code>cothread.run</code> if not more threads are resumed.
+When the suspended thread is resumed again this function returns the values provided by the previous resumed thread or the additional parameters provided to the functions <code>cothread.round</code> or <code>cothread.run</code>.</p>
 
 <h4><code>... = cothread.halt(...)</code></h4>
-<p>Function that halts the scheduling completely making <code>cothread.step</code> or <code>cothread.run</code> to return.</p>
+<p>Function that halts the scheduling completely making <code>cothread.round</code> or <code>cothread.run</code> to return.</p>
 
 <h4><code>... = cothread.suspend(...)</code></h4>
 <p>Function that suspends the execution of the current running thread.</p>
@@ -169,3 +210,44 @@ return cothread.yield(thread, ...)
 
 <h4><code>... = cothread.wait(signal, ...)</code></h4>
 <p>Function that suspends the execution of the current running thread and schedules it to be resumed when signal <code>signal</code> is notified.</p>
+
+<h3>Additional Instances</h3>
+
+<h4><code>clone = cothread.new([table])</code></h4>
+<p>Function that returns a new instance of the <code>cothread</code> module.</p>
+<p>If table <code>table</code> is provided, it is used both to retrieve functions that define customizable behavior of <code>cothread</code> as well as to store the functions provided by the new module instance.</p>
+
+<h3>Usual Patterns</h3>
+
+<h4>Wake up a single thread waiting for a signal</h4>
+
+<p>The following code wakes up one single thread waiting for the signal, so it will be resumed later.</p>
+
+<pre>
+local thread = cothread.cancel(signal)
+if thread ~= nil then
+  cothread.schedule(thread)
+end
+</pre>
+
+<h4>Yield execution to a thread waiting for a signal</h4>
+
+<p>The following code immediately replaces the current thread with a thread waiting for the signal optionally passing values <code>...</code> to the replacing thread.</p>
+
+<pre>
+local thread = cothread.cancel(signal)
+if thread ~= nil then
+  cothread.yield(thread, ...)
+end
+</pre>
+
+<h4>Resume a thread waiting for a signal</h4>
+
+<p>The following code immediately resumes a thread waiting for the signal optionally passing values <code>...</code>.</p>
+
+<pre>
+local thread = cothread.cancel(signal)
+if thread ~= nil then
+  cothread.resume(thread, ...)
+end
+</pre>

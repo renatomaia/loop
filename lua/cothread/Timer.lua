@@ -1,8 +1,6 @@
 -- Project: CoThread
--- Release: 1.0 beta
 -- Title  : Timer for Triggering of Events at Regular Rates
 -- Author : Renato Maia <maia@inf.puc-rio.br>
-
 
 local coroutine = require "coroutine"
 local create = coroutine.create
@@ -12,7 +10,8 @@ local oo = require "loop.base"
 local class = oo.class
 local rawnew = oo.rawnew
 
-module(..., class)
+module(...)
+
 
 local function timer(self)
 	self:action()
@@ -29,14 +28,15 @@ local function timer(self)
 end
 
 
+local Timer = class(_M)
 
-function __init(self, ...)
+function Timer:__new(...)
 	self = rawnew(self, ...)
 	self.timer = create(timer)
 	return self
 end
 
-function enable(self)
+function Timer:enable()
 	if self.started then
 		self.started = yield("now")
 		yield("resume", self.timer, self)
@@ -44,7 +44,7 @@ function enable(self)
 	end
 end
 
-function disable(self)
+function Timer:disable()
 	if self.started then
 		self.started = nil
 		yield("unschedule", self.timer)

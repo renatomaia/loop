@@ -1,28 +1,21 @@
---------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
--- Project: LOOP Class Library                                                --
--- Release: 2.3 beta                                                          --
--- Title  : Data structure to hold information about exceptions in Lua        --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP Class Library
+-- Title  : Data Structure for Exception/Error Information
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
-local error     = error
-local type      = type
-local traceback = debug and debug.traceback
+local _G = require "_G"
+local error = _G.error
+local type = _G.type
+local traceback = _G.debug and _G.debug.traceback
 
 local table = require "table"
-local oo    = require "loop.base"
+local concat = table.concat
 
-module("loop.object.Exception", oo.class)
+local oo = require "loop.base"
+local class = oo.class
 
-function __init(class, object)
+module(..., class)
+
+function __new(class, object)
 	if traceback then
 		if not object then
 			object = { traceback = traceback() }
@@ -53,5 +46,5 @@ function __tostring(self)
 		message[#message + 1] = "\n"
 		message[#message + 1] = self.traceback
 	end
-	return table.concat(message)
+	return concat(message)
 end

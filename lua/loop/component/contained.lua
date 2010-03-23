@@ -33,7 +33,7 @@ module "loop.component.contained"
 
 BaseTemplate = oo.class({}, base.BaseTemplate)
 
-function BaseTemplate:__new(...)
+function BaseTemplate:__init(...)
 	local state = { __factory = self }
 	local comp = self.__component or self[1]
 	if comp then

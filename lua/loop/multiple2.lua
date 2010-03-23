@@ -1,8 +1,7 @@
---------------------------------------------------------------------------------
--- Project: LOOP - Lua Object-Oriented Programming                            --
--- Title  : Multiple Inheritance Class Model                                  --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP - Lua Object-Oriented Programming
+-- Release: 3.0 beta
+-- Title  : Multiple Inheritance Class Model using Closures
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
 local _G = require "_G"
 local ipairs = _G.ipairs
@@ -24,9 +23,11 @@ module "loop.multiple2"
 
 clone(simple, _M)
 
+local MetaClassMeta
+
 function class(class, ...)
 	if select("#", ...) > 1 then
-		local meta = { __call = new, ... }
+		local meta = setmetatable({ __call = new, ... }, MetaClassMeta)
 		local iterator, state, init = ipairs(meta)
 		function meta:__index(field)
 			for _, super in iterator, state, init do
@@ -41,15 +42,15 @@ function class(class, ...)
 end
 
 function isclass(class)
-	local metaclass = classof(class)
+	local metaclass = getclass(class)
 	if metaclass then
 		return metaclass.__call == new and type(metaclass.__index) == "function" or
 		       simple_isclass(class)
 	end
 end
 
-function superclass(class)
-	local metaclass = classof(class)
+function getsuper(class)
+	local metaclass = getclass(class)
 	if metaclass then
 		if (metaclass.__call == new) and (type(metaclass.__index) == "function")
 			then return unpack(metaclass)
@@ -64,7 +65,7 @@ local function isingle(single, index)
 	end
 end
 function supers(class)
-	local metaclass = classof(class)
+	local metaclass = getclass(class)
 	if metaclass then
 		local indexer = metaclass.__index
 		if (metaclass.__call == new) and (type(indexer) == "function")
@@ -75,10 +76,10 @@ function supers(class)
 	return isingle
 end
 
-function subclassof(class, super)
+function issubclassof(class, super)
 	if class == super then return true end
 	for _, superclass in supers(class) do
-		if subclassof(superclass, super) then
+		if issubclassof(superclass, super) then
 			return true
 		end
 	end
@@ -86,5 +87,16 @@ function subclassof(class, super)
 end
 
 function instanceof(object, class)
-	return subclassof(classof(object), class)
+	return issubclassof(getclass(object), class)
 end
+
+MetaClassMeta = {
+	__index = {
+		new = new,
+		rawnew = rawnew,
+		getmember = getmember,
+		members = members,
+		getsuper = getsuper,
+		supers = supers,
+	},
+}

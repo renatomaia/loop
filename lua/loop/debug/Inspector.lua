@@ -288,7 +288,7 @@ local BreaksListMeta = {
 		return files
 	end,
 }
-function __init(self, object)
+function __new(self, object)
 	self = oo.rawnew(self, object)
 	
 	self.breaks = setmetatable(self.breaks or {}, BreaksListMeta)

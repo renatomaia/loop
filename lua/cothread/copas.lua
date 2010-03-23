@@ -11,7 +11,7 @@ local yield = coroutine.yield
 local cothread = require "cothread"
 local run = cothread.run
 local now = cothread.now
-local costep = cothread.step
+local round = cothread.round
 local schedule = cothread.schedule
 
 local socket = require "cothread.socket"
@@ -41,7 +41,7 @@ end
 
 function loop(timeout)
 	if timeout then
-		while costep() and timeout > 0 do
+		while round() and timeout > 0 do
 			local before = now()
 			waitevent(timeout)
 			timeout = timeout - (now()-before)
@@ -53,7 +53,7 @@ end
 
 function step(timeout)
 	waitevent(timeout)
-	costep()
+	round()
 end
 
 function receive(sock, ...)

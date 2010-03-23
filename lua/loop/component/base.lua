@@ -42,10 +42,10 @@ module "loop.component.base"
 BaseTemplate = oo.class()
 
 function BaseTemplate:__call(...)
-	return self:__build(self:__new(...))
+	return self:__build(self:__init(...))
 end
 
-function BaseTemplate:__new(...)
+function BaseTemplate:__init(...)
 	local comp = self.__component or self[1]
 	if comp then
 		comp = comp(...)
@@ -74,7 +74,7 @@ function BaseTemplate:__setcontext(segment, context)
 end
 
 function BaseTemplate:__build(segments)
-	for port, class in oo.allmembers(oo.classof(self)) do
+	for port, class in oo.allmembers(oo.getclass(self)) do
 		if port:match("^%a[%w_]*$") then
 			class(segments, port, segments)
 		end
@@ -103,7 +103,7 @@ function factoryof(component)
 end
 
 function templateof(object)
-	return oo.classof(factoryof(object) or object)
+	return oo.getclass(factoryof(object) or object)
 end
 
 local nextmember
@@ -116,7 +116,7 @@ local function portiterator(state, name)
 	return name, port
 end
 function ports(template)
-	if not oo.subclassof(template, BaseTemplate) then
+	if not oo.issubclassof(template, BaseTemplate) then
 		template = templateof(template)
 	end
 	local state, var
@@ -165,7 +165,7 @@ MultipleReceptacle = oo.class{
 	__get = rawget,
 }
 
-function MultipleReceptacle:__init(segments, name)
+function MultipleReceptacle:__new(segments, name)
 	local receptacle = oo.rawnew(self, segments[name])
 	segments[name] = receptacle
 	return receptacle

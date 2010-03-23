@@ -1,26 +1,19 @@
---------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
--- Project: LOOP Class Library                                                --
--- Release: 2.3 beta                                                          --
--- Title  : Class that Implement Group Invocation                             --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP Class Library
+-- Title  : Dynamic Wrapper for Group Manipulation
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
-local pairs = pairs
+local _G = require "_G"
+local pairs = _G.pairs
 
 local tabop = require "loop.table"
-local oo    = require "loop.base"
+local memoize = tabop.memoize
 
-module("loop.object.Publisher", oo.class)
+local oo = require "loop.base"
+local class = oo.class
 
-__index = tabop.memoize(function(method)
+module(..., class)
+
+__index = memoize(function(method)
 	return function(self, ...)
 		for _, object in pairs(self) do
 			object[method](object, ...)

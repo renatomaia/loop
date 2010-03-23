@@ -1,16 +1,15 @@
---------------------------------------------------------------------------------
--- Project: LOOP - Lua Object-Oriented Programming                            --
--- Title  : Simple Inheritance Class Model                                    --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP - Lua Object-Oriented Programming
+-- Release: 3.0 beta
+-- Title  : Dymamic Prototyping Model
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
 local table = require "loop.table"
 local memoize = table.memoize
 
 local base = require "loop.base"
 local class = base.class
-local classof = base.classof
-local instanceof = base.instanceof
+local getclass = base.getclass
+local isinstanceof = base.isinstanceof
 
 module "loop.proto"
 
@@ -20,13 +19,13 @@ function clone(proto, clone)
 	return CloneOf[proto](clone)
 end
 
-function prototypeof(clone)
-	local class = classof(clone)
+function getproto(clone)
+	local class = getclass(clone)
 	if class ~= nil then
 		return class.__index
 	end
 end
 
-function cloneof(clone, proto)
-	return instanceof(clone, CloneOf[proto])
+function iscloneof(clone, proto)
+	return isinstanceof(clone, CloneOf[proto])
 end

@@ -89,7 +89,7 @@ function BaseTemplate:__build(segments)
 	local container = self:__container(segments)
 	local state = container.__state
 	local context = container.__internal
-	for port, class in oo.allmembers(oo.classof(self)) do
+	for port, class in oo.allmembers(oo.getclass(self)) do
 		if port:find("^%a[%w_]*$") then
 			container[port] = class(state, port, context)
 		end
@@ -119,11 +119,11 @@ function templateof(factory)
 	if not oo.instanceof(factory, BaseTemplate) then
 		factory = factoryof(factory)
 	end
-	return oo.classof(factory)
+	return oo.getclass(factory)
 end
 
 function ports(template)
-	if not oo.subclassof(template, BaseTemplate) then
+	if not oo.issubclassof(template, BaseTemplate) then
 		template = templateof(template)
 	end
 	return base.ports(template)

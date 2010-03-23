@@ -34,7 +34,7 @@ count = 0
 precedence = {}
 
 local pattern = "^ *%s"
-function __init(self, object)
+function __new(self, object)
 	self = oo.rawnew(self, object)
 
 	if not self.operands and self.values then

@@ -1,8 +1,7 @@
---------------------------------------------------------------------------------
--- Project: LOOP - Lua Object-Oriented Programming                            --
--- Title  : Cached Class Model                                                --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP - Lua Object-Oriented Programming
+-- Release: 3.0 beta
+-- Title  : Cached Class Model
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
 local _G = require "_G"
 local pairs = _G.pairs
@@ -24,8 +23,8 @@ local clone = proto.clone
 
 local multiple = require "loop.multiple"
 local multiple_class = multiple.class
-local multiple_classof = multiple.classof
-local multiple_instanceof = multiple.instanceof
+local multiple_getclass = multiple.getclass
+local multiple_isinstanceof = multiple.isinstanceof
 local multiple_rawnew = multiple.rawnew
 local multiple_supers = multiple.supers
 
@@ -60,21 +59,25 @@ function subs(class)
 	return subsiterator, queue, EndKey
 end
 
-function getclass(class)
-	local cached = multiple_classof(class)
-	if multiple_instanceof(cached, CachedClass) then
+function getcached(class)
+	local cached = multiple_getclass(class)
+	if multiple_isinstanceof(cached, CachedClass) then
 		return cached
 	end
 end
 --------------------------------------------------------------------------------
-local ClassProxyOf = setmetatable({}, { __mode = "k" })
-
+local ClassProxyOf = _G.loop.ClassOf
+if ClassProxyOf == nil then
+	ClassProxyOf = setmetatable({}, { __mode = "k" })
+	_G.loop.ClassOf = ClassProxyOf
+end
+--------------------------------------------------------------------------------
 CachedClass = multiple_class()
 
 local function proxy_newindex(proxy, field, value)
-	return multiple_classof(proxy):updatefield(field, value)
+	return multiple_getclass(proxy):updatefield(field, value)
 end
-function CachedClass:__init(class)
+function CachedClass:__new(class)
 	local meta = {}
 	self = multiple_rawnew(self, {
 		__call = new,
@@ -97,7 +100,7 @@ function CachedClass:updatehierarchy(...)
 	local supers = {}
 	for i = 1, select("#", ...) do
 		local super = select(i, ...)
-		local cached = getclass(super)
+		local cached = getcached(super)
 		if cached
 			then caches[#caches + 1] = cached
 			else supers[#supers + 1] = super
@@ -214,37 +217,38 @@ function CachedClass:updatefield(name, member)
 end
 --------------------------------------------------------------------------------
 function class(class, ...)
-	class = getclass(class) or CachedClass(class)
+	class = getcached(class) or CachedClass(class)
 	class:updatehierarchy(...)
 	class:updateinheritance()
 	return class.proxy
 end
 
-function classof(object)
-	local class = multiple_classof(object)
+function getclass(object)
+	local class = multiple_getclass(object)
 	return ClassProxyOf[class] or class
 end
 
 function rawnew(class, object)
-	local cached = getclass(class)
+	local cached = getcached(class)
 	if cached then class = cached.class end
 	return multiple_rawnew(class, object)
 end
 
 function new(class, ...)
-	if class.__init
-		then return class:__init(...)
+	local new = class.__new
+	if new
+		then return new(class, ...)
 		else return rawnew(class, ...)
 	end
 end
 
 function isclass(class)
-	return getclass(class) ~= nil
+	return getcached(class) ~= nil
 end
 
 function superclass(class)
 	local supers = {}
-	local cached = getclass(class)
+	local cached = getcached(class)
 	if cached then
 		for index, super in ipairs(cached.supers) do
 			supers[index] = super.proxy
@@ -269,35 +273,35 @@ local function icached(cached, index)
 	if super then return index, super end
 end
 function supers(class)
-	local cached = getclass(class)
+	local cached = getcached(class)
 	if cached
 		then return icached, cached, 0
 		else return multiple_supers(class)
 	end
 end
 
-function subclassof(class, super)
+function issubclassof(class, super)
 	if class == super then return true end
 	for _, superclass in supers(class) do
-		if subclassof(superclass, super) then return true end
+		if issubclassof(superclass, super) then return true end
 	end
 	return false
 end
 
-function instanceof(object, class)
-	return subclassof(classof(object), class)
+function isinstanceof(object, class)
+	return issubclassof(getclass(object), class)
 end
 
-function memberof(class, name)
-	local cached = getclass(class)
+function getmember(class, name)
+	local cached = getcached(class)
 	if cached
 		then return cached.members[name]
-		else return multiple_memberof(class, name)
+		else return multiple_getmember(class, name)
 	end
 end
 
 function members(class)
-	local cached = getclass(class)
+	local cached = getcached(class)
 	if cached
 		then return pairs(cached.members)
 		else return multiple_members(class)
@@ -305,9 +309,17 @@ function members(class)
 end
 
 function allmembers(class)
-	local cached = getclass(class)
+	local cached = getcached(class)
 	if cached
 		then return pairs(cached.class)
 		else return multiple_members(class)
 	end
 end
+--------------------------------------------------------------------------------
+CachedClass.new = new
+CachedClass.rawnew = rawnew
+CachedClass.getmember = getmember
+CachedClass.members = members
+CachedClass.getsuper = getsuper
+CachedClass.supers = supers
+CachedClass.allmembers = allmembers

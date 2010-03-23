@@ -1,5 +1,4 @@
 -- Project: CoThread
--- Release: 1.0 beta
 -- Title  : Object Used to Wait for Multiple Signals or a Timeout
 -- Author : Renato Maia <maia@inf.puc-rio.br>
 
@@ -7,17 +6,20 @@ local _G = require "_G"
 local ipairs = _G.ipairs
 
 local coroutine = require "coroutine"
-local newthread = coroutine.create
+local create = coroutine.create
 local yield = coroutine.yield
 local resume = coroutine.resume
+local running = coroutine.running
 
 local tabop = require "loop.table"
 local memoize = tabop.memoize
 
 local oo = require "loop.base"
 local class = oo.class
+local rawnew = oo.rawnew
 
-module(..., class)
+module(...)
+
 
 local function activate(self)
 	if not self.active then
@@ -33,31 +35,32 @@ local function activate(self)
 end
 
 local function deactivate(self)
-	self.active = false
 	for _, thread in ipairs(self) do
 		yield("unschedule", thread)
 	end
+	self.active = false
 end
 
 local function notifierbody(group, event, ...)
 	yield() -- initialization finished
 	while true do
 		deactivate(group)
-		yield("notifyall", group, "after")
+		yield("wakeall", group, "after", running())
 		yield("suspend", event, ...)
 	end
 end
 
 local function notifier(group, ...)
-	thread = newthread(notifierbody)
+	thread = create(notifierbody)
 	resume(thread, group, ...)
 	return thread
 end
 
 
+local EventGroup = class(_M)
 
-function __init(self, group, ...)
-	self = oo.rawnew(self, group, ...)
+function EventGroup:__new(group, ...)
+	self = rawnew(self, group)
 	for index, event in ipairs(self) do
 		self[index] = notifier(self, event, ...)
 	end
@@ -68,20 +71,23 @@ function __init(self, group, ...)
 	return self
 end
 
-function wait(self, ...)
+function EventGroup:wait(...)
 	if not self.active then activate(self) end
-	yield("pause", yield("wait", self, ...)) -- pass values received to the next thread
+	yield("pause", yield("wait", self, ...)) -- pass values to the next thread
 	return event
 end
 
-function notifyall(self, ...)
+function EventGroup:notifyall(...)
 	if self.active then deactivate(self) end
-	return yield("notifyall", self, ...)
+	return yield("wakeall", self, ...)
 end
 
-function cancelall(self, ...)
-	if self.active then deactivate(self) end
-	return yield("cancelall", self, ...)
+function EventGroup:cancel(...)
+	local thread = yield("cancel", self)
+	if self.active and not yield("isscheduled", self) then
+		deactivate(self)
+	end
+	return thread
 end
 
 --------------------------------------------------------------------------------

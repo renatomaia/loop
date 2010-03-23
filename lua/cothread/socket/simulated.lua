@@ -81,7 +81,7 @@ local ReadStream = oo.class{
 	stats = 0,
 }
 
-function ReadStream:__init(...)
+function ReadStream:__new(...)
 	self = oo.rawnew(self, ...)
 	self.buffer = self.buffer or {}
 	return self

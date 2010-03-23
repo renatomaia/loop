@@ -1,8 +1,7 @@
---------------------------------------------------------------------------------
--- Project: LOOP - Lua Object-Oriented Programming                            --
--- Title  : Base Class Model                                                  --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP - Lua Object-Oriented Programming
+-- Release: 3.0 beta
+-- Title  : Base Class Model
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
 local _G = require "_G"
 local pairs = _G.pairs
@@ -18,9 +17,10 @@ function rawnew(class, object)
 end
 
 function new(class, ...)
-	if class.__init == nil
+	local new = class.__new
+	if new == nil
 		then return rawnew(class, ...)
-		else return class:__init(...)
+		else return new(class, ...)
 	end
 end
 
@@ -35,16 +35,25 @@ function class(class)
 	return setmetatable(initclass(class), ClassMeta)
 end
 
-classof = getmetatable
+getclass = getmetatable
 
 function isclass(class)
-	return classof(class) == ClassMeta
+	return getclass(class) == ClassMeta
 end
 
-function instanceof(object, class)
-	return classof(object) == class
+function isinstanceof(object, class)
+	return getclass(object) == class
 end
 
-memberof = rawget
+getmember = rawget
 
 members = pairs
+
+setmetatable(ClassMeta, {
+	__index = {
+		new = new,
+		rawnew = rawnew,
+		getmember = getmember,
+		members = members,
+	},
+})

@@ -11,7 +11,10 @@ return function(checks)
 	local Blocked = newtask("Blocked")
 	local Unblocker = newtask("Unblocker", function()
 		checks:assert(
-			yield("notify", "My Signal"),
+			yield("cancel", "My Signal"),
+			checks.is(Blocked))
+		checks:assert(
+			yield("schedule", Blocked),
 			checks.is(Blocked))
 	end)
 	local AfterDummy = newtask("AfterDummy", function()

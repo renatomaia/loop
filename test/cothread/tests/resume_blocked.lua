@@ -11,7 +11,7 @@ return function(checks)
 		say("Resumer", "resumed")
 		yield("yield", Blocked)
 		say("Resumer", "resumed again")
-		yield("notify", "some event")
+		yield("schedule", yield("cancel", "some event"))
 	end)
 	
 	cothread.run(Resumer)

@@ -1,8 +1,6 @@
 -- Project: CoThread
--- Release: 1.0 beta
 -- Title  : Mutual Exclusion Locker
 -- Author : Renato Maia <maia@inf.puc-rio.br>
-
 
 local coroutine = require "coroutine"
 local running = coroutine.running
@@ -17,9 +15,12 @@ local enqueue = OrderedSet.enqueue
 local head = OrderedSet.head
 local remove = OrderedSet.remove
 
-module(..., class)
+module(...)
 
-function try(self, wait)                                                        --[[VERBOSE]] local verbose = yield("verbose")
+
+local Mutex = class(_M)
+
+function Mutex:try(wait)                                                        --[[VERBOSE]] local verbose = yield("verbose")
 	local inside = self.inside                                                    --[[VERBOSE]] verbose:mutex(true, "attempt to get access")
 	local thread = running()
 	if not inside then                                                            --[[VERBOSE]] verbose:mutex("resource is free")
@@ -32,7 +33,7 @@ function try(self, wait)                                                        
 	return self.inside == thread
 end
 
-function free(self)                                                             --[[VERBOSE]] local verbose = yield("verbose")
+function Mutex:free()                                                           --[[VERBOSE]] local verbose = yield("verbose")
 	if self.inside == running() then
 		local thread = head(self)
 		if thread then
@@ -45,14 +46,14 @@ function free(self)                                                             
 	end                                                                           --[[VERBOSE]] verbose:mutex("attempt to release resource not owned")
 end
 
-function deny(self, thread)                                                     --[[VERBOSE]] local verbose = yield("verbose")
+function Mutex:deny(thread)                                                     --[[VERBOSE]] local verbose = yield("verbose")
 	if contains(self, thread) then                                                --[[VERBOSE]] verbose:mutex("deny access for ",thread)
 		yield("resume", thread)
 		return true
 	end                                                                           --[[VERBOSE]] verbose:mutex("attempt to deny access for a thread not interested")
 end
 
-function grant(self, thread)                                                    --[[VERBOSE]] local verbose = yield("verbose")
+function Mutex:grant(thread)                                                    --[[VERBOSE]] local verbose = yield("verbose")
 	if self.inside == running()
 	and contains(self, thread)
 	then

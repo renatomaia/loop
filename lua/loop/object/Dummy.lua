@@ -1,15 +1,20 @@
-local oo = require "loop.base"
+-- Project: LOOP Class Library
+-- Title  : Dummy Object that Ignores all Events
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
+local oo = require "loop.base"
 local class = oo.class
-local classof = oo.classof
-local rawnew = oo.rawnew
+local getclass = oo.getclass
 
 module(..., class)
 
 function nothing() end
 function self(dummy) return dummy end
 function binary(one, other)
-	return (classof(one) == _M) and one or other
+	if getclass(one) == _M
+		then return one
+		else return other
+	end
 end
 
 __add      = binary
