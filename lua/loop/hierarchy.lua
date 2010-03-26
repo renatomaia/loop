@@ -23,13 +23,13 @@ local function depthfirst(stack, prev)
 	end
 end
 
-local function topdown(class)
+function topdown(class)
 	local stack = CyclicSets()
 	stack:add(class, false)
 	return depthfirst, stack, false
 end
 
-function create(class, ...)
+function creator(class, ...)
 	local obj = rawnew(class)
 	for class in topdown(class) do
 		local init = class.__init
@@ -38,7 +38,7 @@ function create(class, ...)
 	return obj
 end
 
-function turninto(class, obj, ...)
+function mutator(class, obj, ...)
 	obj = rawnew(class, obj)
 	for class in topdown(class) do
 		local init = class.__init
