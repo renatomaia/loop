@@ -2,8 +2,6 @@
 -- Release: 2.3 beta
 -- Title  : Sorted Map Implemented with Skip Lists
 -- Author : Renato Maia <maia@inf.puc-rio.br>
--- Notes  :
---   Can be used as a module that provides functions instead of methods.
 
 
 local global = _G -- only if available
@@ -41,7 +39,7 @@ function getnode(self)
 			return node
 		end
 	end
-	return {}
+	return { key = nil, value = nil }
 end
 
 function freenode(self, node, last)
