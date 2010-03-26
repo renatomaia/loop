@@ -10,7 +10,6 @@ local ipairs = _G.ipairs
 local newproxy = _G.newproxy
 local next = _G.next
 local require = _G.require
-local select = _G.select
 local setmetatable = _G.setmetatable
 local type = _G.type
 
@@ -45,8 +44,8 @@ local TimeOutToken = newproxy()
 local default = _M
 function new(attribs)
 	local socketcore = attribs.socketcore or require("socket.core")
-	local scheduler = attribs.scheduler or require("cothread")
-	scheduler.now = socketcore.gettime
+	local cothread = attribs.cothread or require("cothread")
+	cothread.now = socketcore.gettime
 	copy(socketcore, attribs)
 	_G.setfenv(1, attribs) -- Lua 5.2: in attribs do
 
@@ -54,20 +53,21 @@ function new(attribs)
 -- Initialization Code ---------------------------------------------------------
 --------------------------------------------------------------------------------
 
-local now = scheduler.now
-local round = scheduler.round
-local schedule = scheduler.schedule
-local unschedule = scheduler.unschedule
-local wakeall = scheduler.wakeall                                               --[[VERBOSE]] local verbose = scheduler.verbose
+local now = cothread.now
+local round = cothread.round
+local schedule = cothread.schedule
+local unschedule = cothread.unschedule
+local wakeall = cothread.wakeall                                                --[[VERBOSE]] local verbose = cothread.verbose
 
-local sleep = socketcore.sleep
+local suspendprocess = socketcore.sleep
 local selectsockets = socketcore.select
 local createtcp = socketcore.tcp
 local createudp = socketcore.udp
 
 local function idle(timeout)                                                    --[[VERBOSE]] verbose:scheduler("process sleeping for ",timeout-now()," seconds")
-	sleep(timeout-now())                                                          --[[VERBOSE]] verbose:scheduler("sleeping ended")
+	suspendprocess(timeout-now())                                                 --[[VERBOSE]] verbose:scheduler("sleeping ended")
 end
+cothread.idle = idle
 
 
 
@@ -116,14 +116,14 @@ local function watchsocket(socket, opset)
 	opset:add(socket)
 	if not watching then
 		watching = true
-		scheduler.idle = watchsockets
+		cothread.idle = watchsockets
 	end
 end
 local function forgetsocket(socket, opset)
 	opset:remove(socket)
 	if watching and #reading == 0 and #writing == 0 then
 		watching = nil
-		scheduler.idle = idle
+		cothread.idle = idle
 	end
 end
 
@@ -133,14 +133,14 @@ local function roundcont(result, ...)
 	end
 	return result, ...
 end
-function scheduler.round(...)
+function cothread.round(...)
 	if not wasidle then watchsockets(0) end
 	wasidle = nil
 	return roundcont(round(...))
 end
 
 
-function scheduler.signalcanceled(socket)
+function cothread.signalcanceled(socket)
 	if reading[socket] then
 		forgetsocket(socket, reading)
 	elseif writing[socket] then
@@ -473,14 +473,14 @@ function waitevent(timeout)
 	return watchsockets(now()+timeout)
 end
 
---[[VERBOSE]] local old = verbose.custom.threads
---[[VERBOSE]] function verbose.custom:threads(...)
+--[[VERBOSE]] local old = verbose.custom.state
+--[[VERBOSE]] function verbose.custom:state(...)
 --[[VERBOSE]] 	old(self, ...)
 --[[VERBOSE]] 	local viewer = self.viewer
 --[[VERBOSE]] 	local output = self.viewer.output
 --[[VERBOSE]] 	local labels = self.viewer.labels
 --[[VERBOSE]] 	if self.flags.state then
---[[VERBOSE]] 		local newline = "\n"..viewer.prefix..viewer.indentation
+--[[VERBOSE]] 		local newline = "\n"..viewer.prefix
 --[[VERBOSE]] 		output:write(newline,"Reading:")
 --[[VERBOSE]] 		for _, socket in ipairs(reading) do
 --[[VERBOSE]] 			output:write(" ",labels[socket])
