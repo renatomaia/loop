@@ -69,7 +69,7 @@ local Viewer = require "loop.debug.Viewer"
 module "inspector"
 
 input = stdin
-viewer = Viewer
+viewer = Viewer{ maxdepth = 2 }
 
 local infoflags = "Slnuf"
 
@@ -622,16 +622,24 @@ removebreak = commands.rmbp
 
 --------------------------------------------------------------------------------
 
+local function hookedcoro(func)
+	return (setuphook(newcoro(func)))
+end
+
 local function newcrawler()
-	local visited = { [_M] = true }
+	local visited = {
+		[_M] = true,
+		[hookedcoro] = true, -- it is found when two functions share the same
+		                     -- upvalue with 'coroutine.create', then during
+		                     -- 'activate' when the first function is found its
+		                     -- upvalue is replaced with 'hookedcoro'. Later when
+		                     -- the crawler reaches the second function it will
+		                     -- find 'hookedcoro' in the upvalue.
+	}
 	for name, value in pairs(_M) do
 		visited[value] = true
 	end
 	return Crawler{ visited = visited }
-end
-
-local function hookedcoro(func)
-	return (setuphook(newcoro(func)))
 end
 
 local function replacevalue(old, new, from, how, ...)
@@ -654,10 +662,12 @@ local function replacevalue(old, new, from, how, ...)
 	end
 end
 
-function activate()
+function activate(level)
 	local crawler = newcrawler()
-	function crawler:foundthread(thread)
-		setuphook(thread)
+	function crawler:foundthread(thread, visited)
+		if not visited then
+			setuphook(thread)
+		end
 	end
 	function crawler:foundfunction(func, visited, from, how, ...)
 		if func == newcoro then
@@ -666,15 +676,17 @@ function activate()
 	end
 	crawler:crawl()
 	viewer:getpackageinfo(loaded)
-	local thread, level = setuphook(false)
+	local thread, setuphooklevel = setuphook(false)
 	currentthread = running() or false
-	breaklevel = level-2 -- setuphook,activate
+	breaklevel = (level or 1)+setuphooklevel-1
 end
 
 function deactivate()
 	local crawler = newcrawler()
-	function crawler:foundthread(thread)
-		removehook(thread)
+	function crawler:foundthread(thread, visited)
+		if not visited then
+			removehook(thread)
+		end
 	end
 	function crawler:foundfunction(func, visited, from, how, ...)
 		if func == hookedcoro then
