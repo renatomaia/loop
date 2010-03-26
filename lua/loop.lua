@@ -10,22 +10,30 @@ local getmetatable = _G.getmetatable
 module "loop"
 
 local function dummy() end
-local function emptyiterator() return dummy end
+
+local function isingle(single, index)
+	if single and not index then
+		return 1, single
+	end
+end
+
 local ClassOps = {
 	new = false,
 	rawnew = false,
 	getmember = false,
 	members = false,
 	getsuper = dummy,
-	supers = emptyiterator,
-	allmembers = emptyiterator,
+	supers = function(class)
+		return isingle, getsuper(class)
+	end,
 }
 
 for name, default in pairs(ClassOps) do
 	_M[name] = function(class, ...)
-		local method = getmetatable(class)[name]
-		if method == nil then
-			method = default or error("invalid class operation")
+		local meta = getmetatable(class)
+		local method = meta and meta[name]
+		if method == nil and default then
+			method = default
 		end
 		return method(class, ...)
 	end
@@ -39,8 +47,8 @@ end
 
 function issubclassof(class, super)
 	if class == super then return true end
-	for _, superclass in supers(class) do
-		if issubclassof(superclass, super) then
+	for _, base in supers(class) do
+		if issubclassof(base, super) then
 			return true
 		end
 	end
