@@ -48,7 +48,7 @@ function default.now()
 end
 
 local getnow = default.now
-function default.idle(timeout)                                                  --[[VERBOSE]] verbose:scheduler("starting busy-waiting for ",timeout-now()," seconds")
+function default.idle(timeout)                                                  --[[VERBOSE]] verbose:scheduler("starting busy-waiting for ",timeout-getnow()," seconds")
 	repeat until getnow() > timeout                                               --[[VERBOSE]] verbose:scheduler("busy-waiting ended")
 end
 
@@ -188,7 +188,10 @@ local function cancelwake(thread)
 		waketime[thread] = nil
 		local path = {}
 		local entry = wakeindex:findnode(timestamp, path)
-		if entry ~= nil and entry.value == thread then -- yes, it is sleeping.
+		if entry ~= nil
+		and entry.key == timestamp
+		and entry.value == thread
+		then -- yes, it is sleeping.
 			local nextentry = wakeindex:nextnode(entry)
 			local nextthread = scheduled[thread]
 			if (nextentry and nextentry.value == nextthread) -- only one in this entry
@@ -290,17 +293,20 @@ function findplace.wait(_, signal)
 	end
 end
 
-function findplace.defer(thread, time)
-	local entry = { key = time, value = thread }
+function findplace.defer(thread, time)                                          --[[VERBOSE]] verbose:threads(thread," will be deferred until ",time)
+	local entry = wakeindex:getnode()
 	local found, previous = wakeindex:findnode(time, entry)
-	if found then
+	if found and found.key == time then
+		self:freenode(entry)
 		previous = found.value                                                      --[[VERBOSE]] verbose:threads("wake time of ",thread," is the same as ",previous)
 	else
-		previous = previous.value
+		previous = previous.value or placeof[wakeindex:head()] or thread
+		entry.key = time
+		entry.value = thread
 		wakeindex:addto(entry, entry)
 		waketime[thread] = time                                                     --[[VERBOSE]] verbose:threads("wake time of ",thread," was registered")
 	end
-	return previous or thread
+	return previous
 end
 
 local defer = findplace.defer
@@ -335,9 +341,9 @@ function schedule(thread, how, what)
 	end
 	local oldplace = placeof[thread]
 	if oldplace ~= nil then
-		return scheduled:movefrom(oldplace, place)
+		return scheduled:movefrom(oldplace, place)                                  --[[VERBOSE]],verbose:state()
 	end
-	return scheduled:add(thread, place)
+	return scheduled:add(thread, place)                                           --[[VERBOSE]],verbose:state()
 end
 
 function unschedule(thread)
@@ -346,7 +352,7 @@ function unschedule(thread)
 	elseif not cancelwake(thread) then
 		cancelblock(thread)
 	end                                                                           --[[VERBOSE]] verbose:threads(thread, " will be unscheduled")
-	return scheduled:remove(thread)
+	return scheduled:remove(thread)                                               --[[VERBOSE]],verbose:state()
 end
 
 function wakeall(signal, how, what)
@@ -362,7 +368,7 @@ function wakeall(signal, how, what)
 		end
 		local last = placeof[signal]
 		scheduled:movefrom(signal, place, last)
-		scheduled:removefrom(signal)                                                --[[VERBOSE]] verbose:threads("all threads waiting for signal ",signal," are ready for execution")
+		scheduled:removefrom(signal)                                                --[[VERBOSE]] verbose:threads("all threads waiting for signal ",signal," are ready for execution"); verbose:state()
 		--if signalcanceled then signalcanceled(signal) end
 		return thread, last
 	end
@@ -374,7 +380,7 @@ function cancel(signal)                                                         
 		if scheduled[signal] == signal then
 			scheduled:removefrom(signal)
 			--if signalcanceled then signalcanceled(signal) end
-		end
+		end                                                                         --[[VERBOSE]] verbose:state()
 		return thread                                                               --[[VERBOSE]] else verbose:threads("no threads waiting signal ",signal)
 	end
 end
@@ -420,7 +426,7 @@ end
 function yieldops.pause(current, ...)
 	if current ~= lastready then
 		scheduled:add(current, placeof[lastready])
-	end                                                                           --[[VERBOSE]] verbose:threads(current," paused and will be resumed later")
+	end                                                                           --[[VERBOSE]] verbose:threads(current," paused and will be resumed later");verbose:state()
 	return false, ...
 end
 
@@ -428,7 +434,7 @@ function yieldops.suspend(current, ...)
 	if current == lastready and not rescheduled then
 		lastready = placeof[lastready]
 		scheduled:removefrom(lastready)
-	end                                                                           --[[VERBOSE]] verbose:threads(current," suspended itself")
+	end                                                                           --[[VERBOSE]] verbose:threads(current," suspended itself");verbose:state()
 	return false, ...
 end
 
@@ -459,7 +465,7 @@ for name, findplace in pairs(findplace) do
 			scheduled:movefrom(lastready, place)
 		else
 			scheduled:add(current, place)
-		end                                                                         --[[VERBOSE]] verbose:threads(current, " scheduled after ",place)
+		end                                                                         --[[VERBOSE]] verbose:threads(current, " scheduled after ",place);verbose:state()
 		return false, ...
 	end
 end
@@ -558,7 +564,7 @@ local function roundcont(thread, ...)
 	end
 	return nextwake, ...
 end
-function round(thread, ...)                                                      --[[VERBOSE]] verbose:scheduler(true, "scheduling round started")
+function round(thread, ...)                                                     --[[VERBOSE]] verbose:scheduler(true, "scheduling round started")
 	wakeupdelayed()
 	return roundcont(resumeready(thread or lastready, ...))
 end
@@ -617,75 +623,87 @@ end
 --[[VERBOSE]] 			viewer:write(value)
 --[[VERBOSE]] 		end
 --[[VERBOSE]] 	end
+--[[VERBOSE]] end
 --[[VERBOSE]] 	
---[[VERBOSE]] 	if self.flags.state then
---[[VERBOSE]] 		local missing = copy(scheduled)
---[[VERBOSE]] 		
---[[VERBOSE]] 		local newline = "\n"..viewer.prefix..viewer.indentation
---[[VERBOSE]] 		
---[[VERBOSE]] 		output:write(newline,"Ready  :")
---[[VERBOSE]] 		local sep = "  "
---[[VERBOSE]] 		for thread in scheduled:forward(false) do
+--[[VERBOSE]] function verbose.custom:state(...)
+--[[VERBOSE]] 	local viewer = self.viewer
+--[[VERBOSE]] 	local output = self.viewer.output
+--[[VERBOSE]] 	local labels = self.viewer.labels
+--[[VERBOSE]] 	
+--[[VERBOSE]] 	local missing = copy(scheduled)
+--[[VERBOSE]] 	
+--[[VERBOSE]] 	local newline = "\n"..viewer.prefix
+--[[VERBOSE]] 	
+--[[VERBOSE]] 	output:write("Ready  :")
+--[[VERBOSE]] 	local sep = "  "
+--[[VERBOSE]] 	for thread in scheduled:forward(false) do
+--[[VERBOSE]] 		if missing[thread] == nil then
+--[[VERBOSE]] 			output:write("<STATE CORRUPTION>")
+--[[VERBOSE]] 			break
+--[[VERBOSE]] 		end
+--[[VERBOSE]] 		missing[thread] = nil
+--[[VERBOSE]] 		if not thread then break end
+--[[VERBOSE]] 		if thread == lastready then sep = " [" end
+--[[VERBOSE]] 		output:write(sep,labels[thread])
+--[[VERBOSE]] 		if     sep == " [" then sep = "] "
+--[[VERBOSE]] 		elseif sep == "] " then sep = "  " end
+--[[VERBOSE]] 	end
+--[[VERBOSE]] 	if sep ~= "  " then output:write("]") end
+--[[VERBOSE]] 	
+--[[VERBOSE]] 	output:write(newline,"Delayed:")
+--[[VERBOSE]] 	local last = wakeindex:nextnode()
+--[[VERBOSE]] 	local first = last and last.value
+--[[VERBOSE]] 	while last ~= nil do
+--[[VERBOSE]] 		local waketime = last.key
+--[[VERBOSE]] 		output:write(" [",waketime,"]:")
+--[[VERBOSE]] 		local next = wakeindex:nextnode(last)
+--[[VERBOSE]] 		local limit = (next ~= nil) and next.value or first
+--[[VERBOSE]] 		local thread = last.value
+--[[VERBOSE]] 		repeat
 --[[VERBOSE]] 			if missing[thread] == nil then
 --[[VERBOSE]] 				output:write("<STATE CORRUPTION>")
 --[[VERBOSE]] 				break
 --[[VERBOSE]] 			end
 --[[VERBOSE]] 			missing[thread] = nil
---[[VERBOSE]] 			if not thread then break end
---[[VERBOSE]] 			if thread == lastready then sep = " [" end
---[[VERBOSE]] 			output:write(sep,labels[thread])
---[[VERBOSE]] 			if     sep == " [" then sep = "] "
---[[VERBOSE]] 			elseif sep == "] " then sep = "  " end
---[[VERBOSE]] 		end
---[[VERBOSE]] 		if sep ~= "  " then output:write("]") end
---[[VERBOSE]] 		
---[[VERBOSE]] 		output:write(newline,"Delayed:")
---[[VERBOSE]] 		local start = now()
---[[VERBOSE]] 		local last = wakeindex:nextnode()
---[[VERBOSE]] 		local first = last and last.value
---[[VERBOSE]] 		while last ~= nil do
---[[VERBOSE]] 			local waketime = last.key
---[[VERBOSE]] 			output:write(" [",waketime-start,"]:")
---[[VERBOSE]] 			local next = wakeindex:nextnode(last)
---[[VERBOSE]] 			local limit = (next ~= nil) and next.value or first
---[[VERBOSE]] 			local thread = last.value
---[[VERBOSE]] 			repeat
---[[VERBOSE]] 				if missing[thread] == nil then
---[[VERBOSE]] 					output:write("<STATE CORRUPTION>")
---[[VERBOSE]] 					break
---[[VERBOSE]] 				end
---[[VERBOSE]] 				missing[thread] = nil
---[[VERBOSE]] 				output:write(" ",labels[thread])
---[[VERBOSE]] 				thread = scheduled[thread]
---[[VERBOSE]] 			until thread == limit
---[[VERBOSE]] 			last = next
---[[VERBOSE]] 		end
---[[VERBOSE]] 		
---[[VERBOSE]] 		output:write(newline,"Blocked:")
---[[VERBOSE]] 		while next(missing) ~= nil do
---[[VERBOSE]] 			local signalfound
---[[VERBOSE]] 			for signal in pairs(missing) do
---[[VERBOSE]] 				if signal and type(signal) ~= "thread" then
---[[VERBOSE]] 					signalfound = true
---[[VERBOSE]] 					output:write(newline,"  ",labels[signal],":")
---[[VERBOSE]] 					for thread in scheduled:forward(signal) do
---[[VERBOSE]] 						if missing[thread] == nil then
---[[VERBOSE]] 							output:write("<STATE CORRUPTION>")
---[[VERBOSE]] 							break
---[[VERBOSE]] 						end
---[[VERBOSE]] 						missing[thread] = nil
---[[VERBOSE]] 						if thread == signal then break end
---[[VERBOSE]] 						output:write(" ",labels[thread])
+--[[VERBOSE]] 			output:write(" ",labels[thread])
+--[[VERBOSE]] 			thread = scheduled[thread]
+--[[VERBOSE]] 		until thread == limit
+--[[VERBOSE]] 		last = next
+--[[VERBOSE]] 	end
+--[[VERBOSE]] 	
+--[[VERBOSE]] 	output:write(newline,"Blocked:")
+--[[VERBOSE]] 	while next(missing) ~= nil do
+--[[VERBOSE]] 		local signalfound
+--[[VERBOSE]] 		for signal in pairs(missing) do
+--[[VERBOSE]] 			if signal and type(signal) ~= "thread" then
+--[[VERBOSE]] 				signalfound = true
+--[[VERBOSE]] 				output:write(newline,"  ",labels[signal],":")
+--[[VERBOSE]] 				for thread in scheduled:forward(signal) do
+--[[VERBOSE]] 					if missing[thread] == nil then
+--[[VERBOSE]] 						output:write("<STATE CORRUPTION>")
+--[[VERBOSE]] 						break
 --[[VERBOSE]] 					end
+--[[VERBOSE]] 					missing[thread] = nil
+--[[VERBOSE]] 					if thread == signal then break end
+--[[VERBOSE]] 					output:write(" ",labels[thread])
 --[[VERBOSE]] 				end
 --[[VERBOSE]] 			end
---[[VERBOSE]] 			if not signalfound then
---[[VERBOSE]] 				output:write("<STATE CORRUPTION>")
---[[VERBOSE]] 				break
---[[VERBOSE]] 			end
+--[[VERBOSE]] 		end
+--[[VERBOSE]] 		if not signalfound then
+--[[VERBOSE]] 			output:write("<STATE CORRUPTION>")
+--[[VERBOSE]] 			break
 --[[VERBOSE]] 		end
 --[[VERBOSE]] 	end
 --[[VERBOSE]] end
+
+--------------------------------------------------------------------------------
+-- Inspection Support ----------------------------------------------------------
+--------------------------------------------------------------------------------
+
+--[[DEBUG]] local inspector = _G.require "inspector"
+--[[DEBUG]] function yieldops.inspect(current)
+--[[DEBUG]] 	return current, inspector.activate(2)
+--[[DEBUG]] end
 
 --------------------------------------------------------------------------------
 -- End of Instantiation Code -------------------------------------------------
