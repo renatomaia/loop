@@ -22,20 +22,19 @@ module(...)
 
 
 local function activate(self)
-	if not self.active then
-		for index, event in ipairs(self) do
-			yield("schedule", thread, "wait", event)
-		end
-		local timer = self.timer
-		if timer then
-			yield("schedule", timer, "delay", self.timeout)
-		end
-		self.active = true
+	local threads = self.threads
+	for index, thread in ipairs(threads) do
+		yield("schedule", thread, "wait", self[index])
 	end
+	local timer = threads.timer
+	if timer then
+		yield("schedule", timer, "delay", self.timeout)
+	end
+	self.active = true
 end
 
 local function deactivate(self)
-	for _, thread in ipairs(self) do
+	for _, thread in ipairs(self.threads) do
 		yield("unschedule", thread)
 	end
 	self.active = false
@@ -44,14 +43,14 @@ end
 local function notifierbody(group, event, ...)
 	yield() -- initialization finished
 	while true do
-		deactivate(group)
 		yield("wakeall", group, "after", running())
+		deactivate(group)
 		yield("suspend", event, ...)
 	end
 end
 
 local function notifier(group, ...)
-	thread = create(notifierbody)
+	local thread = create(notifierbody)
 	resume(thread, group, ...)
 	return thread
 end
@@ -61,13 +60,15 @@ local EventGroup = class(_M)
 
 function EventGroup:__new(group, ...)
 	self = rawnew(self, group)
+	local threads = {}
 	for index, event in ipairs(self) do
-		self[index] = notifier(self, event, ...)
+		threads[index] = notifier(self, event, ...)
 	end
 	local timeout = self.timeout
 	if timeout then
-		self.timer = notifier(self, nil, ...)
+		threads.timer = notifier(self, nil, ...)
 	end
+	self.threads = threads
 	return self
 end
 
@@ -77,7 +78,7 @@ function EventGroup:wait(...)
 	return event
 end
 
-function EventGroup:notifyall(...)
+function EventGroup:wakeall(...)
 	if self.active then deactivate(self) end
 	return yield("wakeall", self, ...)
 end
