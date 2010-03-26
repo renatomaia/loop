@@ -219,6 +219,14 @@ return cothread.yield(thread, ...)
 
 <h3>Usual Patterns</h3>
 
+<h4>Spawn the execution to run a function in a new thread</h4>
+
+<p>The following code creates a new thread to execute a function and resume it passing values as parameters to the function.</p>
+
+<pre>
+cothread.resume(coroutine.create(func), ...)
+</pre>
+
 <h4>Wake up a single thread waiting for a signal</h4>
 
 <p>The following code wakes up one single thread waiting for the signal, so it will be resumed later.</p>
@@ -241,13 +249,20 @@ if thread ~= nil then
 end
 </pre>
 
-<h4>Resume a thread waiting for a signal</h4>
+<h4>Reset the state of the scheduler</h4>
 
-<p>The following code immediately resumes a thread waiting for the signal optionally passing values <code>...</code>.</p>
+<p>The following code unschedules all threads currently scheduled.</p>
 
 <pre>
-local thread = cothread.cancel(signal)
-if thread ~= nil then
-  cothread.resume(thread, ...)
+for thread in cothread.ready() do
+  cothread.unschedule(thread)
+end
+for thread in cothread.waiting() do
+  cothread.unschedule(thread)
+end
+for signal in cothread.signals() do
+  for thread in cothread.waiting(signal) do
+    cothread.unschedule(thread)
+  end
 end
 </pre>
