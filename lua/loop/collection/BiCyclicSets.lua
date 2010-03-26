@@ -41,7 +41,7 @@ function predecessor(self, item)
 end
 
 function backward(self, place)
-	return self.predecessor, self, place
+	return predecessor, self, place
 end
 
 function add(self, item, place)
@@ -105,13 +105,13 @@ function movefrom(self, oldplace, newplace, lastitem)
 end
 
 function remove(self, item)
-	return self:removefrom(reverseof[self][item])
+	return removefrom(self, reverseof[self][item])
 end
 
 function move(self, item, place, last)
 	local oldplace = reverseof[self][item]
 	if oldplace ~= nil then
-		return self:movefrom(oldplace, place, last)
+		return movefrom(self, oldplace, place, last)
 	end
 end
 

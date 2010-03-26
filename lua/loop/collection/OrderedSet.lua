@@ -17,16 +17,15 @@ local table = require "table"
 local concat = table.concat
 
 local oo = require "loop.base"
-local rawnew   = oo.rawnew
+local class = oo.class
 
 local CyclicSets = require "loop.collection.CyclicSets"
 local addto = CyclicSets.add
 local removeat = CyclicSets.removefrom
 
-module(..., oo.class)
+module(..., class)
 
 contains = CyclicSets.contains
-sequence = CyclicSets.forward
 
 function empty(self)
 	return self[self] == nil
@@ -48,10 +47,14 @@ function successor(self, item)
 	end
 end
 
+function sequence(self, place)
+	return successor, self, place
+end
+
 function insert(self, item, place)
 	local last = self[self]
 	if place == nil then place = last end
-	if self:contains(place) and addto(self, item, place) == item then
+	if self[place] ~= nil and addto(self, item, place) == item then
 		if place == last then self[self] = item end
 		return item
 	end
@@ -95,7 +98,7 @@ end
 
 function __tostring(self)
 	local result = { "[ " }
-	for item in self:sequence() do
+	for item in sequence(self) do
 		result[#result+1] = tostring(item)
 		result[#result+1] = ", "
 	end

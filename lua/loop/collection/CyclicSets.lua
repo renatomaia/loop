@@ -39,7 +39,7 @@ function successor(self, item)
 end
 
 function forward(self, place)
-	return self.successor, self, place
+	return successor, self, place
 end
 
 -- [ ? ]              :add()            --> [ ? ]               : error "table index is nil"
