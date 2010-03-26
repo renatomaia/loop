@@ -41,9 +41,11 @@ module(..., class)
 
 --------------------------------------------------------------------------------
 
-local function dummy() end
+local FlagColWidth = 12 -- 9 for flag, 2 for square brackets, and 1 for a space
+local ThreadRuler = strrep("-", 55).." "
+local CurrentThread = false
 
-local function write(self, flag, ...)
+local function write(self, newthread, flag, ...)
 	local count = select("#", ...)
 	if count > 0 then
 		local viewer = self.viewer
@@ -52,21 +54,28 @@ local function write(self, flag, ...)
 		local custom = self.custom
 		local pause  = self.pause
 		
-		local flaglength = self.flaglength
-		output:write("[", flag, "]")
-		output:write(viewer.prefix:sub(#flag + 3, flaglength))
+		if newthread ~= nil then
+			output:write(ThreadRuler)
+			if newthread then viewer:write(newthread) end
+			output:write("\n")
+		end
 		
-		timed = (type(timed) == "table") and timed[flag] or timed
-		if timed == true then
-			timed = date()
-			output:write(timed, " - ")
-			output:write(viewer.prefix:sub(flaglength + #timed + 4))
-		elseif type(timed) == "string" then
-			timed = date(timed)
-			output:write(timed, " ")
-			output:write(viewer.prefix:sub(flaglength + #timed + 2))
+		local prefix = viewer.prefix
+		local timelength = self.timelength
+		if timelength > 0 then
+			timed = (type(timed) == "table") and timed[flag] or timed
+			if timed == true then
+				output:write(date(self.timeformat or nil), " ")
+			else
+				output:write(prefix:sub(1, timelength+1))
+			end
+		end
+		
+		if #flag+3 > FlagColWidth then
+			output:write("[", flag:sub(1, 7), "...] ")
 		else
-			output:write(viewer.prefix:sub(flaglength + 1))
+			output:write("[", flag, "] ")
+			output:write(viewer.prefix:sub(timelength + #flag+4))
 		end
 		
 		custom = custom[flag]
@@ -94,63 +103,62 @@ end
 
 local function updatetabs(self, shift)
 	local viewer = self.viewer
-	local thread = self.thread
-	local threadtabs = self.threadtabs
-	local tabs = threadtabs[thread]
+	local thread = CurrentThread
+	local tabs = self.tabsof[thread]
 	if shift then
 		tabs = max(tabs + shift, 0)
-		threadtabs[thread] = tabs
+		self.tabsof[thread] = tabs
 	end
-	local length = self.flaglength + self.timelength
-	self.threadruler = strrep("-", length)
-	viewer.prefix = strrep(" ", length)..viewer.indentation:rep(tabs)
+	viewer.prefix = strrep(" ", self.timelength + FlagColWidth)
+	              ..viewer.indentation:rep(tabs)
 end
 
-local ThreadRuler = strrep("-", 60).." "
 local function maketag(tag)
 	return function (self, start, ...)
 		local thread = running() or false
-		if self.thread ~= thread then
-			self.thread = thread
-			updatetabs(self)
-			if not self.nothreads then
-				local viewer = self.viewer
-				local output = viewer.output
-				output:write(ThreadRuler)
-				if thread then viewer:write(thread) end
-				output:write("\n")
-			end
+		if CurrentThread == thread then
+			thread = nil
+		else
+			CurrentThread = thread
 		end
 		if start == false then
 			updatetabs(self, -1)
-			write(self, tag, ...)
-		elseif start == true then
-			write(self, tag, ...)
-			updatetabs(self, 1)
+			write(self, thread, tag, ...)
 		else
-			write(self, tag, start, ...)
+			if thread ~= nil then
+				updatetabs(self)
+			end
+			if start == true then
+				write(self, thread, tag, ...)
+				updatetabs(self, 1)
+			else
+				write(self, thread, tag, start, ...)
+			end
 		end
 	end
 end
 
 --------------------------------------------------------------------------------
 
+timestamp = false
 thread = false
 nothreads = false
-flaglength = 8
 timelength = 0
+timeformat = false
 viewer = Viewer{ maxdepth = 2 }
 
 function __new(class, verbose)
 	verbose = rawnew(class, verbose)
-	verbose.flags      = {}
-	verbose.threadtabs = memoize(function() return 0 end, "k")
-	verbose.groups     = rawget(verbose, "groups")  or {}
-	verbose.custom     = rawget(verbose, "custom")  or {}
-	verbose.pause      = rawget(verbose, "pause") or {}
-	verbose.timed      = rawget(verbose, "timed")   or {}
+	verbose.flags  = {}
+	verbose.groups = rawget(verbose, "groups") or {}
+	verbose.custom = rawget(verbose, "custom") or {}
+	verbose.pause  = rawget(verbose, "pause")  or {}
+	verbose.timed  = rawget(verbose, "timed")  or {}
+	verbose.tabsof = memoize(function() return 0 end, "k")
 	return verbose
 end
+
+local function dummy() end
 
 function __index(self, field)
 	local value = _M[field]
@@ -187,6 +195,11 @@ end
 
 --------------------------------------------------------------------------------
 
+function settimeformat(self, format)
+	self.timeformat = format
+	self.timelength = #date(format)
+end
+
 function flag(self, name, ...)
 	local group = self.groups[name]
 	if group then
@@ -195,24 +208,6 @@ function flag(self, name, ...)
 		end
 	elseif select("#", ...) > 0 then
 		self.flags[name] = (...) and maketag(name) or nil
-		local timed = self.timed
-		local timelen = 0
-		local taglen = 5
-		for name in pairs(self.flags) do
-			local length = (type(timed) == "table") and timed[name] or timed
-			if length == true then
-				length = 19 -- length of 'DD/MM/YY HH:mm:ss -'
-			elseif type(length) == "string" then
-				length = #date(length)
-			else
-				length = 0
-			end
-			timelen = max(timelen, length)
-			taglen = max(taglen, #name)
-		end
-		self.flaglength = max(taglen + 3, self.flaglength)
-		self.timelength = max(timelen + 1, self.timelength)
-		updatetabs(self)
 	else
 		return self.flags[name] ~= nil
 	end
