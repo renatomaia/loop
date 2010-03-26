@@ -37,7 +37,7 @@ end
 function isclass(class)
 	local metaclass = getclass(class)
 	if metaclass ~= nil then
-		return metaclass == rawget(DerivedClassMeta, metaclass.__index) or
+		return metaclass == rawget(DerivedMeta, metaclass.__index) or
 		       base_isclass(class)
 	end
 end
