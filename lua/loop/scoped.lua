@@ -555,11 +555,3 @@ function prot(object)
 		end
 	end
 end
---------------------------------------------------------------------------------
-ScopedClass.new = new
-ScopedClass.rawnew = rawnew
-ScopedClass.getmember = getmember
-ScopedClass.members = members
-ScopedClass.getsuper = getsuper
-ScopedClass.supers = supers
-ScopedClass.allmembers = allmembers
