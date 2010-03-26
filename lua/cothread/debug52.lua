@@ -1,6 +1,6 @@
 -- Project: CoThread
 -- Release: 1.0 beta
--- Title  : Improvement of Debug Traceback for Coroutines
+-- Title  : Improvement of Stack Traceback for Coroutines
 -- Author : Renato Maia <maia@inf.puc-rio.br>
 
 
@@ -17,20 +17,20 @@ local mainthread = debug.getregistry()[1]
 
 
 
-function debug.getnextthread(thread)
+function debug.nextthread(thread)
 	if thread == nil then return mainthread end
 	if status(thread) == "normal" then
 		return select(2, getlocal(thread, 0, 1))
 	end
 end
 
+local nextthread = debug.nextthread
 function debug.traceback(co, msg, level)
 	if msg == nil then co, msg, level = running(), co, msg end
 	if status(co) == "normal" or status(co) == "running" then
 		local chain = {}
-		local thread
-		while thread ~= co do
-			thread = debug.getnextthread(thread)
+		for thread in nextthread do
+			if thread == co then break end
 			chain[#chain+1] = thread
 		end
 		for i = #chain, 1, -1 do
