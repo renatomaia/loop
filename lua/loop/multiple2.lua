@@ -78,8 +78,8 @@ end
 
 function issubclassof(class, super)
 	if class == super then return true end
-	for _, superclass in supers(class) do
-		if issubclassof(superclass, super) then
+	for _, base in supers(class) do
+		if issubclassof(base, super) then
 			return true
 		end
 	end
