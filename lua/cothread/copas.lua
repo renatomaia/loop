@@ -41,7 +41,7 @@ end
 
 function loop(timeout)
 	if timeout then
-		while round() and timeout > 0 do
+		while timeout > 0 and round() do
 			local before = now()
 			waitevent(timeout)
 			timeout = timeout - (now()-before)
