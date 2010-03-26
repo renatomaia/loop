@@ -46,7 +46,7 @@ end
 
 
 
-local function results(call, ...)
+local function results(call, success, ...)
 	if status(call) == "suspended" then
 		return results(call, resume(call, yield(...)))
 	end
@@ -55,7 +55,7 @@ local function results(call, ...)
 	if pcallthreads[current] == current then
 		pcallthreads[current] = nil
 	end
-	return ...
+	return success, ...
 end
 
 local create = coroutine.create
