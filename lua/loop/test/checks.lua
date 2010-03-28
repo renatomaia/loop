@@ -106,6 +106,8 @@ function similar(expected, message, criteria)
 	end
 	if criteria.metatable == nil then 
 		criteria.metatable = false
+	elseif criteria.metatable == true then 
+		criteria.metatable = nil
 	end
 	return function(actual)
 		local success, errmsg = Matcher(criteria):match(expected, actual)
