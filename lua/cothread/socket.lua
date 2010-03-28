@@ -7,7 +7,6 @@
 local _G = require "_G"
 local assert = _G.assert
 local ipairs = _G.ipairs
-local newproxy = _G.newproxy
 local next = _G.next
 local require = _G.require
 local setmetatable = _G.setmetatable
@@ -35,7 +34,7 @@ local EventGroup = require "cothread.EventGroup"
 
 module(...)
 
-local TimeOutToken = newproxy()
+local TimeOutToken = {}
 
 --------------------------------------------------------------------------------
 -- Begin of Instantiation Code -------------------------------------------------
@@ -140,11 +139,16 @@ function cothread.round(...)
 end
 
 
-function cothread.signalcanceled(socket)
-	if reading[socket] then
-		forgetsocket(socket, reading)
-	elseif writing[socket] then
-		forgetsocket(socket, writing)
+function cothread.signalcanceled(signal)
+	if reading[signal] then -- receive and accept
+		forgetsocket(signal, reading)
+	elseif writing[signal] then -- send and connect
+		forgetsocket(signal, writing)
+	elseif type(signal) == "table" and signal[TimeOutToken] then -- select
+		for _, thread in ipairs(signal.threads) do
+			unschedule(thread)
+		end
+		signal.active = false
 	end
 end
 
@@ -408,6 +412,7 @@ function select(recvt, sendt, timeout)
 		
 		-- block until some socket event is signal or timeout
 		event.timeout = timeout
+		event[TimeOutToken] = true -- just to mark it as a select event
 		EventGroup(event):wait()
 		
 		-- unregister and unlock sockets
