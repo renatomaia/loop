@@ -15,8 +15,6 @@ local yield = coroutine.yield
 local status = coroutine.status
 
 local CyclicSets = require "loop.collection.CyclicSets"
-local addnextto = CyclicSets.add
-local removefrom = CyclicSets.removefrom
 
 
 
@@ -51,9 +49,11 @@ local function results(call, success, ...)
 		return results(call, resume(call, yield(...)))
 	end
 	local current = stdrunning()
-	removefrom(pcallthreads, current)
-	if pcallthreads[current] == current then
-		pcallthreads[current] = nil
+	if current then
+		pcallthreads:removefrom(current)
+		if pcallthreads[current] == current then
+			pcallthreads[current] = nil
+		end
 	end
 	return success, ...
 end
@@ -63,7 +63,7 @@ function _G.pcall(func, ...)
 	local current = stdrunning()
 	if not current then return stdpcall(func, ...) end
 	local call = create(func)
-	addnextto(pcallthreads, call, current)
+	pcallthreads:add(call, current)
 	return results(call, resume(call, ...))
 end
 
