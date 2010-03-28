@@ -536,10 +536,10 @@ function this(object)
 end
 
 function priv(object, class)
-	if class == nil then class = classof(object) end
+	if class == nil then class = getclass(object) end
 	class = getclass(class)
 	if class and class.private then
-		if classof(object) == class.private.class
+		if getclass(object) == class.private.class
 			then return object                 -- private object
 			else return class.private[object]  -- protected or public object
 		end
@@ -547,9 +547,9 @@ function priv(object, class)
 end
 
 function prot(object)
-	local class = getclass(classof(object))
+	local class = getclass(getclass(object))
 	if class and class.protected then
-		if classof(object) == class.protected.class
+		if getclass(object) == class.protected.class
 			then return object                         -- protected object
 			else return class.protected[this(object)]  -- private or public object
 		end

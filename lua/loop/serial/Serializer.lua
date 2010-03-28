@@ -124,7 +124,7 @@ function value(self, id, type, ...)
 			value = Incomplete()
 		end
 		self[id] = value
-	elseif type == "table" and oo.classof(value) == Incomplete then
+	elseif type == "table" and oo.getclass(value) == Incomplete then
 		value:__load(...)
 	end
 	return value
