@@ -402,9 +402,9 @@ end
 --  'run' if 'scheduled == false' and there are no scheduled threads.
 --
 local yieldops = {                                                              --[[VERBOSE]] verbose = function() return verbose end,
-	now = now,
-	idle = idle,
-	error = error,
+	now = true,
+	idle = true,
+	error = true,
 	
 	isscheduled = isscheduled,
 	ready = ready,
@@ -418,8 +418,14 @@ local yieldops = {                                                              
 	cancel = cancel,
 }
 for name, op in pairs(yieldops) do
-	yieldops[name] = function (current, ...)
-		return current, op(...)
+	if op == true then
+		yieldops[name] = function (current, ...)
+			return current, _M[name](...)
+		end
+	else
+		yieldops[name] = function (current, ...)
+			return current, op(...)
+		end
 	end
 end
 
