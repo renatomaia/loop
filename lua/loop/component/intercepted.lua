@@ -169,7 +169,7 @@ end
 function intercept(scope, port, event, iceptor)
 	local container = rawget(scope, "__container")
 	local wrapper = container and container[port]
-	if oo.instanceof(wrapper, Wrapper)
+	if oo.isinstanceof(wrapper, Wrapper)
 		then rawset(wrapper, "  "..event, iceptor)
 		else scope["  "..event..port] = iceptor
 	end

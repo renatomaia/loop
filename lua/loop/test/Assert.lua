@@ -61,5 +61,5 @@ function fail(self, message, level)
 end
 
 function isfailure(self, error)
-	return oo.instanceof(error, Exception) and error[1] == self.AssertionFailure
+	return oo.isinstanceof(error, Exception) and error[1] == self.AssertionFailure
 end

@@ -86,7 +86,7 @@ function issubclassof(class, super)
 	return false
 end
 
-function instanceof(object, class)
+function isinstanceof(object, class)
 	return issubclassof(getclass(object), class)
 end
 

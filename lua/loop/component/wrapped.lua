@@ -116,7 +116,7 @@ function factoryof(component)
 end
 
 function templateof(factory)
-	if not oo.instanceof(factory, BaseTemplate) then
+	if not oo.isinstanceof(factory, BaseTemplate) then
 		factory = factoryof(factory)
 	end
 	return oo.getclass(factory)

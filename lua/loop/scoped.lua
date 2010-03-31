@@ -36,7 +36,7 @@ local clone = proto.clone
 
 local multiple = require "loop.multiple"
 local multiple_class = multiple.class
-local multiple_instanceof = multiple.instanceof
+local multiple_isinstanceof = multiple.isinstanceof
 
 local cached = require "loop.cached"
 local CachedClass = cached.CachedClass
@@ -311,7 +311,7 @@ function ScopedClass:updatemembers()
 		-- copy members from superclass metatables
 		public = copy(super.class, public)
 
-		if multiple_instanceof(super, ScopedClass) then
+		if multiple_isinstanceof(super, ScopedClass) then
 			-- copy protected members from superclass metatables
 			protected = copy(super:getmeta("protected"), protected)
 
