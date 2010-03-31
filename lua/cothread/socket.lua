@@ -112,18 +112,20 @@ end
 
 local watching
 local function watchsocket(socket, opset)
-	opset:add(socket)
+	local result = opset:add(socket)
 	if not watching then
 		watching = true
 		cothread.idle = watchsockets
 	end
+	return result == socket
 end
 local function forgetsocket(socket, opset)
-	opset:remove(socket)
+	local result = opset:remove(socket)
 	if watching and #reading == 0 and #writing == 0 then
 		watching = nil
 		cothread.idle = idle
 	end
+	return result == socket
 end
 
 local function roundcont(result, ...)
@@ -141,9 +143,13 @@ end
 
 function cothread.signalcanceled(signal)
 	if reading[signal] then -- receive and accept
-		forgetsocket(signal, reading)
+		if forgetsocket(signal, reading) then
+			WrapperOf[signal].reading = nil
+		end
 	elseif writing[signal] then -- send and connect
-		forgetsocket(signal, writing)
+		if forgetsocket(signal, writing) then
+			WrapperOf[signal].writing = nil
+		end
 	elseif type(signal) == "table" and signal[TimeOutToken] then -- select
 		for _, thread in ipairs(signal.threads) do
 			unschedule(thread)
@@ -313,7 +319,7 @@ function CoSocket:receive(pattern)
 		self.reading = running()     -- set this socket is being read
 		
 		-- start timer for counting the timeout
-		local timer = timeout and self.writetimer
+		local timer = timeout and self.readtimer
 		if timer then yield("schedule", timer, "delay", timeout) end
 		
 		-- initialize data read buffer with data already read
@@ -385,7 +391,7 @@ function select(recvt, sendt, timeout)
 	
 	-- collect any ready socket
 	local readok, writeok, errmsg = selectsockets(recv, send, 0)
-
+	
 	-- check if job has completed
 	if
 		timeout ~= 0 and
@@ -394,18 +400,19 @@ function select(recvt, sendt, timeout)
 		next(writeok) == nil
 	then
 		-- register, lock and collect events of all sockets
+		local thread = running()
 		local event = {}
 		if recv then
 			for index, wrapper in ipairs(recvt) do
 				watchsocket(wrapper.__object, reading)
-				wrapper.reading = true
+				wrapper.reading = thread
 				event[#event+1] = wrapper.readevent
 			end
 		end
 		if send then
 			for index, wrapper in ipairs(sendt) do
 				watchsocket(wrapper.__object, writing)
-				wrapper.writing = true
+				wrapper.writing = thread
 				event[#event+1] = wrapper.writeevent
 			end
 		end
