@@ -174,7 +174,7 @@ function time(self)
 end
 
 function idle(self, timeout)                                                    --[[VERBOSE]] self.verbose:scheduler(true, "starting busy-waiting for ",timeout," seconds")
-	if timeout then repeat until self:time() > timeout end                        --[[VERBOSE]] self.verbose:scheduler(false, "busy-waiting ended")
+	if timeout then repeat until self:time() >= timeout end                       --[[VERBOSE]] self.verbose:scheduler(false, "busy-waiting ended")
 end
 
 function error(self, routine, errmsg)
@@ -212,6 +212,9 @@ end
 
 function resume(self, routine, ...)                                             --[[VERBOSE]] self.verbose:threads("resuming ",routine)
 	local current = self:checkcurrent()
+	if not self.running:contains(current) then
+		current = self.currentkey
+	end
 	if not self:register(routine, current) then
 		self:register(self:remove(routine), current)
 	end                        
