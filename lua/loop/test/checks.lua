@@ -1,4 +1,6 @@
 
+local getfenv = getfenv
+local getmetatable = getmetatable
 local rawequal = rawequal
 local select   = select
 local type     = type
@@ -106,6 +108,8 @@ function similar(expected, message, criteria)
 	end
 	if criteria.metatable == nil then 
 		criteria.metatable = false
+	elseif criteria.metatable == true then 
+		criteria.metatable = nil
 	end
 	return function(actual)
 		local success, errmsg = Matcher(criteria):match(expected, actual)
@@ -116,7 +120,7 @@ function similar(expected, message, criteria)
 	end
 end
 
-local IsSimilar = ": %s was similar to %s (%s)"
+local IsSimilar = ": %s was similar to %s"
 function notsimilar(expected, message, criteria)
 	if not message then message = "expected not similar values" end
 	criteria = criteria or {}
@@ -129,7 +133,7 @@ function notsimilar(expected, message, criteria)
 	return function(actual)
 		local success, errmsg = Matcher(criteria):match(expected, actual)
 		if success then
-			return false, message..IsSimilar, actual, expected, errmsg
+			return false, message..IsSimilar, actual, expected
 		end
 		return true
 	end
