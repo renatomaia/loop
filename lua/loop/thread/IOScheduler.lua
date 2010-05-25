@@ -69,7 +69,7 @@ __init(getmetatable(_M), _M)
 function signalall(self, timeout)                                               --[[VERBOSE]] local verbose = self.verbose
 	if timeout then timeout = math.max(timeout - self:time(), 0) end
 	local reading, writing = self.reading, self.writing
-	if #reading.socks > 0 or #writing.socks > 0 then                              --[[VERBOSE]] verbose:scheduler(true, "signaling blocked threads for ",timeout," seconds")
+	if #reading.socks > 0 or #writing.socks > 0 then                              --[[VERBOSE]] verbose:scheduler("signaling blocked threads for ",timeout," seconds")
 		local running = self.running
 		local readok, writeok = self.select(reading.socks, writing.socks, timeout)
 		for _, channel in ipairs(readok) do
