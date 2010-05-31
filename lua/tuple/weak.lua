@@ -51,35 +51,39 @@ end
 
 
 
-local UseTrapOf = WeakTable() -- trap to be collected when a tuple is not used
+local UseTrapOf -- trap to be collected when a tuple is not used (see below)
 local UseMarkOf = WeakKeys() -- mark that a tuple uses its parent
 local UseTrapCnt -- number of available/freed usetraps (see 'clearpools')
 local UseTrapPool -- list of available/freed usetraps (see 'clearpools')
 
--- free all resources of a tuple not used anymore
+-- free all resources of a tuple if it is not used anymore
+function freetuple(tuple)
+	while next(tuple) == nil do -- no [value]=subtuple nor [map]=usetrap
+		local usetrap = UseTrapOf[tuple]
+		if usetrap then
+			UseTrapOf[tuple] = nil
+			UseTrapCnt = UseTrapCnt+1
+			UseTrapPool[UseTrapCnt] = usetrap
+		end
+		local value = ValueOf[tuple]
+		ValueOf[tuple] = nil
+		if tuple ~= index then SizeOf[tuple] = nil end
+		UseMarkOf[tuple] = nil
+		tuple, ParentOf[tuple] = ParentOf[tuple], nil
+		if tuple == nil then break end
+		if value ~= nil then tuple[value] = nil end
+	end
+end
+
 local function unused(trap)
 	local tuple = getmetatable(trap).tuple
 	if tuple ~= nil then -- the tuple was not collected yet
-		while next(tuple) == nil do -- no [value]=subtuple nor [map]=usetrap
-			local usetrap = UseTrapOf[tuple]
-			if usetrap then
-				UseTrapOf[tuple] = nil
-				UseTrapCnt = UseTrapCnt+1
-				UseTrapPool[UseTrapCnt] = usetrap
-			end
-			local value = ValueOf[tuple]
-			ValueOf[tuple] = nil
-			if tuple ~= index then SizeOf[tuple] = nil end
-			UseMarkOf[tuple] = nil
-			tuple, ParentOf[tuple] = ParentOf[tuple], nil
-			if tuple == nil then break end
-			if value ~= nil then tuple[value] = nil end
-		end
+		freetuple(tuple)
 	end
 end
 
 -- traps that are collected when the tuple is not used anymore
-local function newusetrap(tuple)
+UseTrapOf = memoize(function(tuple)
 	local trap
 	if UseTrapCnt == 0 then
 		trap = newproxy(true)
@@ -94,7 +98,7 @@ local function newusetrap(tuple)
 		getmetatable(trap).tuple = tuple
 	end
 	return trap
-end
+end, "kv")
 
 
 
@@ -107,7 +111,6 @@ function Tuple:__index(value)
 	ValueOf[tuple] = value
 	SizeOf[tuple] = SizeOf[self]+1
 	UseMarkOf[tuple] = UseTrapOf[self] -- avoid collection of parent's usetrap
-	UseTrapOf[tuple] = newusetrap(tuple)-- trap to be collected if tuple not used
 	self[value] = tuple
 	return tuple
 end
@@ -227,6 +230,12 @@ function setkey(map, tuple, value)
 			trap[value][tuple] = map -- setup an EntryTrap for this entry (tuple)
 		end
 	end
+end
+
+function getkey(map, tuple)
+	local value = map[tuple]
+	if value == nil then freetuple(tuple) end
+	return value
 end
 
 

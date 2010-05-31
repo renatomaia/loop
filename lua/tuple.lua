@@ -94,11 +94,11 @@ function emptystate()
 	   and (_G.next(SizeOf) == index and _G.next(SizeOf, index) == nil)
 	   and (_G.next(index) == nil)
 	
-	or (function()
-		local Viewer = _G.require "loop.debug.Viewer"
-		Viewer:print("ParentOf ", ParentOf)
-		Viewer:print("ValueOf  ", ValueOf)
-		Viewer:print("SizeOf   ", SizeOf)
-		Viewer:print("index    ", index)
-	end)()
+	--or (function()
+	--	local Viewer = _G.require "loop.debug.Viewer"
+	--	Viewer:print("ParentOf ", ParentOf)
+	--	Viewer:print("ValueOf  ", ValueOf)
+	--	Viewer:print("SizeOf   ", SizeOf)
+	--	Viewer:print("index    ", index)
+	--end)()
 end

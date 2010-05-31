@@ -4,6 +4,7 @@ local tuple = tuples.create
 local wtuples = require "tuple.weak"
 local wtuple = wtuples.create
 local setwkey = wtuples.setkey
+local getwkey = wtuples.getkey
 
 local vararg = require "vararg"
 local pack = vararg.pack
@@ -99,7 +100,7 @@ emptymodules()
 	setwkey(map, wtuple({},{},{})     , "{},{},{}")
 	setwkey(map, wtuple(true,{},false), "true,{},false")
 collectall()
-	assert(map[wtuple(1,2,3)] == "1,2,3")
+	assert(getwkey(map, wtuple(1,2,3)) == "1,2,3")
 	for tuple, value in pairs(map) do
 		print(value, tuple())
 		assert(value == "1,2,3")
@@ -129,10 +130,10 @@ emptymodules()
 	setwkey(map, wtuple({},{},{})     , {})
 	setwkey(map, wtuple(true,{},false), {})
 collectall()
-	assert(map[wtuple(1,2,3)] == "strong")
-	assert(map[wtuple(A,B,C)] == "strong")
-	assert(map[wtuple(3,2,1)] == strong)
-	assert(map[wtuple(C,B,A)] == strong)
+	assert(getwkey(map, wtuple(1,2,3)) == "strong")
+	assert(getwkey(map, wtuple(A,B,C)) == "strong")
+	assert(getwkey(map, wtuple(3,2,1)) == strong)
+	assert(getwkey(map, wtuple(C,B,A)) == strong)
 	for tuple, value in pairs(map) do
 		print(value, tuple())
 		assert(tostring(value) == "strong")
