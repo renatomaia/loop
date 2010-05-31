@@ -39,27 +39,46 @@ local UsageOf = WeakKeys() -- mark that a TupleKey uses its parent
 
 
 
+local UseTrapCnt -- number of available/freed usetraps
+local UseTrapPool -- list of available/freed usetraps
+
+-- traps that are collected when the TupleKey is not used anymore
+local unusedkey
+local UseTrapOf = memoize(function(key)
+	local trap
+	if UseTrapCnt == 0 then
+		trap = newproxy(true)
+		local meta = getmetatable(trap)
+		WeakValues(meta) -- allow that value of field 'key' (TupleKey) be collected
+		meta.__gc = unusedkey -- won't be collected because it is a local function
+		meta.key = key
+	else
+		trap = UseTrapPool[UseTrapCnt]
+		UseTrapPool[UseTrapCnt] = nil
+		UseTrapCnt = UseTrapCnt-1
+		getmetatable(trap).key = key
+	end
+	return trap
+end, "kv") -- allow TupleKey and the trap to be collected is they are not used
+
 -- free all resources of a TupleKey not used anymore
-local function unusedkey(self)
+function unusedkey(self)
 	local key = getmetatable(self).key
 	if key ~= nil then -- is the TupleKey was not collected yet
-		local parent, keyval = ParentOf[key], ValueOf[key]
-		ParentOf[key], ValueOf[key], UsageOf[key] = nil, nil, nil
-		if parent ~= nil and keyval ~= nil then
-			parent[keyval] = nil
+		while next(key) == nil do -- no [keyval]=subTupleKey nor [map]=UseTrap
+			local usetrap = UseTrapOf[key]
+			if usetrap ~= self then
+				UseTrapOf[key] = nil
+				UseTrapCnt = UseTrapCnt+1
+				UseTrapPool[UseTrapCnt] = usetrap
+			end
+			local keyval = ValueOf[key]
+			key, ParentOf[key],ValueOf[key],UsageOf[key] = ParentOf[key], nil,nil,nil
+			if key == nil then break end
+			if keyval ~= nil then key[keyval] = nil end
 		end
 	end
 end
-
--- traps that are collected when the TupleKey is not used anymore
-local UseTrapOf = memoize(function(key)
-	local trap = newproxy(true)
-	local meta = getmetatable(trap)
-	WeakValues(meta) -- allow that value of field 'key' (TupleKey) be collected
-	meta.key = key
-	meta.__gc = unusedkey -- won't be collected because it is a local function
-	return trap
-end, "kv") -- allow TupleKey and the trap to be collected is they are not used
 
 
 
@@ -102,8 +121,8 @@ end
 
 
 
-local count = 0 -- number of available/freed entrytraps
-local pool = {} -- list of available/freed entrytraps
+local EntryTrapCnt -- number of available/freed entrytraps
+local EntryTrapPool -- list of available/freed entrytraps
 
 -- called when the *weak value* of a map entry is collected
 local function entrytrap(self)
@@ -118,18 +137,18 @@ end
 
 local function newentrytrap()
 	local trap
-	if count == 0 then
+	if EntryTrapCnt == 0 then
 		trap = newproxy(true)
 		local meta = getmetatable(trap)
 		WeakKeys(meta) -- allow that trapped 'tuple keys' be collected
 		meta.__gc = entrytrap
 		meta.__index = meta -- easy/fast access to table
 		meta.__newindex = meta -- easy/fast access to table
-		return trap
+	else
+		trap = EntryTrapPool[EntryTrapCnt]
+		EntryTrapPool[EntryTrapCnt] = nil
+		EntryTrapCnt = EntryTrapCnt-1
 	end
-	trap = pool[count]
-	pool[count] = nil
-	count = count-1
 	return trap
 end
 
@@ -140,8 +159,8 @@ local function freeentry(trapof, map, key, value)
 		if val == map then return end -- used for other entries with same 'value'
 	end -- free trap to be reused later
 	trapof[value] = nil
-	count = count+1
-	pool[count] = trap
+	EntryTrapCnt = EntryTrapCnt+1
+	EntryTrapPool[EntryTrapCnt] = trap
 end
 
 
@@ -211,10 +230,20 @@ end
 
 
 
+function clearpools()
+	UseTrapCnt = 0
+	UseTrapPool = {}
+	EntryTrapCnt = 0
+	EntryTrapPool = {}
+end
+
+clearpools()
+
 --local Viewer = _G.require "loop.debug.Viewer"
 function nointernalstate(self)
 --Viewer:print("ParentOf", ParentOf)
 --Viewer:print("ValueOf ", ValueOf)
+--Viewer:print("UsageOf ", UsageOf)
 --Viewer:print("tuple   ", tuple)
 --Viewer:print("map     ", self.map)
 --if _G.rawget(self, "trap") then
@@ -222,6 +251,7 @@ function nointernalstate(self)
 --end
 	return (_G.next(ParentOf) == nil)
 	   and (_G.next(ValueOf) == nil)
+	   and (_G.next(UsageOf) == nil)
 	   and (_G.next(tuple) == nil)
 	   and (_G.next(self.map) == nil)
 	   and (not _G.rawget(self, "trap") or (_G.next(self.trap) == nil))

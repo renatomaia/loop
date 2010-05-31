@@ -16,14 +16,11 @@ end
 
 local function collectall()
 	local after = collectgarbage("count")
-	local c=0
 	repeat
 		local before = after
 		collectgarbage()
-		c = c+1
 		after = collectgarbage("count")
 	until after >= before
-	print("collected:", c-1)
 end
 
 do
