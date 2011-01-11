@@ -4,6 +4,9 @@
 -- Author : Renato Maia <maia@inf.puc-rio.br>
 
 
+local _G = require "_G"
+local select = _G.select
+
 local coroutine = require "coroutine"
 local resume = coroutine.resume
 local running = coroutine.running

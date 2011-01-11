@@ -3,6 +3,8 @@
 -- Author : Renato Maia <maia@inf.puc-rio.br>
 
 local oo = require "loop"
+local getmember = oo.getmember
+local rawnew = oo.rawnew
 local supers = oo.supers
 
 local CyclicSets = require "loop.collection.CyclicSets"
@@ -41,7 +43,7 @@ end
 function mutator(class, obj, ...)
 	obj = rawnew(class, obj)
 	for class in topdown(class) do
-		local init = class.__init
+		local init = getmember(class, "__init")
 		if init then init(obj, ...) end
 	end
 	return obj

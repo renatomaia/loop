@@ -44,7 +44,7 @@ local format = string.format
 
 local table = require "table"
 local sort = table.sort
-local unpack = table.unpack
+local unpack = table.unpack or _G.unpack
 
 local io = require "io"
 local stdin = io.stdin
@@ -563,11 +563,13 @@ function gbl(_, which, ...)
 end
 
 for name, func in pairs{loc=loc,upv=upv,env=env,gbl=gbl} do
-	_M[name] = setmetatable({}, {
+	local cmd = setmetatable({}, {
 		__index = func,
 		__newindex = func,
 		__call = func,
 	})
+	commands[name] = cmd
+	_M[name] = cmd
 end
 
 --------------------------------------------------------------------------------

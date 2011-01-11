@@ -5,7 +5,7 @@
 
 
 local _G = require "_G"
-local type = _G.type
+local select = _G.select
 local setmetatable = _G.setmetatable
 
 local coroutine = require "coroutine"
@@ -37,15 +37,33 @@ end
 
 
 
+-- get original 'coroutine.running' in case 'cothread.auxiliary' was loaded
+-- this will prevent 'running' to return original thread that invoked a 'pcall'
+-- instead of the actual running coroutine.
+for i = 1, 1/0 do
+	local name, value = debug.getupvalue(running, i)
+	if name == "stdrunning" then
+		running = value
+		break
+	elseif name == nil then
+		break
+	end
+end
 -- In Lua 5.1, it does not print the stack trace of the main thread, unless you
 -- use the "fix" from: http://lua-users.org/lists/lua-l/2006-09/msg00751.html
-function debug.traceback(co, msg)
-	if type(co) ~= "thread" then
-		co, msg = running(), co
+function debug.traceback(...)
+	local co, msg
+	if select("#", ...) > 1 then
+		co, msg = ...
+	else
+		co = running()
+		if co == nil then return stacktrace(...) end
+		msg = stacktrace(co, ...)
+		co = previous[co]
 	end
-	repeat
+	while co ~= nil do
 		msg = stacktrace(co, msg)
 		co = previous[co]
-	until co == nil
+	end
 	return msg
 end

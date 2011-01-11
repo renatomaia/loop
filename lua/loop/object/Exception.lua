@@ -3,48 +3,43 @@
 -- Author : Renato Maia <maia@inf.puc-rio.br>
 
 local _G = require "_G"
-local error = _G.error
-local type = _G.type
-local traceback = _G.debug and _G.debug.traceback
-
-local table = require "table"
-local concat = table.concat
+local tostring = _G.tostring
+local traceback = _G.debug and _G.debug.traceback -- only if available
 
 local oo = require "loop.base"
 local class = oo.class
+local rawnew = oo.rawnew
 
-module(..., class)
+local Exception = class()
 
-function __new(class, object)
-	if traceback then
-		if not object then
+if traceback ~= nil then
+	function Exception:__new(object)
+		if object == nil then
 			object = { traceback = traceback() }
 		elseif object.traceback == nil then
 			object.traceback = traceback()
 		end
+		return rawnew(self, object)
 	end
-	return oo.rawnew(class, object)
 end
 
-function __concat(op1, op2)
-	if type(op1) == "table" and type(op1.__tostring) == "function" then
-		op1 = op1:__tostring()
-	end
-	if type(op2) == "table" and type(op2.__tostring) == "function" then
-		op2 = op2:__tostring()
-	end
-	return op1..op2
+function Exception:__concat(other)
+	return tostring(self)..tostring(other)
 end
 
-function __tostring(self)
-	local message = { self[1] or self._NAME or "Exception"," raised" }
-	if self.message then
-		message[#message + 1] = ": "
-		message[#message + 1] = self.message
+function Exception:__tostring()
+	local result = self[1] or "Exception"
+	local message = self.message
+	if message ~= nil then
+		result = result..": "..message:gsub("%$([_%l]+)", function(field)
+			return tostring(self[field])
+		end)
 	end
-	if self.traceback then
-		message[#message + 1] = "\n"
-		message[#message + 1] = self.traceback
+	local traceback = self.traceback
+	if traceback ~= nil then
+		result = result.."\n"..traceback
 	end
-	return concat(message)
+	return result
 end
+
+return Exception

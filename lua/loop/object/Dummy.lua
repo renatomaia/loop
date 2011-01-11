@@ -2,33 +2,45 @@
 -- Title  : Dummy Object that Ignores all Events
 -- Author : Renato Maia <maia@inf.puc-rio.br>
 
+local _G = require "_G"
+local getmetatable = _G.getmetatable
+local newproxy = _G.newproxy
+
 local oo = require "loop.base"
 local class = oo.class
-local getclass = oo.getclass
 
-module(..., class)
+local prototype = newproxy(true)
+local meta = getmetatable(prototype)
+if loop.object == nil then
+	loop.object = { Dummy = meta }
+else
+	loop.object.Dummy = meta
+end
+module("loop.object.Dummy", class)
 
-function nothing() end
-function self(dummy) return dummy end
-function binary(one, other)
-	if getclass(one) == _M
-		then return one
-		else return other
-	end
+function __new()
+	return newproxy(prototype)
 end
 
-__add      = binary
-__sub      = binary
-__mul      = binary
-__div      = binary
-__mod      = binary
-__pow      = binary
-__unm      = self
-__concat   = binary
-__eq       = nothing
-__lt       = nothing
-__le       = nothing
-__index    = self
-__newindex = nothing
-__call     = self
-__tostring = function() return _NAME end
+function none() end
+function number() return 0 end
+function string() return "" end
+
+__concat   = string
+__unm      = number
+__add      = number
+__sub      = number
+__mul      = number
+__div      = number
+__mod      = number
+__pow      = number
+__call     = none
+__eq       = none
+__lt       = none
+__le       = none
+__newindex = none
+__index    = function(self) return self end
+__len      = number
+__pairs    = function() return none end
+__tostring = string
+__metatable = prototype

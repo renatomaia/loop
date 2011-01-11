@@ -54,7 +54,8 @@ local function write(self, newthread, flag, ...)
 		local custom = self.custom
 		local pause  = self.pause
 		
-		if newthread ~= nil then
+		if CurrentThread ~= newthread then
+			CurrentThread = newthread
 			output:write(ThreadRuler)
 			if newthread then viewer:write(newthread) end
 			output:write("\n")
@@ -101,9 +102,8 @@ local function write(self, newthread, flag, ...)
 	end
 end
 
-local function updatetabs(self, shift)
+local function updatetabs(self, thread, shift)
 	local viewer = self.viewer
-	local thread = CurrentThread
 	local tabs = self.tabsof[thread]
 	if shift then
 		tabs = max(tabs + shift, 0)
@@ -116,21 +116,14 @@ end
 local function maketag(tag)
 	return function (self, start, ...)
 		local thread = running() or false
-		if CurrentThread == thread then
-			thread = nil
-		else
-			CurrentThread = thread
-		end
 		if start == false then
-			updatetabs(self, -1)
+			updatetabs(self, thread, -1)
 			write(self, thread, tag, ...)
 		else
-			if thread ~= nil then
-				updatetabs(self)
-			end
+			updatetabs(self, thread)
 			if start == true then
 				write(self, thread, tag, ...)
-				updatetabs(self, 1)
+				updatetabs(self, thread, 1)
 			else
 				write(self, thread, tag, start, ...)
 			end
@@ -154,7 +147,7 @@ function __new(class, verbose)
 	verbose.custom = rawget(verbose, "custom") or {}
 	verbose.pause  = rawget(verbose, "pause")  or {}
 	verbose.timed  = rawget(verbose, "timed")  or {}
-	verbose.tabsof = memoize(function() return 0 end, "k")
+	verbose.tabsof = memoize(function() return rawget(verbose.tabsof, CurrentThread) or 0 end, "k")
 	return verbose
 end
 

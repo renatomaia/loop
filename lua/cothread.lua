@@ -19,17 +19,12 @@ local os = require "os"
 local gettime = os.time
 local difftime = os.difftime
 
-local tabop = require "loop.table"
-local memoize = tabop.memoize
-
 local oo = require "loop.base"
 local class = oo.class
 local rawnew = oo.rawnew
 
 local BiCyclicSets = require "loop.collection.BiCyclicSets"
 local SortedMap = require "loop.collection.SortedMap"
-
-module(...)
 
 local WeakValues = class{ __mode = "v" }
 local WeakKeys   = class{ __mode = "k" }
@@ -48,11 +43,11 @@ function default.now()
 end
 
 local getnow = default.now
-function default.idle(timeout)                                                  --[[VERBOSE]] verbose:scheduler("starting busy-waiting for ",timeout-getnow()," seconds")
-	repeat until getnow() > timeout                                               --[[VERBOSE]] verbose:scheduler("busy-waiting ended")
+function default.idle(timeout)
+	repeat until getnow() >= timeout
 end
 
-function default.error(thread, errmsg)                                          --[[VERBOSE]] verbose:scheduler("re-raising error of ",thread,": ",errmsg)
+function default.error(thread, errmsg)
 	luaerror(traceback(thread, errmsg))
 end
 
@@ -79,8 +74,8 @@ for yieldop, paramtype in pairs(paramtypes) do
 		default[yieldop] = function(param, ...)
 			local actualtype = type(param)
 			if actualtype ~= paramtype then
-				error("bad argument #1 to '"..yieldop
-				    .."' ("..paramtype.." expected, got "..actualtype..")")
+				luaerror("bad argument #1 to '"..yieldop
+				         .."' ("..paramtype.." expected, got "..actualtype..")")
 			end
 			return yield(yieldop, param, ...)
 		end
@@ -89,7 +84,7 @@ end
 
 function default.wait(signal, ...)
 	if not signal or type(signal) == "thread" then
-		error("bad argument #1 to 'wait' (signal cannot be nil, false or thread)")
+		luaerror("bad argument #1 to 'wait' (signal cannot be nil, false nor thread)")
 	end
 	return yield("wait", signal, ...)
 end
@@ -98,12 +93,11 @@ end
 -- Begin of Instantiation Code -------------------------------------------------
 --------------------------------------------------------------------------------
 
-function new(attribs)
-	if attribs == nil then attribs = {} end
+local function new(cothread)                                                    --[[VERBOSE]] local verbose
+	if cothread == nil then cothread = {} end
 	for field, value in pairs(default) do
-		if attribs[field] == nil then attribs[field] = value end
+		if cothread[field] == nil then cothread[field] = value end
 	end
-	_G.setfenv(1, attribs) -- Lua 5.2: _ENV = attribs
 
 --------------------------------------------------------------------------------
 -- Initialization Code ---------------------------------------------------------
@@ -145,8 +139,10 @@ local wakeindex = SortedMap{ -- Linked list of wake times of delayed threads in
 local waketime = WeakValues() -- Table mapping threads to its last wake time.
                               -- This last wake time may be old thus the thread
                               -- may not be sleeping anymore.
-traps = traps or WeakKeys() -- Table mapping threads to the function that must
-                            -- be executed when the thread finishes.
+if cothread.traps == nil then
+	cothread.traps = WeakKeys() -- Table mapping threads to the function that
+	                            -- must be executed when the thread finishes.
+end
 
 --------------------------------------------------------------------------------
 -- Internal Functions ----------------------------------------------------------
@@ -214,7 +210,7 @@ local function cancelblock(thread)
 	and type(signal) ~= "thread"
 	then
 		scheduled:remove(signal)
-		if signalcanceled then signalcanceled(signal) end
+		if cothread.signalcanceled then cothread.signalcanceled(signal) end
 	end
 end
 
@@ -222,7 +218,7 @@ end
 -- Introspection Support -------------------------------------------------------
 --------------------------------------------------------------------------------
 
-function isscheduled(thread)
+function cothread.isscheduled(thread)
 	return scheduled[thread] ~= nil
 end
 
@@ -231,10 +227,10 @@ local function nextthread(ending, previous)
 	local thread = scheduled[previous]
 	if thread ~= ending then return thread end
 end
-function ready()
+function cothread.ready()
 	return nextthread, false, false
 end
-function waiting(signal)
+function cothread.waiting(signal)
 	if signal
 		then return nextthread, signal, signal
 		else return nextthread, wakeindex:head(), nil
@@ -252,7 +248,7 @@ local function nextdelayed(state, previous, timestamp)
 	end
 	return thread, timestamp
 end
-function delayed()
+function cothread.delayed()
 	local first = wakeindex:nextnode()
 	if first == nil then return nextthread, nil, nil end
 	local state = { first = first.value, nextwake = wakeindex:nextnode(first) }
@@ -264,7 +260,7 @@ local function nextsignal(_, signal)
 	until signal == nil or (signal and type(signal) ~= "thread")
 	return signal
 end
-function signals()
+function cothread.signals()
 	return nextsignal
 end
 
@@ -295,28 +291,29 @@ end
 
 function findplace.defer(thread, time)                                          --[[VERBOSE]] verbose:threads(thread," will be deferred until ",time)
 	local entry = wakeindex:getnode()
-	local found, previous = wakeindex:findnode(time, entry)
+	local found = wakeindex:findnode(time, entry)
+	local place
 	if found and found.key == time then
-		self:freenode(entry)
-		previous = found.value                                                      --[[VERBOSE]] verbose:threads("wake time of ",thread," is the same as ",previous)
+		wakeindex:freenode(entry)
+		place = found.value                                                         --[[VERBOSE]] verbose:threads("wake time of ",thread," is the same as ",place)
 	else
-		previous = previous.value or placeof[wakeindex:head()] or thread
+		place = placeof[found and found.value or wakeindex:head()] or thread
 		entry.key = time
 		entry.value = thread
 		wakeindex:addto(entry, entry)
 		waketime[thread] = time                                                     --[[VERBOSE]] verbose:threads("wake time of ",thread," was registered")
 	end
-	return previous
+	return place
 end
 
 local defer = findplace.defer
 function findplace.delay(thread, time)
-	return defer(thread, now()+time)
+	return defer(thread, cothread.now()+time)
 end
 
 
 
-function schedule(thread, how, what)
+function cothread.schedule(thread, how, what)
 	local place
 	if how == nil then
 		if thread == lastready then
@@ -346,7 +343,7 @@ function schedule(thread, how, what)
 	return scheduled:add(thread, place)                                           --[[VERBOSE]],verbose:state()
 end
 
-function unschedule(thread)
+function cothread.unschedule(thread)
 	if thread == lastready then
 		lastready = placeof[lastready]
 	elseif not cancelwake(thread) then
@@ -355,7 +352,7 @@ function unschedule(thread)
 	return scheduled:remove(thread)                                               --[[VERBOSE]],verbose:state()
 end
 
-function wakeall(signal, how, what)
+function cothread.wakeall(signal, how, what)
 	local thread = scheduled[signal]
 	if thread ~= nil then
 		local place
@@ -369,17 +366,17 @@ function wakeall(signal, how, what)
 		local last = placeof[signal]
 		scheduled:movefrom(signal, place, last)
 		scheduled:removefrom(signal)                                                --[[VERBOSE]] verbose:threads("all threads waiting for signal ",signal," are ready for execution"); verbose:state()
-		--if signalcanceled then signalcanceled(signal) end
+		--if cothread.signalcanceled then cothread.signalcanceled(signal) end
 		return thread, last
 	end
 end
 
-function cancel(signal)                                                         --[[VERBOSE]] verbose:threads("cancel one thread waiting for signal ",signal)
+function cothread.cancel(signal)                                                --[[VERBOSE]] verbose:threads("cancel one thread waiting for signal ",signal)
 	local thread = scheduled:removefrom(signal)
 	if thread ~= nil then                                                         --[[VERBOSE]] verbose:threads(thread, " waiting for signal ",signal," was unscheduled")
 		if scheduled[signal] == signal then
 			scheduled:removefrom(signal)
-			--if signalcanceled then signalcanceled(signal) end
+			--if cothread.signalcanceled then cothread.signalcanceled(signal) end
 		end                                                                         --[[VERBOSE]] verbose:state()
 		return thread                                                               --[[VERBOSE]] else verbose:threads("no threads waiting signal ",signal)
 	end
@@ -406,21 +403,21 @@ local yieldops = {                                                              
 	idle = true,
 	error = true,
 	
-	isscheduled = isscheduled,
-	ready = ready,
-	waiting = waiting,
-	delayed = delayed,
-	signals = signals,
+	isscheduled = cothread.isscheduled,
+	ready = cothread.ready,
+	waiting = cothread.waiting,
+	delayed = cothread.delayed,
+	signals = cothread.signals,
 	
-	schedule = schedule,
-	unschedule = unschedule,
-	wakeall = wakeall,
-	cancel = cancel,
+	schedule = cothread.schedule,
+	unschedule = cothread.unschedule,
+	wakeall = cothread.wakeall,
+	cancel = cothread.cancel,
 }
 for name, op in pairs(yieldops) do
 	if op == true then
 		yieldops[name] = function (current, ...)
-			return current, _M[name](...)
+			return current, cothread[name](...)
 		end
 	else
 		yieldops[name] = function (current, ...)
@@ -486,7 +483,12 @@ end
 local function wakeupdelayed()
 	local first = wakeindex:head()
 	if first then
-		local remains, time = wakeindex:cropuntil(now(), "orLater") -- exclusive
+		local now = cothread.now()
+		local remains, time = wakeindex:cropuntil(now, "orLater") -- exclusive
+		if time == now then -- make it inclusive if its a perfect match!
+			wakeindex:pop()
+			remains, time = wakeindex:head()
+		end
 		if remains ~= first then
 			local last = placeof[remains or first]
 			scheduled:move(first, lastready, last)                                    --[[VERBOSE]] verbose:threads("delayed ",first," to ",last," are ready for execution")
@@ -495,17 +497,18 @@ local function wakeupdelayed()
 	end
 end
 
+local unschedule = cothread.unschedule
 local function dothread(thread, success, operation, ...)
 	if status(thread) == "suspended" then                                         --[[VERBOSE]] verbose:threads(false, thread," yielded with operation ",operation)
 		return yieldops[operation](thread, ...)
 	end                                                                           --[[VERBOSE]] verbose:threads(false, thread,success and " finished successfully" or " raised an error")
 	-- 'thread' has just finished and is dead now
 	unschedule(thread)
-	local trap = traps[thread]
+	local trap = cothread.traps[thread]
 	if trap then                                                                  --[[VERBOSE]] verbose:threads("executing trap of ",thread)
 		return false, trap(thread, success, operation, ...)
 	elseif not success then                                                       --[[VERBOSE]] verbose:threads("handling error of ",thread)
-		error(thread, operation, ...)
+		cothread.error(thread, operation, ...)
 	end
 	return false, operation, ... -- resume next scheduled thread followed
 end                            -- by the returned values
@@ -570,7 +573,7 @@ local function roundcont(thread, ...)
 	end
 	return nextwake, ...
 end
-function round(thread, ...)                                                     --[[VERBOSE]] verbose:scheduler(true, "scheduling round started")
+function cothread.round(thread, ...)                                            --[[VERBOSE]] verbose:scheduler(true, "scheduling round started")
 	wakeupdelayed()
 	return roundcont(resumeready(thread or lastready, ...))
 end
@@ -590,13 +593,13 @@ end
 --
 local function runcont(nextround, ...)
 	if nextround then
-		if nextround > 0 then idle(nextround) end
-		return run(lastready, ...)
+		if nextround > 0 then cothread.idle(nextround) end
+		return cothread.run(lastready, ...)
 	end
 	return nextround == false, ...
 end
-function run(thread, ...)
-	return runcont(round(thread, ...))
+function cothread.run(thread, ...)
+	return runcont(cothread.round(thread, ...))
 end
 
 --------------------------------------------------------------------------------
@@ -605,7 +608,9 @@ end
 
 --[[VERBOSE]] local Viewer = _G.require "loop.debug.Viewer"
 --[[VERBOSE]] local Verbose = _G.require "loop.debug.Verbose"
---[[VERBOSE]] verbose = Verbose{ viewer = Viewer{ labels = DefaultLabels } }
+--[[VERBOSE]] verbose = Verbose{
+--[[VERBOSE]] 	viewer = Viewer{ labels = DefaultLabels },
+--[[VERBOSE]] }
 --[[VERBOSE]] verbose:newlevel{"threads"}
 --[[VERBOSE]] verbose:newlevel{"scheduler"}
 --[[VERBOSE]] verbose:newlevel{"state"}
@@ -613,6 +618,7 @@ end
 --[[VERBOSE]] 
 --[[VERBOSE]] 
 --[[VERBOSE]] local select = _G.select
+--[[VERBOSE]] local tabop = _G.require("loop.table")
 --[[VERBOSE]] local copy = tabop.copy
 --[[VERBOSE]] function verbose.custom:threads(...)
 --[[VERBOSE]] 	local viewer = self.viewer
@@ -701,6 +707,8 @@ end
 --[[VERBOSE]] 		end
 --[[VERBOSE]] 	end
 --[[VERBOSE]] end
+--[[VERBOSE]] verbose:flag("print", true)
+--[[VERBOSE]] cothread.verbose = verbose
 
 --------------------------------------------------------------------------------
 -- Inspection Support ----------------------------------------------------------
@@ -715,8 +723,7 @@ end
 -- End of Instantiation Code -------------------------------------------------
 --------------------------------------------------------------------------------
 
-	_G.setfenv(1, default) -- Lua 5.2:
-	return attribs
+	return cothread
 end
 
 
@@ -737,15 +744,22 @@ end
 --[[VERBOSE]] end
 --[[VERBOSE]] 
 --[[VERBOSE]] local tostring = _G.tostring
---[[VERBOSE]] local lastused = ""
---[[VERBOSE]] DefaultLabels = memoize(function(value)
---[[VERBOSE]] 	if type(value) == "thread" then
---[[VERBOSE]] 		lastused = nextstr(lastused)
---[[VERBOSE]] 		return lastused
---[[VERBOSE]] 	end
---[[VERBOSE]] 	return tostring(value)
---[[VERBOSE]] end)
+--[[VERBOSE]] local lastused = {thread="",userdata=""}
+--[[VERBOSE]] DefaultLabels = setmetatable({}, {
+--[[VERBOSE]] 	__mode = "k",
+--[[VERBOSE]] 	__index = function(self, value)
+--[[VERBOSE]] 		local type = type(value)
+--[[VERBOSE]] 		local last = lastused[type]
+--[[VERBOSE]] 		if last ~= nil then
+--[[VERBOSE]] 			last = nextstr(last)
+--[[VERBOSE]] 			lastused[type] = last
+--[[VERBOSE]] 			self[value] = last
+--[[VERBOSE]] 			return last
+--[[VERBOSE]] 		end
+--[[VERBOSE]] 		return tostring(value)
+--[[VERBOSE]] 	end,
+--[[VERBOSE]] })
 
 
 
-setmetatable(new(_M), { __call = function(_, attribs) return new(attribs) end })
+return setmetatable(new(), { __call = function(_, ...) return new(...) end })

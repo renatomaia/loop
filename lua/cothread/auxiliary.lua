@@ -8,7 +8,7 @@ local _G = require "_G"
 local stdpcall = _G.pcall
 
 local coroutine = require "coroutine"
-local stdcoroutine = coroutine.create
+local newcoroutine = coroutine.create
 local resume = coroutine.resume
 local stdrunning = coroutine.running
 local yield = coroutine.yield
@@ -19,16 +19,16 @@ local CyclicSets = require "loop.collection.CyclicSets"
 
 
 function coroutine.create(func)
-	local success, result = stdpcall(stdcoro, func)
+	local success, result = stdpcall(newcoroutine, func)
 	if not success then
-		result = stdcoroutine(function(...) return func(...) end)
+		result = newcoroutine(function(...) return func(...) end)
 	end
 	return result
 end
 
 
 
--- 'pcallthreads' contains all chains nested pcall threads as disjoint cyclic
+-- 'pcallthreads' contains all chains of nested pcall threads as disjoint cyclic
 -- sets. The ordering is from the outter call to the inner call. Since the
 -- ordering is cyclic, the current thread (inner call) is succeeded by the
 -- original thread that called the first pcall in the chain (outter call), thus

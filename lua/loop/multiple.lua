@@ -9,7 +9,7 @@ local select = _G.select
 local setmetatable = _G.setmetatable
 
 local table = require "table"
-local unpack = table.unpack
+local unpack = table.unpack or _G.unpack
 
 local loop_table = require "loop.table"
 local copy = loop_table.copy

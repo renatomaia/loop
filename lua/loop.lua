@@ -12,7 +12,7 @@ module "loop"
 local function dummy() end
 
 local function isingle(single, index)
-	if single and not index then
+	if single ~= nil and index == nil then
 		return 1, single
 	end
 end
@@ -37,6 +37,17 @@ for name, default in pairs(ClassOps) do
 		end
 		return method(class, ...)
 	end
+end
+
+function isclass(object)
+	local meta = getmetatable(object)
+	if meta == nil then return false end
+	for name, default in pairs(ClassOps) do
+		if meta[name] == nil and not default then
+			return false
+		end
+	end
+	return true
 end
 
 function getclass(object)

@@ -18,50 +18,50 @@ local socket = require "cothread.socket"
 local waitevent = socket.waitevent
 local cosocket = socket.cosocket
 
-module(...)
-
-function addserver(port, handler)
-	port = cosocket(port)
-	schedule(create(function()
-		while true do
-			local conn, err = port:accept()
-			if conn then
-				yield("resume", create(handler), conn)
-			else
-				break
+return {
+	addserver = function(port, handler)
+		port = cosocket(port)
+		schedule(create(function()
+			while true do
+				local conn, err = port:accept()
+				if conn then
+					yield("resume", create(handler), conn)
+				else
+					break
+				end
 			end
+			port:close()
+		end))
+	end,
+	
+	addthread = function(func, ...)
+		yield("resume", create(func), ...)
+	end,
+	
+	loop = function(timeout)
+		if timeout then
+			while timeout > 0 and round() do
+				local before = now()
+				waitevent(timeout)
+				timeout = timeout - (now()-before)
+			end
+		else
+			return run()
 		end
-		port:close()
-	end))
-end
-
-function addthread(func, ...)
-	yield("resume", create(func), ...)
-end
-
-function loop(timeout)
-	if timeout then
-		while timeout > 0 and round() do
-			local before = now()
-			waitevent(timeout)
-			timeout = timeout - (now()-before)
-		end
-	else
-		return run()
-	end
-end
-
-function step(timeout)
-	waitevent(timeout)
-	round()
-end
-
-function receive(sock, ...)
-	return cosocket(sock):receive(...)
-end
-
-function send(sock, ...)
-	return cosocket(sock):send(...)
-end
-
-wrap = cosocket
+	end,
+	
+	step = function(timeout)
+		waitevent(timeout)
+		round()
+	end,
+	
+	receive = function(sock, ...)
+		return cosocket(sock):receive(...)
+	end,
+	
+	send = function(sock, ...)
+		return cosocket(sock):send(...)
+	end,
+	
+	wrap = cosocket,
+}

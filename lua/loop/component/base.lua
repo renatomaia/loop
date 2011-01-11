@@ -79,7 +79,7 @@ function BaseTemplate:__build(segments)
 			class(segments, port, segments)
 		end
 	end
-	segments.__reference = segments
+	segments.__self = segments
 	for port in pairs(self) do
 		if port == 1
 			then self:__setcontext(segments.__component, segments)

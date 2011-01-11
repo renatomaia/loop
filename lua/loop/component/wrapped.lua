@@ -94,7 +94,7 @@ function BaseTemplate:__build(segments)
 			container[port] = class(state, port, context)
 		end
 	end
-	state.__reference = container.__external
+	state.__self = container.__external
 	for port in pairs(self) do
 		if port == 1
 			then self:__setcontext(segments.__component, context)

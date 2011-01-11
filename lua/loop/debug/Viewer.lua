@@ -10,13 +10,21 @@ local next = _G.next
 local pairs = _G.pairs
 local rawget = _G.rawget
 local rawset = _G.rawset
-local getmetatable = _G.getmetatable
+local getmetatable = _G.debug and _G.debug.getmetatable -- only if available
+                  or _G.getmetatable
 local setmetatable = _G.setmetatable
 local luatostring = _G.tostring
 local loaded = _G.package and _G.package.loaded -- only if available
 
+local math = require "math"
+local huge = math.huge
+
 local string = require "string"
-local format = string.format
+local byte = string.byte
+local find = string.find
+local gmatch = string.gmatch
+local gsub = string.gsub
+local strrep = string.rep
 
 local table = require "table"
 local concat = table.concat
@@ -58,12 +66,67 @@ keywords = {
 	["while"] = true,
 }
 
+local escapecodes = {
+	["\b"] = [[\b]],
+	["\f"] = [[\f]],
+	["\n"] = [[\n]],
+	["\t"] = [[\t]],
+	["\v"] = [[\v]],
+}
+local function escapecode(char)
+	return escapecodes[char] or "\\"..byte(char)
+end
+local function escapechar(char)
+	return "\\"..char
+end
+
 function writevalue(self, buffer, value, history, prefix, maxdepth)
 	local luatype = type(value)
 	if luatype == "nil" or luatype == "boolean" or luatype == "number" then
 		buffer:write(luatostring(value))
 	elseif luatype == "string" then
-		buffer:write(format("%q", value))
+		local quote
+		if self.noaltquotes then
+			quote = self.singlequotes and "'" or '"'
+		else
+			local other
+			if self.singlequotes then
+				quote, other = "'", '"'
+			else
+				quote, other = '"', "'"
+			end
+			if find(value, quote, 1, true) and not find(value, other, 1, true) then
+				quote = other
+			end
+		end
+		if not self.nolongbrackets
+		and not find(value, "[^%d%p%w \n\t]") --no illegal chars for long brackets
+		and find(value, "[\\"..quote.."\n\t]") -- one char that looks ugly in quotes
+		and find(value, "[%d%p%w]") then -- one char that indicates plain text
+			local nesting = {}
+			if find(value, "%[%[") then
+				nesting[0] = true
+			end
+			for level in gmatch(value, "](=*)]") do
+				nesting[#level] = true
+			end
+			if next(nesting) == nil then
+				nesting = ""
+			else
+				for i = 1, huge do
+					if nesting[i] == nil then
+						nesting = strrep("=", i)
+						break
+					end
+				end
+			end
+			local open = find(value, "\n") and "[\n" or "["
+			buffer:write("[", nesting, open, value, "]", nesting, "]")
+		else
+			value = gsub(value, "[\\"..quote.."]", escapechar)
+			value = gsub(value, "[^%d%p%w ]", escapecode)
+			buffer:write(quote, value, quote)
+		end
 	else
 		local label = history[value]
 		if label then
@@ -86,9 +149,10 @@ function writevalue(self, buffer, value, history, prefix, maxdepth)
 					else
 						maxdepth = maxdepth - 1
 						local newprefix = prefix..self.indentation
+						local linebreak = self.linebreak
 						if not self.noarrays then
 							for i = 1, #value do
-								buffer:write(self.linebreak, newprefix)
+								buffer:write(linebreak, newprefix)
 								if not self.noindices then buffer:write("[", i, "] = ") end
 								self:writevalue(buffer, value[i], history, newprefix, maxdepth)
 								buffer:write(",")
@@ -100,7 +164,7 @@ function writevalue(self, buffer, value, history, prefix, maxdepth)
 							or keytype ~= "number"
 							or key<=0 or key>#value or (key%1)~=0
 							then
-								buffer:write(self.linebreak, newprefix)
+								buffer:write(linebreak, newprefix)
 								if not self.nostructs
 								and keytype == "string"
 								and not self.keywords[key]
@@ -118,7 +182,7 @@ function writevalue(self, buffer, value, history, prefix, maxdepth)
 							end
 							key, field = next(value, key)
 						until key == nil
-						buffer:write(self.linebreak, prefix)
+						buffer:write(linebreak, prefix)
 					end
 				elseif not self.nolabels then
 					buffer:write(" ")
@@ -172,17 +236,21 @@ end
 
 function label(self, value)
 	local meta = getmetatable(value)
-	if meta then
+	if type(meta) == "table" then
 		local custom = rawget(meta, "__tostring")
-		if custom then
+		if custom ~= nil then
 			rawset(meta, "__tostring", nil)
 			local raw = luatostring(value)
 			rawset(meta, "__tostring", custom)
-			custom = luatostring(value)
-			if raw == custom
-				then return raw
-				else return custom.." ("..raw..")"
+			if self.tostringmeta then
+				custom = luatostring(value)
+				if custom ~= raw then
+					custom = custom.." ("..raw..")"
+				end
+			else
+				custom = raw
 			end
+			return custom
 		end
 	end
 	return luatostring(value)

@@ -4,6 +4,7 @@
 -- Author : Renato Maia <maia@inf.puc-rio.br>
 
 local _G = require "_G"
+local getmetatable = _G.getmetatable
 local pairs = _G.pairs
 local setmetatable = _G.setmetatable
 local rawget = _G.rawget
@@ -35,15 +36,18 @@ function class(class, super)
 end
 
 function isclass(class)
-	local metaclass = getclass(class)
+	local metaclass = getmetatable(class)
 	if metaclass ~= nil then
-		return metaclass == rawget(DerivedMeta, metaclass.__index) or
-		       base_isclass(class)
+		local super = metaclass.__index
+		if metaclass == rawget(DerivedMeta, super) then
+			return true
+		end
+		return base_isclass(class)
 	end
 end
 
 function getsuper(class)
-	local metaclass = getclass(class)
+	local metaclass = getmetatable(class)
 	if metaclass ~= nil then
 		local super = metaclass.__index
 		if metaclass == rawget(DerivedMeta, super) then

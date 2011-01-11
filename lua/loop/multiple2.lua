@@ -10,7 +10,7 @@ local setmetatable = _G.setmetatable
 local type = _G.type
 
 local table = require "table"
-local unpack = table.unpack
+local unpack = table.unpack or _G.unpack
 
 local proto = require "loop.proto"
 local clone = proto.clone

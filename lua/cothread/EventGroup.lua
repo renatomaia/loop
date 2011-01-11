@@ -3,7 +3,7 @@
 -- Author : Renato Maia <maia@inf.puc-rio.br>
 
 local _G = require "_G"
-local ipairs = _G.ipairs
+local pairs = _G.pairs
 
 local coroutine = require "coroutine"
 local create = coroutine.create
@@ -11,85 +11,101 @@ local yield = coroutine.yield
 local resume = coroutine.resume
 local running = coroutine.running
 
-local tabop = require "loop.table"
-local memoize = tabop.memoize
-
 local oo = require "loop.base"
 local class = oo.class
 local rawnew = oo.rawnew
 
-module(...)
-
-
-local function activate(self)
-	local threads = self.threads
-	for index, thread in ipairs(threads) do
-		yield("schedule", thread, "wait", self[index])
-	end
-	local timer = threads.timer
-	if timer then
-		yield("schedule", timer, "delay", self.timeout)
-	end
-	self.active = true
-end
-
-local function deactivate(self)
-	for _, thread in ipairs(self.threads) do
-		yield("unschedule", thread)
-	end
-	self.active = false
-end
-
-local function notifierbody(group, event, ...)
+local function eventbody(self, event, ...)
 	yield() -- initialization finished
 	while true do
-		yield("wakeall", group, "after", running())
-		deactivate(group)
-		yield("suspend", event, ...)
+		yield("wakeall", self, "after", running())
+		yield("wait", event, event, ...)
 	end
 end
 
-local function notifier(group, ...)
-	local thread = create(notifierbody)
+local function timerbody(self, ...)
+	yield() -- initialization finished
+	while true do
+		yield("wakeall", self, "after", running())
+		yield("pause", nil, ...) -- from now on it is triggered as soon as possible
+	end
+end
+
+local function notifier(group, body, ...)
+	local thread = create(body)
 	resume(thread, group, ...)
 	return thread
 end
 
 
-local EventGroup = class(_M)
+local WeakKeys = class{__mode = "k"}
+local timeoutOf = WeakKeys()
+local timerOf = WeakKeys()
 
-function EventGroup:__new(group, ...)
-	self = rawnew(self, group)
-	local threads = {}
-	for index, event in ipairs(self) do
-		threads[index] = notifier(self, event, ...)
+
+local EventGroup = class()
+
+function EventGroup:add(event, ...)
+	local thread = self[event]
+	if not thread then
+		thread = notifier(self, eventbody, event, ...)
+		self[event] = thread
+		return yield("schedule", thread, "wait", event) ~= nil
 	end
-	local timeout = self.timeout
-	if timeout then
-		threads.timer = notifier(self, nil, ...)
-	end
-	self.threads = threads
-	return self
 end
 
+function EventGroup:remove(event)
+	local thread = self[event]
+	if not thread then
+		self[event] = nil
+		return yield("unschedule", thread) ~= nil
+	end
+end
+
+function EventGroup:settimeout(timeout, ...)
+	if timeout ~= timeoutOf[self] then
+		local timer = timerOf[self]
+		if timeout then
+			timeoutOf[self] = timeout
+			if not timer then
+				timer = notifier(self, timerbody, ...)
+				timerOf[self] = timer
+			end
+			return yield("schedule", timer, "defer", timeout) ~= nil
+		elseif timer then
+			timeoutOf[self] = nil
+			timerOf[self] = nil
+			return yield("unschedule", timer) ~= nil
+		end
+	end
+end
+
+function EventGroup:gettimeout()
+	return timeoutOf[self]
+end
+
+
+local function waitcont(...)
+	yield("pause", ...) -- pass values to the next thread
+	return ...
+end
 function EventGroup:wait(...)
-	if not self.active then activate(self) end
-	yield("pause", yield("wait", self, ...)) -- pass values to the next thread
-	return event
+	return waitcont(yield("wait", self, ...))
 end
 
 function EventGroup:wakeall(...)
-	if self.active then deactivate(self) end
 	return yield("wakeall", self, ...)
 end
 
-function EventGroup:cancel(...)
-	local thread = yield("cancel", self)
-	if self.active and not yield("isscheduled", self) then
-		deactivate(self)
-	end
-	return thread
+function EventGroup:cancel()
+	return yield("cancel", self)
 end
+
+function EventGroup:iterate()
+	return pairs(self)
+end
+
+return EventGroup
 
 --------------------------------------------------------------------------------
 -- Sample Usage ----------------------------------------------------------------
@@ -99,10 +115,16 @@ end
 --
 --function receive(socket, timeout)
 --	if timeout then
---		local events = EventGroup{ socket, timeout=timeout }
---		if events:wait() ~= socket then
---			return nil, "timeout"
+--		local events = EventGroup()
+--		events:settimeout(timeout)
+--		events:add(socket)
+--		local timeout
+--		timeout = (events:wait() == nil)
+--		for event in events:iterate() do
+--			events:remove(event)
 --		end
+--		events:settimeout(nil)
+--		if timeout then return nil, "timeout" end
 --	else
 --		yield("wait", socket)
 --	end

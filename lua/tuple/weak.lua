@@ -1,5 +1,5 @@
 -- Project: Lua Tuple
--- Release: 2.3 beta
+-- Release: 1.0 alpha
 -- Title  : Collectable Internalized Tokens that Represent a Tuple of Values
 -- Author : Renato Maia <maia@inf.puc-rio.br>
 
@@ -10,33 +10,39 @@ local next = _G.next
 local newproxy = _G.newproxy
 local pairs = _G.pairs
 local select = _G.select
+local setmetatable = _G.setmetatable
 local tostring = _G.tostring
 local type = _G.type
 
 local table = require "table"
 local concat = table.concat
-local unpacktab = table.unpack
+local unpacktab = table.unpack or _G.unpack
 
-local tabop = require "loop.table"
-local memoize = tabop.memoize
 
-local oo = require "loop.base"
-local class = oo.class
 
-module(...)
+local function memoize(func, weak)
+	return setmetatable({}, {
+		__mode = weak,
+		__index = function(self, input)
+			local output = func(input)
+			self[input] = output
+			return output
+		end,
+	})
+end
 
-local WeakKeys = class{__mode="k"}
-local WeakValues = class{__mode="v"}
-local WeakTable = class{__mode="kv"}
+local WeakKeys = {__mode="k"}
+local WeakValues = {__mode="v"}
+local WeakTable = {__mode="kv"}
 
 
 
 -- from a tuple to values (weak mode == "kv")
-local ParentOf = WeakTable()
-local ValueOf = WeakTable()
-local SizeOf = WeakKeys()
+local ParentOf = setmetatable({}, WeakTable)
+local ValueOf = setmetatable({}, WeakTable)
+local SizeOf = setmetatable({}, WeakKeys)
 
-function unpack(tuple)
+local function unpack(tuple)
 	local values = {}
 	local size = SizeOf[tuple]
 	for i = size, 1, -1 do
@@ -45,19 +51,20 @@ function unpack(tuple)
 	return unpacktab(values, 1, size)
 end
 
-function size(tuple)
+local function size(tuple)
 	return SizeOf[tuple]
 end
 
 
 
+local index -- main tuple that represents the empty tuple
 local UseTrapOf -- trap to be collected when a tuple is not used (see below)
-local UseMarkOf = WeakKeys() -- mark that a tuple uses its parent
+local UseMarkOf = setmetatable({}, WeakKeys) -- mark that tuple uses its parent
 local UseTrapCnt -- number of available/freed usetraps (see 'clearpools')
 local UseTrapPool -- list of available/freed usetraps (see 'clearpools')
 
 -- free all resources of a tuple if it is not used anymore
-function freetuple(tuple)
+local function freetuple(tuple)
 	while next(tuple) == nil do -- no [value]=subtuple nor [map]=usetrap
 		local usetrap = UseTrapOf[tuple]
 		if usetrap then
@@ -88,7 +95,7 @@ UseTrapOf = memoize(function(tuple)
 	if UseTrapCnt == 0 then
 		trap = newproxy(true)
 		local meta = getmetatable(trap)
-		WeakValues(meta) -- allow that value of field 'tuple' be collected
+		setmetatable(meta, WeakValues) -- let value of field 'tuple' to be collected
 		meta.tuple = tuple
 		meta.__gc = unused -- won't be collected because it is a local function
 	else
@@ -103,10 +110,10 @@ end, "kv")
 
 
 -- from values to a tuple (weak mode == "k")
-local Tuple = class{__mode="k", __len=size}
+local Tuple = {__mode="k", __len=size}
 
 function Tuple:__index(value)
-	local tuple = Tuple()
+	local tuple = setmetatable({}, Tuple)
 	ParentOf[tuple] = self
 	ValueOf[tuple] = value
 	SizeOf[tuple] = SizeOf[self]+1
@@ -137,11 +144,11 @@ function Tuple:__tostring()
 end
 
 -- main tuple that represents the empty tuple
-index = Tuple()
+index = setmetatable({}, Tuple)
 SizeOf[index] = 0
 
 -- find a tuple given its values
-function create(...)
+local function create(...)
 	local tuple = index
 	for i = 1, select("#", ...) do
 		tuple = tuple[select(i, ...)]
@@ -170,7 +177,7 @@ local function newentrytrap()
 	if EntryTrapCnt == 0 then
 		trap = newproxy(true)
 		local meta = getmetatable(trap)
-		WeakKeys(meta) -- allow that trapped tuple be collected
+		setmetatable(meta, WeakKeys) -- allow that trapped tuple be collected
 		meta.__gc = entrytrap
 		meta.__index = meta -- easy/fast access to table
 		meta.__newindex = meta -- easy/fast access to table
@@ -213,7 +220,7 @@ local EntryTrapsOf = memoize(function(map)
 	return false
 end, "k")
 
-function setkey(map, tuple, value)
+local function setkey(map, tuple, value)
 	local trap = EntryTrapsOf[map]
 	if trap then
 		local old = map[tuple]
@@ -232,7 +239,7 @@ function setkey(map, tuple, value)
 	end
 end
 
-function getkey(map, tuple)
+local function getkey(map, tuple)
 	local value = map[tuple]
 	if value == nil then freetuple(tuple) end
 	return value
@@ -240,7 +247,7 @@ end
 
 
 
-function clearpools()
+local function clearpools()
 	UseTrapCnt = 0
 	UseTrapPool = {}
 	EntryTrapCnt = 0
@@ -249,21 +256,35 @@ end
 
 clearpools()
 
-function emptystate()
-	return (_G.next(ParentOf) == nil)
-	   and (_G.next(ValueOf) == nil)
-	   and (_G.next(SizeOf) == index and _G.next(SizeOf, index) == nil)
-	   and (_G.next(UseTrapOf) == nil)
-	   and (_G.next(UseMarkOf) == nil)
-	   and (_G.next(index) == nil)
+
+
+return {
+	index = index,
+	create = create,
+	unpack = unpack,
+	size = size,
 	
-	or (function()
-		local Viewer = _G.require "loop.debug.Viewer"
-		Viewer:print("ParentOf ", ParentOf)
-		Viewer:print("ValueOf  ", ValueOf)
-		Viewer:print("SizeOf   ", SizeOf)
-		Viewer:print("UseTrapOf", UseTrapOf)
-		Viewer:print("UseMarkOf", UseMarkOf)
-		Viewer:print("index    ", index)
-	end)()
-end
+	setkey = setkey,
+	getkey = getkey,
+	freetuple = freetuple,
+	clearpools = clearpools,
+	
+	emptystate = function()
+		return (_G.next(ParentOf) == nil)
+		   and (_G.next(ValueOf) == nil)
+		   and (_G.next(SizeOf) == index and _G.next(SizeOf, index) == nil)
+		   and (_G.next(UseTrapOf) == nil)
+		   and (_G.next(UseMarkOf) == nil)
+		   and (_G.next(index) == nil)
+		
+		or (function()
+			local Viewer = _G.require "loop.debug.Viewer"
+			Viewer:print("ParentOf ", ParentOf)
+			Viewer:print("ValueOf  ", ValueOf)
+			Viewer:print("SizeOf   ", SizeOf)
+			Viewer:print("UseTrapOf", UseTrapOf)
+			Viewer:print("UseMarkOf", UseMarkOf)
+			Viewer:print("index    ", index)
+		end)()
+	end,
+}

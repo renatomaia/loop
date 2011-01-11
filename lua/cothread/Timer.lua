@@ -10,36 +10,35 @@ local oo = require "loop.base"
 local class = oo.class
 local rawnew = oo.rawnew
 
-module(...)
-
 
 local function timer(self)
-	self:action()
-	local started = self.started
-	if started then
-		local rate = self.rate
-		local now = yield("now")
-		local count = (now-started)%rate
-		yield("defer", started+rate*(count+1))
-	else
-		yield("suspend")
+	while true do
+		self:action()
+		local started = self.started
+		if started then
+			local rate = self.rate
+			local now = yield("now")
+			local elapsed = (now-started)%rate
+			yield("defer", now+rate-elapsed)
+		else
+			yield("suspend")
+		end
 	end
-	return timer(self)
 end
 
 
-local Timer = class(_M)
+local Timer = class()
 
 function Timer:__new(...)
 	self = rawnew(self, ...)
-	self.timer = create(timer)
+	self.thread = create(timer)
 	return self
 end
 
 function Timer:enable()
-	if self.started then
+	if not self.started then
 		self.started = yield("now")
-		yield("resume", self.timer, self)
+		yield("resume", self.thread, self)
 		return true
 	end
 end
@@ -47,7 +46,9 @@ end
 function Timer:disable()
 	if self.started then
 		self.started = nil
-		yield("unschedule", self.timer)
+		yield("unschedule", self.thread)
 		return true
 	end
 end
+
+return Timer
