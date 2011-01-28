@@ -5,7 +5,7 @@ local function newsub()
 	return function(...)
 		local prev = data
 		data = { n = select("#", ...), ... }
-		return table.unpack(prev, 1, prev.n)
+		return unpack(prev, 1, prev.n)
 	end
 end
 
@@ -24,9 +24,9 @@ return function(checks)
 	
 	for _, sub in ipairs{ sub1, sub2, sub3 } do
 		local val1, val2, val3 = sub()
-		checks:assert(val1, checks.is(1))
-		checks:assert(val2, checks.is("first"))
-		checks:assert(val3, checks.is("event"))
+		assert(val1 == 1)
+		assert(val2 == "first")
+		assert(val3 == "event")
 	end
 	
 	sub1 = { push = sub1 }
@@ -41,27 +41,27 @@ return function(checks)
 	
 	for _, sub in ipairs{ sub1, sub2, sub3 } do
 		local self, val1, val2, val3 = sub:push()
-		checks:assert(self, checks.is(sub))
-		checks:assert(val1, checks.is(2))
-		checks:assert(val2, checks.is("second"))
-		checks:assert(val3, checks.is("event"))
+		assert(self == sub)
+		assert(val1 == 2)
+		assert(val2 == "second")
+		assert(val3 == "event")
 	end
 	
 	pub.third = 3
 	
-	checks:assert(sub1.third, checks.is(3))
-	checks:assert(sub2.third, checks.is(3))
-	checks:assert(sub3.third, checks.is(3))
+	assert(sub1.third == 3)
+	assert(sub2.third == 3)
+	assert(sub3.third == 3)
 	
-	checks:assert(not pcall(function()
+	assert(not pcall(function()
 		pub:fake(pub:push(4, "forth", "event"))
 	end), "fake method did not raise an error.")
 	
 	for _, sub in ipairs{ sub1, sub2, sub3 } do
 		local self, val1, val2, val3 = sub:push()
-		checks:assert(self, checks.is(sub))
-		checks:assert(val1, checks.is(4))
-		checks:assert(val2, checks.is("forth"))
-		checks:assert(val3, checks.is("event"))
+		assert(self == sub)
+		assert(val1 == 4)
+		assert(val2 == "forth")
+		assert(val3 == "event")
 	end
 end

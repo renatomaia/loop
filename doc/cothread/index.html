@@ -30,7 +30,7 @@ It is also expected that additional libraries built on top of <code>cothread</co
 
 <p>Each scheduled thread is either on a queue to be resumed as soon as possible (ready threads) or on one of the queues of threads to be resumed after some particular event (waiting threads), which can be a timeout or a signal from the application.
 A signal can be any single Lua value, except <code>nil</code>, <code>false</code> and threads.
-A timeout is an special kind of internal signal automatically emitted by the scheduler itself after que time of the system reaches some value.
+A timeout is an special kind of internal signal automatically emitted by the scheduler itself after the time of the system reaches some value.
 On the other hand, the application or an external library can emit ordinary signals that also represent timeouts thus providing an alternative timeout mechanism.
 Ordinary signals does not interfer with the internal timeout mechanism of the scheduler.</p>
 
@@ -174,7 +174,7 @@ The performance of this iterator is poor and degrades linearly to the number of 
 <p>These functions are type-checked functions equivalent to <code>coroutine.yield("funcname", ...)</code>, where <code>funcname</code> is the name of the function and <code>...</code> are the function's parameters.
 Therefore, when writing libraries or performance critical code favor <code>coroutine.yield("yield", thread, ...)</code> instead of <code>cothread.yield(thread, ...)</code>.</p>
 
-<p>The following functions receives additional parameters that are passed to the next resumed thread or returned by <code>cothread.round</code> or <code>cothread.run</code> if not more threads are resumed.
+<p>The following functions receives additional parameters that are passed to the next resumed thread or returned by <code>cothread.round</code> or <code>cothread.run</code> if no more threads are resumed.
 When the suspended thread is resumed again this function returns the values provided by the previous resumed thread or the additional parameters provided to the functions <code>cothread.round</code> or <code>cothread.run</code>.</p>
 
 <h4><code>... = cothread.halt(...)</code></h4>
@@ -192,10 +192,12 @@ return cothread.suspend(...)
 </pre></p>
 
 <h4><code>... = cothread.yield(thread, ...)</code></h4>
-<p>Function that suspends the execution of the current running thread and yield its turn to execute to <code>thread</code> which is resumed immediately after.</p>
+<p>Function that suspends the execution of the current running thread and yield its turn to execute to <code>thread</code> which is resumed immediately after.
+If <code>thread</code> is <code>nil</code> or <code>false</code> then this function behaves like <code>cothread.suspend</code>.</p>
 
 <h4><code>... = cothread.resume(thread, ...)</code></h4>
 <p>Function that suspends the execution of the current running thread and yield its turn to execute to <code>thread</code> which is resumed immediately after. But it also reschedules the current thread so it to be resumed later.
+If <code>thread</code> is <code>nil</code> or <code>false</code> then this function behaves like <code>cothread.pause</code>.
 It is an optimized equivalent to:
 <pre>
 cothread.schedule(coroutine.running())

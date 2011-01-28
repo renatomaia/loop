@@ -8,20 +8,20 @@ local Suite = require "loop.test.Suite"
 
 local Tests = {
 	AddPorts = require "loop.tests.component.AddPorts",
-	--Context  = require "loop.tests.component.Context",
+	Context  = require "loop.tests.component.Context",
 }
 
 local FullSuite = Suite()
-for name, maketest in pairs(Tests) do
+for name, test in pairs(Tests) do
 	FullSuite[name] = Suite{
-		BasePortsOnBaseComps             = maketest(base     , base       ),
-		BasePortsOnWrappedComps          = maketest(wrapped  , base       ),
-		BasePortsOnContainedComps        = maketest(contained, base       ),
-		BasePortsOnDynamicComps          = maketest(dynamic  , base       ),
-		InterceptedPortsOnBaseComps      = maketest(base     , intercepted),
-		InterceptedPortsOnWrappedComps   = maketest(wrapped  , intercepted),
-		InterceptedPortsOnContainedComps = maketest(contained, intercepted),
-		InterceptedPortsOnDynamicComps   = maketest(dynamic  , intercepted),
+		BasePortsOnBaseComps             = function() return test(base     , base       ) end,
+		BasePortsOnWrappedComps          = function() return test(wrapped  , base       ) end,
+		BasePortsOnContainedComps        = function() return test(contained, base       ) end,
+		BasePortsOnDynamicComps          = function() return test(dynamic  , base       ) end,
+		InterceptedPortsOnBaseComps      = function() return test(base     , intercepted) end,
+		InterceptedPortsOnWrappedComps   = function() return test(wrapped  , intercepted) end,
+		InterceptedPortsOnContainedComps = function() return test(contained, intercepted) end,
+		InterceptedPortsOnDynamicComps   = function() return test(dynamic  , intercepted) end,
 	}
 end
 return FullSuite

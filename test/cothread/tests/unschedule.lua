@@ -1,4 +1,4 @@
-return function(checks)
+return function()
 	local Dummies = {}
 	for i = 1, 6 do
 		local thread = newtask("Dummy"..i)
@@ -15,41 +15,32 @@ return function(checks)
 	
 	for i, dummy in ipairs(Dummies) do
 		if i%2==0 then
-			checks:assert(
-				cothread.unschedule(Dummies[i]),
-				checks.is(Dummies[i]))
+			assert(cothread.unschedule(Dummies[i]) == Dummies[i])
 		end
 	end
 	for i = 1, #Scheduled/2 do
-		checks:assert(
-			cothread.unschedule(Scheduled[i]),
-			checks.is(Scheduled[i]))
+		assert(cothread.unschedule(Scheduled[i]) == Scheduled[i])
 	end
 	
 	local Unscheduler = newtask("Unscheduler", function()
 		for i, thread in ipairs(Dummies) do
-			checks:assert(
-				yield("unschedule", thread),
-				checks.is((i%2==1) and thread or nil))
+			assert(yield("unschedule", thread) == (i%2==1 and thread or nil))
 		end
 		for i, thread in ipairs(Scheduled) do
-			checks:assert(
-				yield("unschedule", thread),
-				checks.is((i>#Scheduled/2) and thread or nil))
+			assert(yield("unschedule", thread) == (i>#Scheduled/2 and thread or nil))
 		end
 	end)
 	cothread.schedule(Unscheduler)
 	
 	resetlog()
 	cothread.run()
-	checks:assert(EventLog, checks.similar{
+	checklog{
 		"Dummy1 started",
 		"Dummy3 started",
 		"AfterDummy2 started",
 		"Dummy5 started",
 		"Unscheduler started",
 		"Unscheduler ended",
-	})
-	
-	checkend(checks, cothread)
+	}
+	checkend(cothread)
 end

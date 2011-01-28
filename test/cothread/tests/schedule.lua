@@ -1,7 +1,7 @@
-return function(checks)
+return function()
 	local Dummies = {}
 	for i = 1, 5 do
-		local thread = newtask("Dummy"..i, dummybody)
+		local thread = newtask("Dummy"..i)
 		Dummies[#Dummies+1] = thread
 		cothread.schedule(thread)
 	end
@@ -10,34 +10,20 @@ return function(checks)
 	local Future = newtask("Future")
 	local Blocked = newtask("Blocked")
 	local Unblocker = newtask("Unblocker", function()
-		checks:assert(
-			yield("cancel", "My Signal"),
-			checks.is(Blocked))
-		checks:assert(
-			yield("schedule", Blocked),
-			checks.is(Blocked))
+		assert(yield("cancel", "My Signal") == Blocked)
+		assert(yield("schedule", Blocked) == Blocked)
 	end)
 	local AfterDummy = newtask("AfterDummy", function()
-		checks:assert(
-			yield("schedule", Unblocker),
-			checks.is(Unblocker))
+		assert(yield("schedule", Unblocker) == Unblocker)
 	end)
 	
-	checks:assert(
-		cothread.schedule(AfterDummy, "after", Dummies[3]),
-		checks.is(AfterDummy))
-	checks:assert(
-		cothread.schedule(Delayed, "delay", 1),
-		checks.is(Delayed))
-	checks:assert(
-		cothread.schedule(Future, "defer", cothread.now()+1),
-		checks.is(Future))
-	checks:assert(
-		cothread.schedule(Blocked, "wait", "My Signal"),
-		checks.is(Blocked))
+	assert(cothread.schedule(AfterDummy, "after", Dummies[3]) == AfterDummy)
+	assert(cothread.schedule(Delayed, "delay", 1) == Delayed)
+	assert(cothread.schedule(Future, "defer", cothread.now()+1) == Future)
+	assert(cothread.schedule(Blocked, "wait", "My Signal") == Blocked)
 	
 	cothread.run()
-	checks:assert(EventLog, checks.similar{
+	checklog{
 		"Dummy1 started",
 		"Dummy2 started",
 		"Dummy3 started",
@@ -58,7 +44,6 @@ return function(checks)
 		"Future started",
 		"Delayed ended",
 		"Future ended",
-	})
-	
-	checkend(checks, cothread)
+	}
+	checkend(cothread)
 end

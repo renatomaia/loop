@@ -20,7 +20,6 @@ print()
 
 do -- find all references to a value
 	local subject = Crawler
-	local count = 0
 	local crawler = Crawler()
 	function crawler:foundvalue(value, visited, from, kind, ...)
 		if value == subject then
@@ -37,8 +36,7 @@ end
 
 print()
 
--- shortest path to a object
-do
+do -- shortest path to a object
 	local function shortestpath(...)
 		local roots = tabop.memoize(function() return {} end)
 		local to_from = tabop.memoize(function()

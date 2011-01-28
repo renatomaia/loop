@@ -1,4 +1,4 @@
-return function(checks)
+return function()
 	local Blocked = newtask("Blocked", function()
 		yield("pause")
 		say("Blocked", "resumed")
@@ -15,25 +15,25 @@ return function(checks)
 	end)
 	
 	cothread.run(Resumer)
-	checks:assert(EventLog, checks.similar{
+	checklog{
 		"Resumer started",
 		"Blocked started",
-	})
+	}
 	
 	resetlog()
 	cothread.run(Resumer)
-	checks:assert(EventLog, checks.similar{
+	checklog{
 		"Resumer resumed",
 		"Blocked resumed",
-	})
+	}
 	
 	resetlog()
 	cothread.run(Resumer)
-	checks:assert(EventLog, checks.similar{
+	checklog{
 		"Resumer resumed again",
 		"Resumer ended",
 		"Blocked ended",
-	})
+	}
 	
-	checkend(checks, cothread)
+	checkend(cothread)
 end

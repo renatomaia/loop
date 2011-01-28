@@ -1,15 +1,6 @@
 local Wrapper = require "loop.object.Wrapper"
 
-local function newsub()
-	local data = {}
-	return function(...)
-		local prev = data
-		data = { n = select("#", ...), ... }
-		return unpack(prev, 1, prev.n)
-	end
-end
-
-return function(checks)
+return function()
 	local object = {}
 	function object:echo(...)
 		self.data = { n = select("#", ...)+1, self, ... }
@@ -25,20 +16,20 @@ return function(checks)
 	
 	wrapper:echo(1, "first", object, wrapper)
 	
-	checks:assert(wrapper.data.n, checks.is(5))
-	checks:assert(wrapper.data[1], checks.is(object))
-	checks:assert(wrapper.data[2], checks.is(1))
-	checks:assert(wrapper.data[3], checks.is("first"))
-	checks:assert(wrapper.data[4], checks.is(object))
-	checks:assert(wrapper.data[5], checks.is(wrapper))
+	assert(wrapper.data.n == 5)
+	assert(wrapper.data[1] == object)
+	assert(wrapper.data[2] == 1)
+	assert(wrapper.data[3] == "first")
+	assert(wrapper.data[4] == object)
+	assert(wrapper.data[5] == wrapper)
 	
-	checks:assert(wrapper:get1(), checks.is(1))
-	checks:assert(wrapper:get2(), checks.is(2))
-	checks:assert(wrapper:get3(), checks.is(-3))
-	checks:assert(wrapper:get4(), checks.is(-4))
+	assert(wrapper:get1() == 1)
+	assert(wrapper:get2() == 2)
+	assert(wrapper:get3() == -3)
+	assert(wrapper:get4() == -4)
 	
-	checks:assert(wrapper:get1(wrapper:get2()), checks.is(1))
-	checks:assert(wrapper:get2(wrapper:get1()), checks.is(2))
+	assert(wrapper:get1(wrapper:get2()) == 1)
+	assert(wrapper:get2(wrapper:get1()) == 2)
 	
 	local fake3, fake4 = wrapper.get3, wrapper.get4
 	
@@ -47,8 +38,8 @@ return function(checks)
 	object.get3 = nil
 	object.get4 = nil
 	
-	checks:assert(wrapper.get1, checks.is(nil))
-	checks:assert(wrapper.get2, checks.is(false))
-	checks:assert(wrapper.get3, checks.is(fake3))
-	checks:assert(wrapper.get4, checks.is(fake4))
+	assert(wrapper.get1 == nil)
+	assert(wrapper.get2 == false)
+	assert(wrapper.get3 == fake3)
+	assert(wrapper.get4 == fake4)
 end

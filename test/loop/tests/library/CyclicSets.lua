@@ -1,3 +1,7 @@
+local checks = require "loop.test.checks"
+local assert = checks.assert
+local like = checks.like
+
 local CyclicSets = require "loop.collection.CyclicSets"
 
 function string.escape(str)
@@ -87,7 +91,7 @@ local autocases = {
 	},
 }
 
-return function(checks)
+return function()
 	local source
 	for path in package.path:gmatch("[^;]+") do
 		path = path:gsub("%?", "loop/collection/CyclicSets")
@@ -105,11 +109,11 @@ return function(checks)
 				local actual = create(pre)
 				local expected = create(pos)
 				local case = CaseFmt:format(tostring(actual), method, showvalues(params))
-				local returned = packres(pcall(actual[method], actual, table.unpack(params, 1, params.n)))
+				local returned = packres(pcall(actual[method], actual, unpack(params, 1, params.n)))
 				local errormsg = ErrorFmt:format(case:format(tostring(expected), showvalues(results)),
 				                                 case:format(tostring(actual), showvalues(returned)))
-				checks:assert(actual, checks.similar(expected, errormsg))
-				checks:assert(returned, checks.similar(results, errormsg))
+				assert(actual, like(expected, errormsg))
+				assert(returned, like(results, errormsg))
 			end
 			local function autotest(index, pre, pos)
 				local case = autocases[index]

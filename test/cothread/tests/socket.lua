@@ -1,6 +1,6 @@
 local portno = 4321
 
-return function(checks)
+return function()
 	local socket = require "cothread.socket"
 	
 	Server = newtask("Server", function(name)
@@ -26,9 +26,7 @@ return function(checks)
 			i = i + 1
 		end
 	end)
-	checks:assert(
-		cothread.schedule(Server),
-		checks.is(Server))
+	assert(cothread.schedule(Server) == Server)
 	
 	for i = 1, 3 do
 		local Client = newtask("Client"..i, function(name)
@@ -44,15 +42,13 @@ return function(checks)
 			
 			assert(conn:close())
 		end)
-		checks:assert(
-			cothread.schedule(Client, "delay", .1),
-			checks.is(Client))
+		assert(cothread.schedule(Client, "delay", .1) == Client)
 	end
 	
 	
 	resetlog()
 	cothread.run()
-	checks:assert(EventLog, checks.similar{ --[[table: 0x16b640]]
+	checklog{
 		"Server started",
 		"Client1 started",
 		"Client2 started",
@@ -66,7 +62,6 @@ return function(checks)
 		"Reader2 ended",
 		"Client3 ended",
 		"Reader3 ended",
-	})
-	
-	checkend(checks, cothread)
+	}
+	checkend(cothread)
 end

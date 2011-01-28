@@ -1,5 +1,3 @@
-local I=require("loop.debug.Inspector")()
-
 local table     = require "loop.table"
 local SortedMap = require "loop.collection.SortedMap"
 

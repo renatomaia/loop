@@ -1,10 +1,8 @@
-return function(checks)
+return function()
 	local PauseSim = newtask("PauseSim", function(name)
 		for i = 1, 2 do
 			local current = running()
-			checks:assert(
-				yield("schedule", current),
-				checks.is(current))
+			assert(yield("schedule", current) == current)
 			say(name, "suspended")
 			yield("suspend")
 			say(name, "rescheduled")
@@ -20,20 +18,18 @@ return function(checks)
 	local PauseSim2 = newtask("PauseSim2", function(name)
 		for i = 1, 2 do
 			local current = running()
-			checks:assert(
-				yield("schedule", current, "after", Dummy),
-				checks.is(current))
+			assert(yield("schedule", current, "after", Dummy) == current)
 			say(name, "suspended")
 			yield("suspend")
 			say(name, "rescheduled")
 		end
 	end)
 	
-	checks:assert(cothread.schedule(PauseSim), checks.is(PauseSim))
-	checks:assert(cothread.schedule(Dummy), checks.is(Dummy))
-	checks:assert(cothread.schedule(PauseSim2), checks.is(PauseSim2))
+	assert(cothread.schedule(PauseSim) == PauseSim)
+	assert(cothread.schedule(Dummy) == Dummy)
+	assert(cothread.schedule(PauseSim2) == PauseSim2)
 	cothread.run()
-	checks:assert(EventLog, checks.similar{
+	checklog{
 		"PauseSim started",
 		"PauseSim suspended",
 		"Dummy started",
@@ -52,7 +48,7 @@ return function(checks)
 		"Dummy ended",
 		"PauseSim2 rescheduled",
 		"PauseSim2 ended",
-	})
+	}
 	
-	checkend(checks, cothread)
+	checkend(cothread)
 end

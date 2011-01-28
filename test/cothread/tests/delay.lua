@@ -2,7 +2,7 @@ local socket = require("socket")
 local now = socket.gettime
 local sleep = socket.sleep
 
-return function(checks)
+return function()
 	cothread.now = now
 	cothread.idle = function(time) sleep(time-now()) end
 	
@@ -12,25 +12,25 @@ return function(checks)
 		local start = now()
 		yield("delay", delay)
 		local time = now()-start
-		checks:assert(time > delay, "no delay: "..time)
+		assert(time > delay, "no delay: "..time)
 	end)
 	
 	local start
 	local Delayed = newtask("Delayed", function()
 		local time = now()-start
-		checks:assert(time > delay, "no delay: "..time)
+		assert(time > delay, "no delay: "..time)
 		yield("yield", Sleeper)
 	end)
 	
-	checks:assert(cothread.schedule(Delayed, "delay", delay), checks.is(Delayed))
+	assert(cothread.schedule(Delayed, "delay", delay) == Delayed)
 
 	start = now()
 	cothread.run()
-	checks:assert(EventLog, checks.similar{
+	checklog{
 		"Delayed started",
 		"Sleeper started",
 		"Sleeper ended",
-	})
+	}
 	
-	checkend(checks, cothread)
+	checkend(cothread)
 end
