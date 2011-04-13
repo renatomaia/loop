@@ -1,46 +1,37 @@
 return function()
-	local Dummies = {}
-	for i = 1, 6 do
-		local thread = newtask("Dummy"..i)
-		Dummies[#Dummies+1] = thread
-		cothread.schedule(thread)
-	end
-	
-	local Scheduled = {}
-	for i = 1, 2 do
-		Scheduled[#Scheduled+1] = cothread.schedule(newtask("AfterDummy"..i), "after", Dummies[3])
-		Scheduled[#Scheduled+1] = cothread.schedule(newtask("Delayed"..i), "delay", 1)
-		Scheduled[#Scheduled+1] = cothread.schedule(newtask("Blocked"..i), "wait", "My Signal")
-	end
-	
-	for i, dummy in ipairs(Dummies) do
-		if i%2==0 then
-			assert(cothread.unschedule(Dummies[i]) == Dummies[i])
-		end
-	end
-	for i = 1, #Scheduled/2 do
-		assert(cothread.unschedule(Scheduled[i]) == Scheduled[i])
-	end
-	
-	local Unscheduler = newtask("Unscheduler", function()
-		for i, thread in ipairs(Dummies) do
-			assert(yield("unschedule", thread) == (i%2==1 and thread or nil))
-		end
-		for i, thread in ipairs(Scheduled) do
-			assert(yield("unschedule", thread) == (i>#Scheduled/2 and thread or nil))
-		end
-	end)
-	cothread.schedule(Unscheduler)
-	
-	resetlog()
-	cothread.run()
-	checklog{
-		"Dummy1 started",
-		"Dummy3 started",
-		"AfterDummy2 started",
-		"Dummy5 started",
-		"Unscheduler started",
-		"Unscheduler ended",
+	newTest{ "A unschedules B",
+		tasks = {
+			A = function(_ENV) assert(unschedule(B) == (OK and B or nil)) end,
+			B = Yielder(2),
+		},
 	}
-	checkend(cothread)
+	-- A unschedules B
+	testCase{A="outer",B="none"    ,OK=false    ,[[ ...   ]]}
+	testCase{A="outer",B="ready"   ,OK=true     ,[[ ...   ]]}
+	testCase{A="none" ,B="none"    ,OK=false    ,[[ A ... ]]}
+	testCase{A="none" ,B="ready"   ,OK=true     ,[[ A ... ]]}
+	testCase{A="ready",B="none"    ,OK=false    ,[[ A ... ]]}
+	testCase{A="ready",B="ready"   ,OK=true     ,[[ A ... ]]}
+	-- A unschedules itself
+	testCase{A="none" ,B="A"       ,OK=false    ,[[ A ... ]]}
+	testCase{A="ready",B="A"       ,OK=true     ,[[ A ... ]]}
+	
+	
+	newTest{ "A yields to unschedule B and then yields again",
+		tasks = {
+			A = function(_ENV)
+				assert(yield("unschedule", B) == (OK and B or nil))
+				yield("yield")
+			end,
+			B = Yielder(2),
+		},
+	}
+	-- A yields to unschedule B and then yields again
+	testCase{A="none" ,B="none"    ,OK=false    ,[[ A A ...       ]]}
+	testCase{A="none" ,B="ready"   ,OK=true     ,[[ A A ...       ]]}
+	testCase{A="ready",B="none"    ,OK=false    ,[[ A A ... A ... ]]}
+	testCase{A="ready",B="ready"   ,OK=true     ,[[ A A ... A ... ]]}
+	-- A yields to unschedule itself and then yields again
+	testCase{A="none" ,B="A"       ,OK=false    ,[[ A A ... ]]}
+	testCase{A="ready",B="A"       ,OK=true     ,[[ A A ... ]]}
 end

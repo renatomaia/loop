@@ -6,383 +6,122 @@
 local _G = require "_G"
 local luaerror = _G.error
 local next = _G.next
-local pairs = _G.pairs
+local select = _G.select
 local setmetatable = _G.setmetatable
-local type = _G.type
 
 local coroutine = require "coroutine"
 local status = coroutine.status
 local resume = coroutine.resume
-local yield = coroutine.yield
-
-local os = require "os"
-local gettime = os.time
-local difftime = os.difftime
-
-local oo = require "loop.base"
-local class = oo.class
-local rawnew = oo.rawnew
 
 local BiCyclicSets = require "loop.collection.BiCyclicSets"
-local SortedMap = require "loop.collection.SortedMap"
 
-local WeakValues = class{ __mode = "v" }
-local WeakKeys   = class{ __mode = "k" }
-local default    = {}
-local traceback  = _G.debug and
-                   	_G.debug.traceback or
-                   	function(_, err) return err end
+local traceback = _G.debug and
+                  	_G.debug.traceback or
+                  	function(_, err) return err end
 
---------------------------------------------------------------------------------
--- Customizable Behavior -------------------------------------------------------
---------------------------------------------------------------------------------
-
-local StartTime = gettime()
-function default.now()
-	return difftime(gettime(), StartTime)
-end
-
-local getnow = default.now
-function default.idle(timeout)
-	repeat until getnow() >= timeout
-end
-
-function default.error(thread, errmsg)
+local function dummy() end
+local function error(thread, errmsg)
 	luaerror(traceback(thread, errmsg))
 end
+local function yielderror(thread)
+	error(thread, "bad yield operation")
+end
 
---------------------------------------------------------------------------------
--- Safe Control Functions ------------------------------------------------------
---------------------------------------------------------------------------------
+local WeakKeys = {__mode = "k"}
+local IndexDummyFunc = {__index = function() return dummy end}
+local IndexYieldError = {__index = function() return yielderror end}
 
-local paramtypes = {
-	halt = false,
-	suspend = false,
-	pause = false,
-	yield = "thread",
-	resume = "thread",
-	delay = "number",
-	defer = "number",
-}
-
-for yieldop, paramtype in pairs(paramtypes) do
-	if not paramtype then
-		default[yieldop] = function(...)
-			return yield(yieldop, ...)
+local function trappedfunc(func, traps)
+	return function(key, ...)
+		local trap = traps[key]
+		if trap ~= nil then
+			trap(key, ...)
 		end
-	else
-		default[yieldop] = function(param, ...)
-			local actualtype = type(param)
-			if actualtype ~= paramtype then
-				luaerror("bad argument #1 to '"..yieldop
-				         .."' ("..paramtype.." expected, got "..actualtype..")")
-			end
-			return yield(yieldop, param, ...)
-		end
+		return func(key, ...)
 	end
 end
 
-function default.wait(signal, ...)
-	if not signal or type(signal) == "thread" then
-		luaerror("bad argument #1 to 'wait' (signal cannot be nil, false nor thread)")
-	end
-	return yield("wait", signal, ...)
-end
+--------------------------------------------------------------------------------
+-- Verbose Support -------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+-- [[VERBOSE]] local string = _G.require "string"
+-- [[VERBOSE]] local strrep = string.rep
+-- [[VERBOSE]] local char = string.char
+-- [[VERBOSE]] local byte = string.byte
+-- [[VERBOSE]] local lastcode = byte("Z")
+-- [[VERBOSE]] local function nextstr(text)
+-- [[VERBOSE]] 	for i = #text, 1, -1 do
+-- [[VERBOSE]] 		local code = text:byte(i)
+-- [[VERBOSE]] 		if code < lastcode then
+-- [[VERBOSE]] 			return text:sub(1,i-1)..char(code+1)..strrep("A", #text-i)
+-- [[VERBOSE]] 		end
+-- [[VERBOSE]] 	end
+-- [[VERBOSE]] 	return strrep("A", #text+1)
+-- [[VERBOSE]] end
+-- [[VERBOSE]] 
+-- [[VERBOSE]] local tostring = _G.tostring
+-- [[VERBOSE]] local lastused = {thread="",userdata=""}
+-- [[VERBOSE]] local DefaultLabels = setmetatable({}, {
+-- [[VERBOSE]] 	__mode = "k",
+-- [[VERBOSE]] 	__index = function(self, value)
+-- [[VERBOSE]] 		local type = type(value)
+-- [[VERBOSE]] 		local last = lastused[type]
+-- [[VERBOSE]] 		if last ~= nil then
+-- [[VERBOSE]] 			last = nextstr(last)
+-- [[VERBOSE]] 			lastused[type] = last
+-- [[VERBOSE]] 			self[value] = last
+-- [[VERBOSE]] 			return last
+-- [[VERBOSE]] 		end
+-- [[VERBOSE]] 		return tostring(value)
+-- [[VERBOSE]] 	end,
+-- [[VERBOSE]] })
 
 --------------------------------------------------------------------------------
 -- Begin of Instantiation Code -------------------------------------------------
 --------------------------------------------------------------------------------
 
-local function new(cothread)                                                    --[[VERBOSE]] local verbose
+local function new(cothread)
+	local _ENV = {}
+	_G.pcall(_G.setfenv, 2, _ENV) -- compatibility with Lua 5.1
+	
 	if cothread == nil then cothread = {} end
-	for field, value in pairs(default) do
-		if cothread[field] == nil then cothread[field] = value end
-	end
 
 --------------------------------------------------------------------------------
 -- Initialization Code ---------------------------------------------------------
 --------------------------------------------------------------------------------
 
-local rescheduled = false -- flag indicating whether the last resumed ready
-                          -- thread was explcicitly rescheduled as ready in the
-                          -- the same position it was before.
-local lastready = false -- Token marking the head of the list of threads ready
-                        -- for execution. When it is not 'false' it also
-                        -- indicate the last resumed thread from the list of
-                        -- threads ready for execution.
-local scheduled = BiCyclicSets()    -- Table containing all scheduled threads.
-local placeof = scheduled:reverse() -- It is organized as disjoint sets, which
-scheduled:add(lastready)            -- values are arranged in cyclic order.
-                                    -- The sets are organized as follows:
-                                    -- 1. One set of threads ready for execution.
-                                    --    This set is always present containing
-                                    --    the value 'false' that also indicates
-                                    --    the "start" and "end" of the set.
-                                    -- 2. At most one set of delayed threads.
-                                    --    This set contains threads in ascending
-                                    --    order of the time they must wake
-                                    --    (except for the point were the last
-                                    --    thread to be waken is followed by the
-                                    --    first one). The exact time each thread
-                                    --    must be waken is maintained in table
-                                    --    'wakeindex'.
-                                    -- 3. Zero or more sets of threads waiting
-                                    --    for a signal. Each set contains the
-                                    --    value of the signal followed by the
-                                    --    threads waiting for it. There is no
-                                    --    set containing only a signal and no
-                                    --    threads.
-local wakeindex = SortedMap{ -- Linked list of wake times of delayed threads in
-	nodepool = WeakValues(),   -- ascesding order. Each entry contains a reference
-}                            -- to the first thread in 'scheduled' that must be
-                             -- waken at that time.
-local waketime = WeakValues() -- Table mapping threads to its last wake time.
-                              -- This last wake time may be old thus the thread
-                              -- may not be sleeping anymore.
+lastready = nil -- Token marking the head of the list of threads ready
+                -- for execution. When it is not 'false' it also
+                -- indicate the last resumed thread from the list of
+                -- threads ready for execution.
+scheduled = BiCyclicSets()    -- Table containing all scheduled threads.
+placeof = scheduled:reverse() -- It is organized as disjoint sets, which
+                              -- values are arranged in cyclic order.
 if cothread.traps == nil then
-	cothread.traps = WeakKeys() -- Table mapping threads to the function that
-	                            -- must be executed when the thread finishes.
+	cothread.traps = setmetatable({}, WeakKeys) -- Table mapping threads to the
+	                                            -- function that must be executed
+	                                            -- when the thread finishes.
+end
+if cothread.error == nil then
+	cothread.error = error -- function that handles errors raised by threads a
+	                       -- defined trap.
 end
 
---------------------------------------------------------------------------------
--- Internal Functions ----------------------------------------------------------
---------------------------------------------------------------------------------
-
---------------------------------------------------------------------------------
--- All expected cases:
+---
+--@param thread
+--	thread being scheduled
+--@param ...
+--	additional parameters passed to operation 'schedule(thread, "name", ...)' or
+--	on 'yield("name", ...)'
 --
--- Arrows indicate changes performed by the method.
--- No arrows means no change.
+--@return place
+--	thread or signal in 'scheduled' where the thread must be placed, or nil if
+--	no suitable place was found
+--@return ...
+--	values to be passed as returned values of this operation to the op. caller
 --
--- waketime  = { ... }
--- wakeindex = { ... }
--- scheduled = [ ... ]
---
--- waketime  = { ... [thread] = time }  --> { ... }
--- wakeindex = { ... }
--- scheduled = [ ... ]
---
--- waketime  = { ... [thread]    = time   }  --> { ... }
--- wakeindex = { ... [entry.key] = thread } --> { ... }
--- scheduled = [ ... thread ]
---
--- waketime  = { ... [thread] = time   } --> { ... [nextthread] = time        }
--- wakeindex = { ... [time]   = thread } --> { ... [time]       = nextthread }
--- scheduled = [ ... thread, nextthread... ]
---
--- waketime  = { ... [thread] = time  , [nextentry.value] = nextentry.key...   } --> { ... [nextentry.value] = nextentry...       }
--- wakeindex = { ... [time]   = thread, [nextentry.key]   = nextentry.value... } --> { ... [nextentry.key]   = nextentry.value... }
--- scheduled = [ ... thread, nextentry.value... ]
---
--- waketime  = { ... [thread] = time  , [nextentry.value] = nextentry.key   } --> { [nextthread] = time      , [nextentry.value] = nextentry.key   }
--- wakeindex = { ... [time]   = thread, [nextentry.key]   = nextentry.value } --> { [time]       = nextthread, [nextentry.key]   = nextentry.value }
--- scheduled = [ ... thread, nextthread..nextentry.value... ]
---
-local function cancelwake(thread)
-	local timestamp = waketime[thread]
-	if timestamp then -- 'thread' *may* be sleeping.
-		waketime[thread] = nil
-		local path = {}
-		local entry = wakeindex:findnode(timestamp, path)
-		if entry ~= nil
-		and entry.key == timestamp
-		and entry.value == thread
-		then -- yes, it is sleeping.
-			local nextentry = wakeindex:nextnode(entry)
-			local nextthread = scheduled[thread]
-			if (nextentry and nextentry.value == nextthread) -- only one in this entry
-			or (nextthread == wakeindex:head())            -- the last in sleeping set
-			then -- no other thread is waiting here
-				wakeindex:removefrom(path, entry)
-			else -- other thread is waiting to wake at the same time
-				entry.value = nextthread
-				waketime[nextthread] = timestamp
-			end                                                                       --[[VERBOSE]] verbose:threads("wake time of delayed thread ",thread," was cancelled")
-			return true
-		end
-	end
-end
-
-local function cancelblock(thread)
-	local signal = scheduled[thread]
-	if signal -- is not 'nil' nor 'false'
-	and scheduled[signal] == thread
-	and type(signal) ~= "thread"
-	then
-		scheduled:remove(signal)
-		if cothread.signalcanceled then cothread.signalcanceled(signal) end
-	end
-end
-
---------------------------------------------------------------------------------
--- Introspection Support -------------------------------------------------------
---------------------------------------------------------------------------------
-
-function cothread.isscheduled(thread)
-	return scheduled[thread] ~= nil
-end
-
-local function nextthread(ending, previous)
-	if previous == nil then return ending end
-	local thread = scheduled[previous]
-	if thread ~= ending then return thread end
-end
-function cothread.ready()
-	return nextthread, false, false
-end
-function cothread.waiting(signal)
-	if signal
-		then return nextthread, signal, signal
-		else return nextthread, wakeindex:head(), nil
-	end
-end
-
-local function nextdelayed(state, previous, timestamp)
-	if previous == nil then return state.first, timestamp end
-	local thread = scheduled[previous]
-	if thread == state.first then return end
-	local nextwake = state.nextwake
-	if nextwake and nextwake.value == thread then
-		state.nextwake = wakeindex:nextnode(nextwake)
-		timestamp = nextwake.key
-	end
-	return thread, timestamp
-end
-function cothread.delayed()
-	local first = wakeindex:nextnode()
-	if first == nil then return nextthread, nil, nil end
-	local state = { first = first.value, nextwake = wakeindex:nextnode(first) }
-	return nextdelayed, state, nil, first.key
-end
-
-local function nextsignal(_, signal)
-	repeat signal = next(scheduled, signal)
-	until signal == nil or (signal and type(signal) ~= "thread")
-	return signal
-end
-function cothread.signals()
-	return nextsignal
-end
-
---------------------------------------------------------------------------------
--- Scheduling Operations -------------------------------------------------------
---------------------------------------------------------------------------------
-
-local function dummy() end
-local findplace = rawnew{ __index = function() return dummy end }
-
-function findplace.after(thread, place)
-	if place == thread then
-		return lastready
-	elseif scheduled[place] ~= nil then
-		return place
-	end
-end
-
-function findplace.wait(_, signal)
-	if signal and type(signal) ~= "thread" then
-		local place = placeof[signal]
-		if signal and place == nil then                                             --[[VERBOSE]] verbose:threads("new signal ",signal," will be registered")
-			place = signal
-		end
-		return place
-	end
-end
-
-function findplace.defer(thread, time)                                          --[[VERBOSE]] verbose:threads(thread," will be deferred until ",time)
-	local entry = wakeindex:getnode()
-	local found = wakeindex:findnode(time, entry)
-	local place
-	if found and found.key == time then
-		wakeindex:freenode(entry)
-		place = found.value                                                         --[[VERBOSE]] verbose:threads("wake time of ",thread," is the same as ",place)
-	else
-		place = placeof[found and found.value or wakeindex:head()] or thread
-		entry.key = time
-		entry.value = thread
-		wakeindex:addto(entry, entry)
-		waketime[thread] = time                                                     --[[VERBOSE]] verbose:threads("wake time of ",thread," was registered")
-	end
-	return place
-end
-
-local defer = findplace.defer
-function findplace.delay(thread, time)
-	return defer(thread, cothread.now()+time)
-end
-
-
-
-function cothread.schedule(thread, how, what)
-	local place
-	if how == nil then
-		if thread == lastready then
-			rescheduled = true
-			return thread
-		end
-		place = placeof[lastready]                                                  --[[VERBOSE]] verbose:threads(thread, " will be scheduled for later execution")
-	else
-		place = findplace[how](thread, what)
-		if place == nil then return end
-		if thread == lastready then
-			local previous = placeof[thread]
-			if place == thread then
-				lastready = previous
-				return thread
-			elseif place == previous then
-				rescheduled = true
-				return thread
-			end
-			lastready = previous
-		end                                                                         --[[VERBOSE]] verbose:threads(thread, " will be scheduled after ",place)
-	end
-	local oldplace = placeof[thread]
-	if oldplace ~= nil then
-		return scheduled:movefrom(oldplace, place)                                  --[[VERBOSE]],verbose:state()
-	end
-	return scheduled:add(thread, place)                                           --[[VERBOSE]],verbose:state()
-end
-
-function cothread.unschedule(thread)
-	if thread == lastready then
-		lastready = placeof[lastready]
-	elseif not cancelwake(thread) then
-		cancelblock(thread)
-	end                                                                           --[[VERBOSE]] verbose:threads(thread, " will be unscheduled")
-	return scheduled:remove(thread)                                               --[[VERBOSE]],verbose:state()
-end
-
-function cothread.wakeall(signal, how, what)
-	local thread = scheduled[signal]
-	if thread ~= nil then
-		local place
-		if how == nil then
-			place = placeof[lastready]
-		else
-			place = findplace[how](thread, what)
-			if place == nil then return end
-			if place == thread then return end
-		end
-		local last = placeof[signal]
-		scheduled:movefrom(signal, place, last)
-		scheduled:removefrom(signal)                                                --[[VERBOSE]] verbose:threads("all threads waiting for signal ",signal," are ready for execution"); verbose:state()
-		--if cothread.signalcanceled then cothread.signalcanceled(signal) end
-		return thread, last
-	end
-end
-
-function cothread.cancel(signal)                                                --[[VERBOSE]] verbose:threads("cancel one thread waiting for signal ",signal)
-	local thread = scheduled:removefrom(signal)
-	if thread ~= nil then                                                         --[[VERBOSE]] verbose:threads(thread, " waiting for signal ",signal," was unscheduled")
-		if scheduled[signal] == signal then
-			scheduled:removefrom(signal)
-			--if cothread.signalcanceled then cothread.signalcanceled(signal) end
-		end                                                                         --[[VERBOSE]] verbose:state()
-		return thread                                                               --[[VERBOSE]] else verbose:threads("no threads waiting signal ",signal)
-	end
-end
-
-
+local findplace = setmetatable({}, IndexDummyFunc)
 
 ---
 --@param current
@@ -390,193 +129,182 @@ end
 --@param ...
 --	operations parameters supplied by thread 'current'.
 --
---@return scheduled
---	thread: thread that must be resumed next
---	false : indicates that a scheduled thread must be resumed next
---	nil   : indicates that the scheduling must stop completely
+--@return next
+--	thread: thread that must be resumed next or nil to resume a scheduled one
 --@return ...
---	values to be passed to the thread that will be resume or returned by
+--	values to be passed to the thread that will be resumed or returned by
 --  'run' if 'scheduled == false' and there are no scheduled threads.
 --
-local yieldops = {                                                              --[[VERBOSE]] verbose = function() return verbose end,
-	now = true,
-	idle = true,
-	error = true,
-	
-	isscheduled = cothread.isscheduled,
-	ready = cothread.ready,
-	waiting = cothread.waiting,
-	delayed = cothread.delayed,
-	signals = cothread.signals,
-	
-	schedule = cothread.schedule,
-	unschedule = cothread.unschedule,
-	wakeall = cothread.wakeall,
-	cancel = cothread.cancel,
-}
-for name, op in pairs(yieldops) do
-	if op == true then
-		yieldops[name] = function (current, ...)
-			return current, cothread[name](...)
-		end
+local yieldops = setmetatable({}, IndexYieldError)
+
+--------------------------------------------------------------------------------
+-- Scheduling Implementation ---------------------------------------------------
+--------------------------------------------------------------------------------
+
+local function removedataof(thread, place)
+	if lastready == thread then
+		lastready = (thread ~= place) and place or nil
+	end
+end
+
+function reschedule(thread, place)
+	local oldplace = placeof[thread]
+	if oldplace == nil then
+		scheduled:add(thread, place)
 	else
+		removedataof(thread, oldplace)
+		scheduled:movefrom(oldplace, place)
+	end
+end
+
+local function unschedule(thread)
+	local place = placeof[thread]
+	if place ~= nil then
+		removedataof(thread, place)                                                 -- [[VERBOSE]] verbose:threads(thread, " unscheduled")
+		return scheduled:removefrom(place)                                          -- [[VERBOSE]],verbose:state()
+	end
+end
+
+local function nextready()
+	lastready = scheduled[lastready] -- get successor
+	return lastready
+end
+
+local function dothread(thread, success, operation, ...)
+	if status(thread) == "suspended" then                                         -- [[VERBOSE]] verbose:threads(false, thread," yielded with operation ",operation)
+		return yieldops[operation](thread, ...)
+	end                                                                           -- [[VERBOSE]] verbose:threads(false, thread,success and " finished successfully" or " raised an error")
+	-- 'thread' has just finished and is dead now
+	unschedule(thread)
+	local trap = cothread.traps[thread]
+	if trap ~= nil then                                                           -- [[VERBOSE]] verbose:threads("executing trap of ",thread)
+		return trap(thread, success, operation, ...)
+	elseif not success then                                                       -- [[VERBOSE]] verbose:threads("handling error of ",thread)
+		return cothread.error(thread, operation, ...)
+	end
+	return nil, operation, ... -- resume next scheduled thread with the results
+end
+
+local function dostep(thread, ...)
+	if thread ~= nil then                                                         -- [[VERBOSE]] verbose:threads(true, "resuming ",thread)
+		return dostep(dothread(thread, resume(thread, ...)))
+	end                                                                           -- [[VERBOSE]] verbose:scheduler(false, "scheduling step ended")
+	return ...
+end
+
+local function dorun(...)
+	local thread = nextready()
+	if thread ~= nil then                                                         -- [[VERBOSE]] verbose:scheduler(true, "scheduling step restarted")
+		return dorun(dostep(thread, ...))
+	end
+	return ...
+end
+
+--------------------------------------------------------------------------------
+-- Plugin Operations -----------------------------------------------------------
+--------------------------------------------------------------------------------
+
+function scheduleop(name, finder)
+	findplace[name] = finder
+	yieldops[name] = function(current, ...)
+		return select(2, finder(current, ...))
+	end
+	return finder
+end
+
+function moduleop(name, op, yieldable)
+	_ENV[name] = op
+	cothread[name] = op
+	if yieldable == "yieldable" then
 		yieldops[name] = function (current, ...)
 			return current, op(...)
 		end
 	end
+	return op
 end
 
-function yieldops.pause(current, ...)
-	if current ~= lastready then
-		scheduled:add(current, placeof[lastready])
-	end                                                                           --[[VERBOSE]] verbose:threads(current," paused and will be resumed later");verbose:state()
-	return false, ...
+function yieldop(name, op)
+	yieldops[name] = op
+	return op
 end
 
-function yieldops.suspend(current, ...)
-	if current == lastready and not rescheduled then
+--------------------------------------------------------------------------------
+-- Scheduling Operations -------------------------------------------------------
+--------------------------------------------------------------------------------
+
+moduleop("unschedule", function(...)
+	return unschedule(...)
+end, "yieldable")
+
+moduleop("schedule", function(thread, how, ...)
+	if how == nil then how = "last" end
+	return findplace[how](thread, ...)
+end, "yieldable")
+
+
+
+scheduleop("next", function(thread, ...)
+	if lastready == thread then
 		lastready = placeof[lastready]
-		scheduled:removefrom(lastready)
-	end                                                                           --[[VERBOSE]] verbose:threads(current," suspended itself");verbose:state()
-	return false, ...
-end
-
-local pause   = yieldops.pause
-local suspend = yieldops.suspend
-
-function yieldops.halt(current, ...)
-	pause(current)                                                                --[[VERBOSE]] verbose:threads(current," requested halt of scheduling")
-	return nil, ...
-end
-
-function yieldops.resume(current, thread, ...)                                  --[[VERBOSE]] verbose:threads(current," resumed ",thread)
-	pause(current)
-	return thread or false, ...
-end
-
-function yieldops.yield(current, thread, ...)                                   --[[VERBOSE]] verbose:threads(current," yielded to ",thread)
-	suspend(current)
-	return thread or false, ...
-end
-
-for name, findplace in pairs(findplace) do
-	yieldops[name] = function(current, place, ...)                                --[[VERBOSE]] verbose:threads(current, " will ",name," for ",place)
-		place = findplace(current, place)
-		if place == nil then return current, ... end
-		if current == lastready then
-			lastready = placeof[lastready]
-			scheduled:movefrom(lastready, place)
-		else
-			scheduled:add(current, place)
-		end                                                                         --[[VERBOSE]] verbose:threads(current, " scheduled after ",place);verbose:state()
-		return false, ...
-	end
-end
-
-
-
----
---@return nextwake
---	number: timestamp of the moment for the next sleeping thread to be waken
---	nil   : no more sleeping threads left
--- 
-local function wakeupdelayed()
-	local first = wakeindex:head()
-	if first then
-		local now = cothread.now()
-		local remains, time = wakeindex:cropuntil(now, "orLater") -- exclusive
-		if time == now then -- make it inclusive if its a perfect match!
-			wakeindex:pop()
-			remains, time = wakeindex:head()
+	else
+		reschedule(thread, lastready)
+		if lastready == nil then
+			lastready = thread
 		end
-		if remains ~= first then
-			local last = placeof[remains or first]
-			scheduled:move(first, lastready, last)                                    --[[VERBOSE]] verbose:threads("delayed ",first," to ",last," are ready for execution")
-		end
-		return time
-	end
-end
-
-local unschedule = cothread.unschedule
-local function dothread(thread, success, operation, ...)
-	if status(thread) == "suspended" then                                         --[[VERBOSE]] verbose:threads(false, thread," yielded with operation ",operation)
-		return yieldops[operation](thread, ...)
-	end                                                                           --[[VERBOSE]] verbose:threads(false, thread,success and " finished successfully" or " raised an error")
-	-- 'thread' has just finished and is dead now
-	unschedule(thread)
-	local trap = cothread.traps[thread]
-	if trap then                                                                  --[[VERBOSE]] verbose:threads("executing trap of ",thread)
-		return false, trap(thread, success, operation, ...)
-	elseif not success then                                                       --[[VERBOSE]] verbose:threads("handling error of ",thread)
-		cothread.error(thread, operation, ...)
-	end
-	return false, operation, ... -- resume next scheduled thread followed
-end                            -- by the returned values
-
----
---@param thread
---	thread: resume the provided thread
---	false : resume next scheduled thread
---	nil   : halt the scheduling completely
---@param ...
---	values to be passed to the thread that will be resume or returned by
---  'run' if 'thread == false' and there are no scheduled threads.
---
---@return hasready
---	false: one resuming round has finished
---	nil  : resuming round was halted before completion
---@return ...
---	values yielded by the last thread resumed.
--- 
-local function resumeready(thread, ...)
-	if thread == false then
-		lastready = scheduled[lastready] -- get successor
-		rescheduled = false
-		thread = lastready
-	end
-	if thread then                                                                --[[VERBOSE]] verbose:threads(true, "resuming ",thread)
-		return resumeready(dothread(thread, resume(thread, ...)))
-	end
+	end                                                                           -- [[VERBOSE]] verbose:threads(thread," scheduled as next ready thread");verbose:state()
 	return thread, ...
-end
+end)
+
+scheduleop("last", function(thread, ...)
+	if lastready ~= thread then
+		reschedule(thread, lastready)
+		lastready = thread
+	end                                                                           -- [[VERBOSE]] verbose:threads(thread," scheduled as last ready thread");verbose:state()
+	return thread, ...
+end)
+
+scheduleop("after", function(thread, place, ...)
+	if scheduled[place] ~= nil then
+		if place ~= thread then
+			reschedule(thread, place)
+			if lastready == place then
+				lastready = thread
+			end
+		end                                                                       -- [[VERBOSE]] verbose:threads(thread," scheduled after ready thread ",place);verbose:state()
+		return thread, ...
+	end
+	return nil, ...
+end)
+
+yieldop("yield", function(current, ...)                                         -- [[VERBOSE]] verbose:threads(current," yielded")
+	return ...
+end)
+
+yieldop("suspend", function(current, ...)                                       -- [[VERBOSE]] verbose:threads(current," suspended itself")
+	unschedule(current)
+	return ...
+end)
 
 --------------------------------------------------------------------------------
--- Control Functions -----------------------------------------------------------
+-- Scheduling Control ----------------------------------------------------------
 --------------------------------------------------------------------------------
 
 ---
 --@param thread
---	thread      : thread to be resumed first during the scheduling round
+--	thread      : thread to be resumed first during this step
 --	false or nil: indicates that a scheduled thread must be resumed first
 --@param ...
 --	values to be passed to the first resumed thread
 --
---@return nextround
---	0     : there are threads ready for execution
---	number: timestamp of the moment when the round will have threads to schedule
---	false : no more threads to be scheduled, so no use for other round
---	nil   : scheduling was halted
+--@return continue
+--	true : one resuming step has finished
+--	false: resuming step indicated a halting request
 --@return ...
 --	values yielded by the last resumed thread
 --
-local function roundcont(thread, ...)
-	local nextwake
-	if thread == false then                                                       --[[VERBOSE]] verbose:scheduler(false, "scheduling round finished")
-		if scheduled[false] ~= false then
-			nextwake = 0                                                              --[[VERBOSE]] verbose:scheduler("threads are ready for execution")
-		else
-			thread, nextwake = wakeindex:head()
-			if nextwake == nil then                                                   --[[VERBOSE]] verbose:scheduler("no more threads scheduled")
-				nextwake = false                                                        --[[VERBOSE]] else verbose:scheduler("threads are delayed")
-			end
-		end                                                                         --[[VERBOSE]] else verbose:scheduler(false, "sheduling round was halted")
-	end
-	return nextwake, ...
-end
-function cothread.round(thread, ...)                                            --[[VERBOSE]] verbose:scheduler(true, "scheduling round started")
-	wakeupdelayed()
-	return roundcont(resumeready(thread or lastready, ...))
-end
+moduleop("step", function(thread, ...)                                          -- [[VERBOSE]] verbose:scheduler(true, "scheduling step started")
+	return dostep(thread or nextready(), ...)
+end)
 
 ---
 --@param thread
@@ -585,139 +313,174 @@ end
 --@param ...
 --	values to be passed to the first resumed thread
 --
---@return nextround
+--@return continue
 --	true : no more threads to be scheduled, so no use for other run
 --	false: scheduling was halted
 --@return ...
 --	values yielded by the last resumed thread
 --
-local function runcont(nextround, ...)
-	if nextround then
-		if nextround > 0 then cothread.idle(nextround) end
-		return cothread.run(lastready, ...)
+moduleop("run", dorun)
+
+do
+	local backup = nextready
+	local function trap()                                                         -- [[VERBOSE]] verbose:scheduler(false, "scheduling halted")
+		nextready = backup
 	end
-	return nextround == false, ...
+	
+	moduleop("requesthalt", function()                                            -- [[VERBOSE]] verbose:scheduler("scheduling halt requested")
+		nextready = trap
+	end, "yieldable")
+	
+	moduleop("cancelhalt", function()                                             -- [[VERBOSE]] verbose:scheduler("scheduling halt canceled")
+		if nextready == trap then
+			nextready = backup
+			return true
+		end
+		return false
+	end, "yieldable")
 end
-function cothread.run(thread, ...)
-	return runcont(cothread.round(thread, ...))
+
+--------------------------------------------------------------------------------
+-- Scheduling Introspection ----------------------------------------------------
+--------------------------------------------------------------------------------
+
+function nextthread(ending, previous)
+	if previous ~= ending then
+		return scheduled[previous or ending]
+	end
 end
+
+moduleop("allready", function()
+	return nextthread, lastready
+end, "yieldable")
+
+moduleop("hasready", function()
+	return lastready ~= nil
+end, "yieldable")
+
+moduleop("isscheduled", function(thread)
+	return scheduled[thread] ~= nil
+end, "yieldable")
+
+yieldop("running", function(current) return current, current end)               -- [[VERBOSE]] yieldop("verbose", function(current) return current, verbose end)
+
+--------------------------------------------------------------------------------
+-- Plugin Support --------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+do
+	local reschedulers = setmetatable({}, WeakKeys)
+	local backup = removedataof
+	local trapped
+	function onreschedule(thread, trap)
+		reschedulers[thread] = trap
+		if trap ~= nil then
+			removedataof = trapped
+		elseif next(reschedulers) == nil then
+			removedataof = backup
+		end
+	end
+	trapped = trappedfunc(backup, reschedulers)
+end
+
+do
+	local unschedulers = setmetatable({}, WeakKeys)
+	local backup = unschedule
+	local trapped
+	function onunschedule(thread, trap)
+		unschedulers[thread] = trap
+		if trap ~= nil then
+			unschedule = trapped
+		elseif next(unschedulers) == nil then
+			unschedule = backup
+		end
+	end
+	trapped = trappedfunc(backup, unschedulers)
+end
+
+loaded = {}
+moduleop("loadplugin", function(plugin)
+	if loaded[plugin] == nil then
+		loaded[plugin] = true
+		plugin(_ENV, cothread)
+	end
+end, "yieldable")
 
 --------------------------------------------------------------------------------
 -- Verbose Support -------------------------------------------------------------
 --------------------------------------------------------------------------------
 
---[[VERBOSE]] local Viewer = _G.require "loop.debug.Viewer"
---[[VERBOSE]] local Verbose = _G.require "loop.debug.Verbose"
---[[VERBOSE]] verbose = Verbose{
---[[VERBOSE]] 	viewer = Viewer{ labels = DefaultLabels },
---[[VERBOSE]] }
---[[VERBOSE]] verbose:newlevel{"threads"}
---[[VERBOSE]] verbose:newlevel{"scheduler"}
---[[VERBOSE]] verbose:newlevel{"state"}
---[[VERBOSE]] 
---[[VERBOSE]] 
---[[VERBOSE]] 
---[[VERBOSE]] local select = _G.select
---[[VERBOSE]] local tabop = _G.require("loop.table")
---[[VERBOSE]] local copy = tabop.copy
---[[VERBOSE]] function verbose.custom:threads(...)
---[[VERBOSE]] 	local viewer = self.viewer
---[[VERBOSE]] 	local output = self.viewer.output
---[[VERBOSE]] 	local labels = self.viewer.labels
---[[VERBOSE]] 	
---[[VERBOSE]] 	for i = 1, select("#", ...) do
---[[VERBOSE]] 		local value = select(i, ...)
---[[VERBOSE]] 		if type(value) == "string" then
---[[VERBOSE]] 			output:write(value)
---[[VERBOSE]] 		elseif type(value) == "thread" then
---[[VERBOSE]] 			output:write("thread ",labels[value])
---[[VERBOSE]] 		else
---[[VERBOSE]] 			viewer:write(value)
---[[VERBOSE]] 		end
---[[VERBOSE]] 	end
---[[VERBOSE]] end
---[[VERBOSE]] 	
---[[VERBOSE]] function verbose.custom:state(...)
---[[VERBOSE]] 	local viewer = self.viewer
---[[VERBOSE]] 	local output = self.viewer.output
---[[VERBOSE]] 	local labels = self.viewer.labels
---[[VERBOSE]] 	
---[[VERBOSE]] 	local missing = copy(scheduled)
---[[VERBOSE]] 	
---[[VERBOSE]] 	local newline = "\n"..viewer.prefix
---[[VERBOSE]] 	
---[[VERBOSE]] 	output:write("Ready  :")
---[[VERBOSE]] 	local sep = "  "
---[[VERBOSE]] 	for thread in scheduled:forward(false) do
---[[VERBOSE]] 		if missing[thread] == nil then
---[[VERBOSE]] 			output:write("<STATE CORRUPTION>")
---[[VERBOSE]] 			break
---[[VERBOSE]] 		end
---[[VERBOSE]] 		missing[thread] = nil
---[[VERBOSE]] 		if not thread then break end
---[[VERBOSE]] 		if thread == lastready then sep = " [" end
---[[VERBOSE]] 		output:write(sep,labels[thread])
---[[VERBOSE]] 		if     sep == " [" then sep = "] "
---[[VERBOSE]] 		elseif sep == "] " then sep = "  " end
---[[VERBOSE]] 	end
---[[VERBOSE]] 	if sep ~= "  " then output:write("]") end
---[[VERBOSE]] 	
---[[VERBOSE]] 	output:write(newline,"Delayed:")
---[[VERBOSE]] 	local last = wakeindex:nextnode()
---[[VERBOSE]] 	local first = last and last.value
---[[VERBOSE]] 	while last ~= nil do
---[[VERBOSE]] 		local waketime = last.key
---[[VERBOSE]] 		output:write(" [",waketime,"]:")
---[[VERBOSE]] 		local next = wakeindex:nextnode(last)
---[[VERBOSE]] 		local limit = (next ~= nil) and next.value or first
---[[VERBOSE]] 		local thread = last.value
---[[VERBOSE]] 		repeat
---[[VERBOSE]] 			if missing[thread] == nil then
---[[VERBOSE]] 				output:write("<STATE CORRUPTION>")
---[[VERBOSE]] 				break
---[[VERBOSE]] 			end
---[[VERBOSE]] 			missing[thread] = nil
---[[VERBOSE]] 			output:write(" ",labels[thread])
---[[VERBOSE]] 			thread = scheduled[thread]
---[[VERBOSE]] 		until thread == limit
---[[VERBOSE]] 		last = next
---[[VERBOSE]] 	end
---[[VERBOSE]] 	
---[[VERBOSE]] 	output:write(newline,"Blocked:")
---[[VERBOSE]] 	while next(missing) ~= nil do
---[[VERBOSE]] 		local signalfound
---[[VERBOSE]] 		for signal in pairs(missing) do
---[[VERBOSE]] 			if signal and type(signal) ~= "thread" then
---[[VERBOSE]] 				signalfound = true
---[[VERBOSE]] 				output:write(newline,"  ",labels[signal],":")
---[[VERBOSE]] 				for thread in scheduled:forward(signal) do
---[[VERBOSE]] 					if missing[thread] == nil then
---[[VERBOSE]] 						output:write("<STATE CORRUPTION>")
---[[VERBOSE]] 						break
---[[VERBOSE]] 					end
---[[VERBOSE]] 					missing[thread] = nil
---[[VERBOSE]] 					if thread == signal then break end
---[[VERBOSE]] 					output:write(" ",labels[thread])
---[[VERBOSE]] 				end
---[[VERBOSE]] 			end
---[[VERBOSE]] 		end
---[[VERBOSE]] 		if not signalfound then
---[[VERBOSE]] 			output:write("<STATE CORRUPTION>")
---[[VERBOSE]] 			break
---[[VERBOSE]] 		end
---[[VERBOSE]] 	end
---[[VERBOSE]] end
---[[VERBOSE]] verbose:flag("print", true)
---[[VERBOSE]] cothread.verbose = verbose
+-- [[VERBOSE]] local pairs = _G.pairs
+-- [[VERBOSE]] local type = _G.type
+-- [[VERBOSE]] local Viewer = _G.require "loop.debug.Viewer"
+-- [[VERBOSE]] local Verbose = _G.require "loop.debug.Verbose"
+-- [[VERBOSE]] verbose = Verbose{
+-- [[VERBOSE]] 	viewer = Viewer{ labels = DefaultLabels },
+-- [[VERBOSE]] }
+-- [[VERBOSE]] verbose:newlevel{"threads"}
+-- [[VERBOSE]] verbose:newlevel{"scheduler"}
+-- [[VERBOSE]] verbose:newlevel{"state"}
+-- [[VERBOSE]] 
+-- [[VERBOSE]] local select = _G.select
+-- [[VERBOSE]] local string = _G.require("string")
+-- [[VERBOSE]] local format = string.format
+-- [[VERBOSE]] local tabop = _G.require("loop.table")
+-- [[VERBOSE]] local copy = tabop.copy
+-- [[VERBOSE]] function verbose.custom:threads(...)
+-- [[VERBOSE]] 	local viewer = self.viewer
+-- [[VERBOSE]] 	local output = self.viewer.output
+-- [[VERBOSE]] 	local labels = self.viewer.labels
+-- [[VERBOSE]] 	
+-- [[VERBOSE]] 	for i = 1, select("#", ...) do
+-- [[VERBOSE]] 		local value = select(i, ...)
+-- [[VERBOSE]] 		if type(value) == "string" then
+-- [[VERBOSE]] 			output:write(value)
+-- [[VERBOSE]] 		elseif type(value) == "thread" then
+-- [[VERBOSE]] 			output:write("thread ",labels[value])
+-- [[VERBOSE]] 		else
+-- [[VERBOSE]] 			viewer:write(value)
+-- [[VERBOSE]] 		end
+-- [[VERBOSE]] 	end
+-- [[VERBOSE]] end
+-- [[VERBOSE]] 	
+-- [[VERBOSE]] local stateloggers = {}
+-- [[VERBOSE]] function statelogger(name, logger)
+-- [[VERBOSE]] 	stateloggers[name] = logger
+-- [[VERBOSE]] end
+-- [[VERBOSE]] function verbose.custom:state(...)
+-- [[VERBOSE]] 	local viewer = self.viewer
+-- [[VERBOSE]] 	local output = self.viewer.output
+-- [[VERBOSE]] 	local labels = self.viewer.labels
+-- [[VERBOSE]] 	local missing = copy(scheduled)
+-- [[VERBOSE]] 	local newline = "\n"..viewer.prefix
+-- [[VERBOSE]] 	
+-- [[VERBOSE]] 	output:write("Ready  :")
+-- [[VERBOSE]] 	for thread in scheduled:forward(lastready) do
+-- [[VERBOSE]] 		if missing[thread] == nil then
+-- [[VERBOSE]] 			output:write("<STATE CORRUPTION>")
+-- [[VERBOSE]] 			break
+-- [[VERBOSE]] 		end
+-- [[VERBOSE]] 		missing[thread] = nil
+-- [[VERBOSE]] 		output:write(" ",labels[thread])
+-- [[VERBOSE]] 		if thread == lastready then break end
+-- [[VERBOSE]] 	end
+-- [[VERBOSE]] 	
+-- [[VERBOSE]] 	for name, logger in pairs(stateloggers) do
+-- [[VERBOSE]] 		output:write(newline, format("%-7.7s:", name))
+-- [[VERBOSE]] 		logger(self, missing, newline)
+-- [[VERBOSE]] 	end
+-- [[VERBOSE]] end
+-- [[VERBOSE]] verbose:flag("print", true)
+-- [[VERBOSE]] cothread.verbose = verbose
 
 --------------------------------------------------------------------------------
 -- Inspection Support ----------------------------------------------------------
 --------------------------------------------------------------------------------
 
 --[[DEBUG]] local inspector = _G.require "inspector"
---[[DEBUG]] function yieldops.inspect(current)
+--[[DEBUG]] yieldop("inspect", function(current)
 --[[DEBUG]] 	return current, inspector.activate(2)
---[[DEBUG]] end
+--[[DEBUG]] end)
 
 --------------------------------------------------------------------------------
 -- End of Instantiation Code -------------------------------------------------
@@ -725,41 +488,5 @@ end
 
 	return cothread
 end
-
-
-
---[[VERBOSE]] local string = _G.require "string"
---[[VERBOSE]] local strrep = string.rep
---[[VERBOSE]] local char = string.char
---[[VERBOSE]] local byte = string.byte
---[[VERBOSE]] local lastcode = byte("Z")
---[[VERBOSE]] local function nextstr(text)
---[[VERBOSE]] 	for i = #text, 1, -1 do
---[[VERBOSE]] 		local code = text:byte(i)
---[[VERBOSE]] 		if code < lastcode then
---[[VERBOSE]] 			return text:sub(1,i-1)..char(code+1)..strrep("A", #text-i)
---[[VERBOSE]] 		end
---[[VERBOSE]] 	end
---[[VERBOSE]] 	return strrep("A", #text+1)
---[[VERBOSE]] end
---[[VERBOSE]] 
---[[VERBOSE]] local tostring = _G.tostring
---[[VERBOSE]] local lastused = {thread="",userdata=""}
---[[VERBOSE]] DefaultLabels = setmetatable({}, {
---[[VERBOSE]] 	__mode = "k",
---[[VERBOSE]] 	__index = function(self, value)
---[[VERBOSE]] 		local type = type(value)
---[[VERBOSE]] 		local last = lastused[type]
---[[VERBOSE]] 		if last ~= nil then
---[[VERBOSE]] 			last = nextstr(last)
---[[VERBOSE]] 			lastused[type] = last
---[[VERBOSE]] 			self[value] = last
---[[VERBOSE]] 			return last
---[[VERBOSE]] 		end
---[[VERBOSE]] 		return tostring(value)
---[[VERBOSE]] 	end,
---[[VERBOSE]] })
-
-
 
 return setmetatable(new(), { __call = function(_, ...) return new(...) end })

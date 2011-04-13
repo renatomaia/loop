@@ -15,94 +15,110 @@ local oo = require "loop.base"
 local class = oo.class
 local rawnew = oo.rawnew
 
-local function eventbody(self, event, ...)
-	yield() -- initialization finished
+local function notifierbody(group)
+	yield() -- finish initialization
 	while true do
-		yield("wakeall", self, "after", running())
-		yield("wait", event, event, ...)
+		if group:deactivate() then
+			yield("notify", group)
+			yield("yield")
+		end
 	end
 end
 
-local function timerbody(self, ...)
-	yield() -- initialization finished
-	while true do
-		yield("wakeall", self, "after", running())
-		yield("pause", nil, ...) -- from now on it is triggered as soon as possible
-	end
-end
-
-local function notifier(group, body, ...)
-	local thread = create(body)
-	resume(thread, group, ...)
+local function notifier(group)
+	local thread = create(notifierbody)
+	resume(thread, group)
 	return thread
 end
 
 
 local WeakKeys = class{__mode = "k"}
 local timeoutOf = WeakKeys()
+local timeKindOf = WeakKeys()
 local timerOf = WeakKeys()
+local activated = WeakKeys()
 
 
 local EventGroup = class()
 
-function EventGroup:add(event, ...)
+function EventGroup:add(event)
 	local thread = self[event]
-	if not thread then
-		thread = notifier(self, eventbody, event, ...)
+	if thread == nil then
+		thread = notifier(self)
 		self[event] = thread
-		return yield("schedule", thread, "wait", event) ~= nil
+		if activated[self] ~= nil then
+			yield("schedule", thread, "wait", event)
+		end
+		return true
 	end
 end
 
 function EventGroup:remove(event)
 	local thread = self[event]
-	if not thread then
+	if thread ~= nil then
 		self[event] = nil
-		return yield("unschedule", thread) ~= nil
+		if activated[self] ~= nil then
+			yield("unschedule", thread)
+		end
+		return true
 	end
 end
 
-function EventGroup:settimeout(timeout, ...)
-	if timeout ~= timeoutOf[self] then
+function EventGroup:settimeout(timeout, kind)
+	if kind == nil then kind = "delay" end
+	if timeout ~= timeoutOf[self] or kind ~= timeKindOf[self] then
 		local timer = timerOf[self]
-		if timeout then
-			timeoutOf[self] = timeout
-			if not timer then
-				timer = notifier(self, timerbody, ...)
+		if timeout ~= nil then
+			if timer == nil then
+				timer = notifier(self)
 				timerOf[self] = timer
 			end
-			return yield("schedule", timer, "defer", timeout) ~= nil
-		elseif timer then
-			timeoutOf[self] = nil
+			timeoutOf[self] = timeout
+			timeKindOf[self] = kind
+			if activated[self] ~= nil then
+				yield("schedule", timer, kind, timeout)
+			end
+		elseif timer ~= nil then
 			timerOf[self] = nil
-			return yield("unschedule", timer) ~= nil
+			timeoutOf[self] = nil
+			timeKindOf[self] = nil
+			if activated[self] ~= nil then
+				yield("unschedule", timer)
+			end
 		end
 	end
 end
 
 function EventGroup:gettimeout()
-	return timeoutOf[self]
+	return timeoutOf[self], timeKindOf[self]
 end
 
-
-local function waitcont(...)
-	yield("pause", ...) -- pass values to the next thread
-	return ...
-end
-function EventGroup:wait(...)
-	return waitcont(yield("wait", self, ...))
-end
-
-function EventGroup:wakeall(...)
-	return yield("wakeall", self, ...)
-end
-
-function EventGroup:cancel()
-	return yield("cancel", self)
+function EventGroup:activate()
+	if activated[self] == nil then
+		for event, thread in pairs(self) do
+			yield("schedule", thread, "wait", event)
+		end
+		local timer = timerOf[self]
+		if timer ~= nil then
+			yield("schedule", timer, timerKindOf[self], timeoutOf[self])
+		end
+		activated[self] = true
+		return true
+	end
 end
 
-function EventGroup:iterate()
-	return pairs(self)
+function EventGroup:deactivate()
+	if activated[self] ~= nil then
+		for _, thread in pairs(self) do
+			yield("unschedule", thread)
+		end
+		local timer = timerOf[self]
+		if timer ~= nil then
+			yield("unschedule", timer)
+		end
+		activated[self] = nil
+		return true
+	end
 end
 
 return EventGroup
@@ -114,17 +130,14 @@ return EventGroup
 --local EventGroup = require "cothread.EventGroup"
 --
 --function receive(socket, timeout)
---	if timeout then
+--	if timeout ~= nil then
 --		local events = EventGroup()
 --		events:settimeout(timeout)
---		events:add(socket)
---		local timeout
---		timeout = (events:wait() == nil)
---		for event in events:iterate() do
---			events:remove(event)
---		end
---		events:settimeout(nil)
---		if timeout then return nil, "timeout" end
+--		events:add(event1)
+--		events:add(event2)
+--		events:add(event3)
+--		events:activate()
+--		yield("wait", events)
 --	else
 --		yield("wait", socket)
 --	end
