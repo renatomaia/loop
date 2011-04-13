@@ -1,7 +1,8 @@
 local tabop = require "loop.table"
 local Crawler = require "loop.debug.Crawler"
 
-do -- count values by type
+print "\ncount values by type"
+do 
 	local count = tabop.memoize(function() return 0 end)
 	local crawler = Crawler()
 	function crawler:foundvalue(value, visited)
@@ -16,9 +17,8 @@ do -- count values by type
 	table.foreach(count, print)
 end
 
-print()
-
-do -- find all references to a value
+print "\nfind all references to a value"
+do
 	local subject = Crawler
 	local crawler = Crawler()
 	function crawler:foundvalue(value, visited, from, kind, ...)
@@ -34,9 +34,8 @@ do -- find all references to a value
 	crawler:crawl()
 end
 
-print()
-
-do -- shortest path to a object
+print "\nshortest path to a object"
+do
 	local function shortestpath(...)
 		local roots = tabop.memoize(function() return {} end)
 		local to_from = tabop.memoize(function()

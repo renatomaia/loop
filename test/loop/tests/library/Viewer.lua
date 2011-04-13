@@ -57,15 +57,15 @@ a
 a 
 	]]]=],
 	},
-	["\trenato\n\tmaia"] = {
-		double = [=["\trenato\n\tmaia"]=],
-		single = [=['\trenato\n\tmaia']=],
+	["\tJohn\n\tDoe"] = {
+		double = [=["\tJohn\n\tDoe"]=],
+		single = [=['\tJohn\n\tDoe']=],
 		dbrack = [=[[[
-	renato
-	maia]]]=],
+	John
+	Doe]]]=],
 		sbrack = [=[[[
-	renato
-	maia]]]=],
+	John
+	Doe]]]=],
 	},
 	['"double quotes"'] = {
 		double = [=["\"double quotes\""]=],
@@ -85,11 +85,11 @@ a
 		sbrack = [=[[['both quotes"]]]=],
 		dbrack = [=[[['both quotes"]]]=],
 	},
-	["C:\\Program Files\\MPA"] = {
-		double = [=["C:\\Program Files\\MPA"]=],
-		single = [=['C:\\Program Files\\MPA']=],
-		dbrack = [=[[[C:\Program Files\MPA]]]=],
-		sbrack = [=[[[C:\Program Files\MPA]]]=],
+	["C:\\Program Files\\Lua"] = {
+		double = [=["C:\\Program Files\\Lua"]=],
+		single = [=['C:\\Program Files\\Lua']=],
+		dbrack = [=[[[C:\Program Files\Lua]]]=],
+		sbrack = [=[[[C:\Program Files\Lua]]]=],
 	},
 	["[[]]"] = {
 		double = [==["[[]]"]==],

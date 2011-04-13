@@ -140,4 +140,5 @@ return function()
 			autotest(1, pre, pos)
 		end
 	end
+	source:close()
 end

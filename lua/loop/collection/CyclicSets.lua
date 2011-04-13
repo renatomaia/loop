@@ -115,7 +115,7 @@ end
 -- [ old | ? ]        :movefrom(old)            --> [ old | ? ]         :
 -- [ old | ? ]        :movefrom(old, nil, old)  --> [ old | ? ]         :
 -- [ old ? ]          :movefrom(old, old)       --> [ old ? ]           :
--- [ old, val ? ]     :movefrom(old, old, val)  --> [ old, val ? ]      :
+-- [ old, val ? ]     :movefrom(old, old, old)  --> [ old, val ? ]      :
 -- [ old, val..end ? ]:movefrom(old, old, end)  --> [ old, val..end ? ] :
 -- 
 -- # moving value to itself
@@ -128,6 +128,7 @@ end
 -- # moving value to an inexistent set
 -- [ old | ? ]        :movefrom(old, new)       --> [ new, old | ? ]          : old
 -- [ old | ? ]        :movefrom(old, new, old)  --> [ new, old | ? ]          : old
+-- [ val..old | ? ]   :movefrom(old, new, old)  --> [ new, val..old | ? ]     : val
 -- [ old, val ? ]     :movefrom(old, new)       --> [ old ? | new, val ]      : val
 -- [ old, val ? ]     :movefrom(old, new, val)  --> [ old ? | new, val ]      : val
 -- [ old, val..end ? ]:movefrom(old, new, end)  --> [ old ? | new, val..end ] : val
@@ -135,6 +136,7 @@ end
 -- # moving value to a different set
 -- [ old | new ? ]             :movefrom(old, new)       --> [ new, old ? ]               : old
 -- [ old | new ? ]             :movefrom(old, new, old)  --> [ new, old ? ]               : old
+-- [ val..old | new ? ]        :movefrom(old, new, old)  --> [ new, val..old ? ]          : val
 -- [ old, val ? | new ?? ]     :movefrom(old, new)       --> [ old ? | new, val ?? ]      : val
 -- [ old, val ? | new ?? ]     :movefrom(old, new, val)  --> [ old ? | new, val ?? ]      : val
 -- [ old, val..end ? | new ?? ]:movefrom(old, new, end)  --> [ old ? | new, val..end ?? ] : val

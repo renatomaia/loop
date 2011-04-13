@@ -10,37 +10,37 @@ local oo = require "loop.base"
 local class = oo.class
 
 local prototype = newproxy(true)
-local meta = getmetatable(prototype)
-if loop.object == nil then
-	loop.object = { Dummy = meta }
-else
-	loop.object.Dummy = meta
-end
-module("loop.object.Dummy", class)
+local Dummy = class(getmetatable(prototype))
 
-function __new()
+function Dummy:__new()
 	return newproxy(prototype)
 end
 
-function none() end
-function number() return 0 end
-function string() return "" end
+local function none() end
+local function number() return 0 end
+local function string() return "" end
 
-__concat   = string
-__unm      = number
-__add      = number
-__sub      = number
-__mul      = number
-__div      = number
-__mod      = number
-__pow      = number
-__call     = none
-__eq       = none
-__lt       = none
-__le       = none
-__newindex = none
-__index    = function(self) return self end
-__len      = number
-__pairs    = function() return none end
-__tostring = string
-__metatable = prototype
+Dummy.string = string
+Dummy.number = number
+Dummy.none   = none
+
+Dummy.__concat   = string
+Dummy.__unm      = number
+Dummy.__add      = number
+Dummy.__sub      = number
+Dummy.__mul      = number
+Dummy.__div      = number
+Dummy.__mod      = number
+Dummy.__pow      = number
+Dummy.__call     = none
+Dummy.__eq       = none
+Dummy.__lt       = none
+Dummy.__le       = none
+Dummy.__newindex = none
+Dummy.__index    = function(self) return self end
+Dummy.__len      = number
+Dummy.__pairs    = function() return none end
+Dummy.__tostring = string
+Dummy.__metatable = prototype
+
+return Dummy

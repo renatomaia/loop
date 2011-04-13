@@ -31,9 +31,16 @@ function Exception:__tostring()
 	local result = self[1] or "Exception"
 	local message = self.message
 	if message ~= nil then
-		result = result..": "..message:gsub("%$([_%l]+)", function(field)
-			return tostring(self[field])
-		end)
+		result = result..": "..message:gsub(
+			"(%$+)([_%a][_%w]*)",
+			function(prefix, field)
+				if #prefix%2 == 1 then
+					prefix = prefix:sub(1, -2)
+					field = tostring(self[field])
+				end
+				return prefix..field
+			end
+		)
 	end
 	local traceback = self.traceback
 	if traceback ~= nil then

@@ -22,18 +22,16 @@ local oo = require "loop.base"
 local class = oo.class
 
 
-module(..., class)
+local Crawler = class{
+	metatable = getmetatable,
+	environment = debug and debug.getfenv,
+	upvalue = debug and debug.getupvalue,
+	registry = debug and debug.getregistry,
+	callstack = debug and debug.getinfo,
+	localvar = debug and debug.getlocal,
+}
 
-metatable = getmetatable
-environment = debug and debug.getfenv
-upvalue = debug and debug.getupvalue
-registry = debug and debug.getregistry
-callstack = debug and debug.getinfo
-localvar = debug and debug.getlocal
-
-
-
-function crawlmetatable(self, value)
+function Crawler:crawlmetatable(value)
 	local getmetatable = self.metatable
 	if getmetatable then
 		local meta = getmetatable(value)
@@ -43,7 +41,7 @@ function crawlmetatable(self, value)
 	end
 end
 
-function crawlenvironment(self, value)
+function Crawler:crawlenvironment(value)
 	local getenv = self.environment
 	if getenv then
 		local env = getenv(value)
@@ -53,7 +51,7 @@ function crawlenvironment(self, value)
 	end
 end
 
-function crawltable(self, value)
+function Crawler:crawltable(value)
 	for key, entry in pairs(value) do
 		self:found(key, value, "key", entry)
 		self:found(entry, value, "entry", key)
@@ -61,7 +59,7 @@ function crawltable(self, value)
 	self:crawlmetatable(value)
 end
 
-function crawlfunction(self, value)
+function Crawler:crawlfunction(value)
 	local getupvalue = self.upvalue
 	if getupvalue then
 		for i = 1, huge do
@@ -74,12 +72,12 @@ function crawlfunction(self, value)
 	self:crawlenvironment(value)
 end
 
-function crawluserdata(self, value)
+function Crawler:crawluserdata(value)
 	self:crawlenvironment(value)
 	self:crawlmetatable(value)
 end
 
-function crawlthread(self, value)
+function Crawler:crawlthread(value)
 	local getinfo = self.callstack
 	if getinfo then
 		local ignored = 0
@@ -128,31 +126,31 @@ function crawlthread(self, value)
 	end
 end
 
-_M["table"]    = crawltable
-_M["function"] = crawlfunction
-_M["userdata"] = crawluserdata
-_M["thread"]   = crawlthread
+Crawler["table"]    = Crawler.crawltable
+Crawler["function"] = Crawler.crawlfunction
+Crawler["userdata"] = Crawler.crawluserdata
+Crawler["thread"]   = Crawler.crawlthread
 
 
 
-input = 0
-function add(self, value)
+Crawler.input = 0
+function Crawler:add(value)
 	local i = self.input+1
 	self[i] = value
 	self.input = i
 end
-function remove(self)
+function Crawler:remove()
 	local i = self.input
 	local value = self[i]
 	self[i] = nil
 	self.input = i-1
 	return value
 end
-function empty(self)
+function Crawler:empty()
 	return self.input == 0
 end
 
-output = 1
+Crawler.output = 1
 local function dequeue(self)
 	local i = self.output
 	local value = self[i]
@@ -166,7 +164,7 @@ end
 
 
 
-function found(self, value, ...)
+function Crawler:found(value, ...)
 	local visited = self.visited
 	local regval = visited[value]
 	local ignore = (regval ~= nil)
@@ -189,7 +187,7 @@ function found(self, value, ...)
 	end
 end
 
-function crawl(self, ...)
+function Crawler:crawl(...)
 	-- define default objects that must be ignored during the crawling
 	local visited = self.visited
 	if visited == nil then
@@ -229,3 +227,6 @@ function crawl(self, ...)
 		if crawler then crawler(self, value) end
 	end
 end
+
+
+return Crawler
