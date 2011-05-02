@@ -1,5 +1,6 @@
 
 local _G = require "_G"
+local error = _G.error
 local select = _G.select
 local unpack = _G.unpack
 local xpcall = _G.xpcall

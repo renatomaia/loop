@@ -20,7 +20,7 @@ local WeakKeys = {__mode = "k"}
 local WeakValues = {__mode = "v"}
 
 return function(_ENV, cothread)
-	_G.pcall(_G.setfenv, 2, _ENV) -- compatibility with Lua 5.1
+	if _G._VERSION=="Lua 5.1" then _G.setfenv(1,_ENV) end -- Lua 5.1 compatibility
 	
 	now = cothread.now
 	if now == nil then
@@ -54,7 +54,7 @@ return function(_ENV, cothread)
 				end
 				if remains ~= first then
 					local last = placeof[remains or first]
-					scheduled:move(first, lastready, last)                                -- [[VERBOSE]] verbose:threads("delayed ",first," to ",last," are ready for execution");verbose:state()
+					scheduled:move(first, lastready, last)                                --[[VERBOSE]] verbose:threads("delayed ",first," to ",last," are ready for execution");verbose:state()
 				end
 			end
 			if time == nil then
@@ -65,7 +65,7 @@ return function(_ENV, cothread)
 				idle(time)
 			end
 		end
-	end)                                                                          -- [[VERBOSE]] verbose.viewer.labels[waker] = "Waker"
+	end)                                                                          --[[VERBOSE]] verbose.viewer.labels[waker] = "Waker"
 
 	------------------------------------------------------------------------------
 	-- All expected cases:
@@ -121,7 +121,7 @@ return function(_ENV, cothread)
 					entry.value = nextthread
 					waketime[nextthread] = timestamp
 					onreschedule(nextthread, unscheduled)
-				end                                                                     -- [[VERBOSE]] verbose:threads("wake time of delayed ",thread," was cancelled")
+				end                                                                     --[[VERBOSE]] verbose:threads("wake time of delayed ",thread," was cancelled")
 				return true
 			end
 		end
@@ -133,7 +133,7 @@ return function(_ENV, cothread)
 		local place
 		if found ~= nil and found.key == time then
 			wakeindex:freenode(entry)
-			place = found.value                                                       -- [[VERBOSE]] verbose:threads("wake time of ",thread," is the same of ",place)
+			place = found.value                                                       --[[VERBOSE]] verbose:threads("wake time of ",thread," is the same of ",place)
 			reschedule(thread, place)
 		else
 			if found == nil then
@@ -153,7 +153,7 @@ return function(_ENV, cothread)
 			wakeindex:addto(entry, entry)
 			waketime[thread] = time
 			onreschedule(thread, unscheduled)
-		end                                                                         -- [[VERBOSE]] verbose:threads(thread," was deferred until ",("%.2f"):format(time-begin)); verbose:state()
+		end                                                                         --[[VERBOSE]] verbose:threads(thread," was deferred until ",("%.2f"):format(time-begin)); verbose:state()
 		return thread, ...
 	end)
 
@@ -181,30 +181,30 @@ return function(_ENV, cothread)
 
 	moduleop("now", now, "yieldable")
 
-	-- [[VERBOSE]] begin = now()
-	-- [[VERBOSE]] local string = _G.require "string"
-	-- [[VERBOSE]] local format = string.format
-	-- [[VERBOSE]] statelogger("Delayed", function(self, missing, newline)
-	-- [[VERBOSE]] 	local output = self.viewer.output
-	-- [[VERBOSE]] 	local labels = self.viewer.labels
-	-- [[VERBOSE]] 	local last = wakeindex:nextnode()
-	-- [[VERBOSE]] 	local first = last and last.value
-	-- [[VERBOSE]] 	while last ~= nil do
-	-- [[VERBOSE]] 		local waketime = last.key
-	-- [[VERBOSE]] 		output:write(format(" [%.2f]:", waketime-begin))
-	-- [[VERBOSE]] 		local next = wakeindex:nextnode(last)
-	-- [[VERBOSE]] 		local limit = (next ~= nil) and next.value or first
-	-- [[VERBOSE]] 		local thread = last.value
-	-- [[VERBOSE]] 		repeat
-	-- [[VERBOSE]] 			if missing[thread] == nil then
-	-- [[VERBOSE]] 				output:write("<STATE CORRUPTION>")
-	-- [[VERBOSE]] 				break
-	-- [[VERBOSE]] 			end
-	-- [[VERBOSE]] 			missing[thread] = nil
-	-- [[VERBOSE]] 			output:write(" ",labels[thread])
-	-- [[VERBOSE]] 			thread = scheduled[thread]
-	-- [[VERBOSE]] 		until thread == limit
-	-- [[VERBOSE]] 		last = next
-	-- [[VERBOSE]] 	end
-	-- [[VERBOSE]] end)
+	--[[VERBOSE]] begin = now()
+	--[[VERBOSE]] local string = _G.require "string"
+	--[[VERBOSE]] local format = string.format
+	--[[VERBOSE]] statelogger("Delayed", function(self, missing, newline)
+	--[[VERBOSE]] 	local output = self.viewer.output
+	--[[VERBOSE]] 	local labels = self.viewer.labels
+	--[[VERBOSE]] 	local last = wakeindex:nextnode()
+	--[[VERBOSE]] 	local first = last and last.value
+	--[[VERBOSE]] 	while last ~= nil do
+	--[[VERBOSE]] 		local waketime = last.key
+	--[[VERBOSE]] 		output:write(format(" [%.2f]:", waketime-begin))
+	--[[VERBOSE]] 		local next = wakeindex:nextnode(last)
+	--[[VERBOSE]] 		local limit = (next ~= nil) and next.value or first
+	--[[VERBOSE]] 		local thread = last.value
+	--[[VERBOSE]] 		repeat
+	--[[VERBOSE]] 			if missing[thread] == nil then
+	--[[VERBOSE]] 				output:write("<STATE CORRUPTION>")
+	--[[VERBOSE]] 				break
+	--[[VERBOSE]] 			end
+	--[[VERBOSE]] 			missing[thread] = nil
+	--[[VERBOSE]] 			output:write(" ",labels[thread])
+	--[[VERBOSE]] 			thread = scheduled[thread]
+	--[[VERBOSE]] 		until thread == limit
+	--[[VERBOSE]] 		last = next
+	--[[VERBOSE]] 	end
+	--[[VERBOSE]] end)
 end

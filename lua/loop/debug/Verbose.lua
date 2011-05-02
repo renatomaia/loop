@@ -42,7 +42,7 @@ module(..., class)
 --------------------------------------------------------------------------------
 
 local FlagColWidth = 12 -- 9 for flag, 2 for square brackets, and 1 for a space
-local ThreadRuler = strrep("-", 55).." "
+local ThreadRuler = strrep("-", 80).."> "
 local CurrentThread = false
 
 local function write(self, newthread, flag, ...)
@@ -73,7 +73,8 @@ local function write(self, newthread, flag, ...)
 		end
 		
 		if #flag+3 > FlagColWidth then
-			output:write("[", flag:sub(1, 7), "...] ")
+			output:write("[", flag:sub(1, 9), "] ")
+			output:write(viewer.prefix:sub(timelength + FlagColWidth+1))
 		else
 			output:write("[", flag, "] ")
 			output:write(viewer.prefix:sub(timelength + #flag+4))

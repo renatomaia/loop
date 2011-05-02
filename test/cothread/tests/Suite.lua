@@ -30,10 +30,10 @@ local function testscheduler(name, scheduler)
 end
 
 local cothread = require "cothread"
-cothread.loadplugin(require "cothread.plugin.signal")
-cothread.loadplugin(require "cothread.plugin.sleep")
+cothread.plugin(require "cothread.plugin.signal")
+cothread.plugin(require "cothread.plugin.sleep")
 testscheduler("Module", cothread)
 local new = cothread()
-new.loadplugin(require "cothread.plugin.signal")
-new.loadplugin(require "cothread.plugin.sleep")
+new.plugin(require "cothread.plugin.signal")
+new.plugin(require "cothread.plugin.sleep")
 testscheduler("Instance", new)

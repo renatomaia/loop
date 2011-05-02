@@ -37,7 +37,7 @@ end
 
 
 
--- get original 'coroutine.running' in case 'cothread.auxiliary' was loaded
+-- get original 'coroutine.running' in case 'coroutine.pcall' was loaded
 -- this will prevent 'running' to return original thread that invoked a 'pcall'
 -- instead of the actual running coroutine.
 for i = 1, 1/0 do

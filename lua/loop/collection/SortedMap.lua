@@ -4,9 +4,14 @@
 -- Author : Renato Maia <maia@inf.puc-rio.br>
 
 
-local global = _G -- only if available
+local global = require "_G"
+local tostring = _G.tostring
+
 local math = require "math"
 local random = math.random
+
+local table = require "table"
+local concat = table.concat
 
 local oo = require "loop.base"
 local class = oo.class
@@ -205,8 +210,6 @@ end
 -- meta operations -------------------------------------------------------------
 
 function __tostring(self, tostring, concat)
-	tostring = tostring or global.tostring
-	concat = concat or global.table.concat
 	local result = { "{ " }
 	local node = self[1]
 	while node ~= nil do
@@ -233,9 +236,8 @@ end
 --   | | [21] = <value>
 --   +-+-[25] = <value>
 --       [26] = <value>
-function debug(self, tostring, output)
-	tostring = tostring or global.tostring
-	output = output or global.io.stderr
+function debug(self, output)
+	output = output or _G.io.stderr
 	local current = {global.unpack(self)}
 	while #current > 0 do
 		local node = current[1]

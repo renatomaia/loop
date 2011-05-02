@@ -26,7 +26,7 @@ local tabop = require "loop.table"
 local copy = tabop.copy
 local memoize = tabop.memoize
 
-local Wrapper = require "loop.object.Wrapper"                                   -- [[VERBOSE]] verbose = _G.require("cothread").verbose
+local Wrapper = require "loop.object.Wrapper"                                   --[[VERBOSE]] local verbose = _G.require("cothread").verbose
 
 local CoSocket = {}
 local WrapperOf = memoize(function(socket)
@@ -38,7 +38,7 @@ local WrapperOf = memoize(function(socket)
 end, "k")
 
 
-function CoSocket:settimeout(timeout, timestamp)                                -- [[VERBOSE]] verbose:socket("setting timeout of ",self,timestamp and " to moment " or " to ",timeout)
+function CoSocket:settimeout(timeout, timestamp)                                --[[VERBOSE]] verbose:socket("setting timeout of ",self,timestamp and " to moment " or " to ",timeout)
 	if not timeout or timeout < 0 then
 		self.timeout = nil
 		self.timeoutkind = nil
@@ -48,7 +48,7 @@ function CoSocket:settimeout(timeout, timestamp)                                
 	end
 end
 
-function CoSocket:connect(...)                                                  -- [[VERBOSE]] verbose:socket(true, "connecting to ",...)
+function CoSocket:connect(...)                                                  --[[VERBOSE]] verbose:socket(true, "connecting to ",...)
 	-- connect the socket if possible
 	local socket = self.__object
 	local result, errmsg = socket:connect(...)
@@ -56,21 +56,28 @@ function CoSocket:connect(...)                                                  
 	-- check if the job has not yet been completed
 	if not result and errmsg == "timeout" then
 		local timeout = self.timeout
-		if timeout ~= 0 then                                                        -- [[VERBOSE]] verbose:socket(true, "waiting for connection establishment")
+		if timeout ~= 0 then                                                        --[[VERBOSE]] verbose:socket(true, "waiting for connection establishment")
 			-- wait for a connection completion and finish establishment
-			yield("waitwrite", socket, timeout, self.timeoutkind)
-			yield("forgetwrite", socket)
+			local thread = yield("running")
+			if timeout == nil then
+				yield("unschedule", thread)
+			else
+				yield("schedule", thread, self.timeoutkind, timeout)
+			end
+			yield("addwait", socket, "w", thread)
+			yield("yield")
+			yield("unschedule", thread)
 			-- try to connect again one last time before giving up
 			result, errmsg = socket:connect(...)
 			if not result and errmsg == "already connected" then
 				result, errmsg = 1, nil -- connection was already established
-			end                                                                       -- [[VERBOSE]] verbose:socket(false, "waiting completed")
+			end                                                                       --[[VERBOSE]] verbose:socket(false, "waiting completed")
 		end
-	end                                                                           -- [[VERBOSE]] verbose:socket(false, "connection ",result and "established" or "failed")
+	end                                                                           --[[VERBOSE]] verbose:socket(false, "connection ",result and "established" or "failed")
 	return result, errmsg
 end
 
-function CoSocket:accept(...)                                                   -- [[VERBOSE]] verbose:socket(true, "accepting a new connection")
+function CoSocket:accept(...)                                                   --[[VERBOSE]] verbose:socket(true, "accepting a new connection")
 	-- accept any connection request pending in the socket
 	local socket = self.__object
 	local result, errmsg = socket:accept(...)
@@ -80,19 +87,26 @@ function CoSocket:accept(...)                                                   
 	if result then
 		result = WrapperOf[result]
 	elseif errmsg == "timeout" then
-		if timeout ~= 0 then                                                        -- [[VERBOSE]] verbose:socket(true, "waiting for new connection request")
+		if timeout ~= 0 then                                                        --[[VERBOSE]] verbose:socket(true, "waiting for new connection request")
 			-- wait for a connection request signal
-			yield("waitread", socket, timeout, self.timeoutkind)
-			yield("forgetread", socket)
+			local thread = yield("running")
+			if timeout == nil then
+				yield("unschedule", thread)
+			else
+				yield("schedule", thread, self.timeoutkind, timeout)
+			end
+			yield("addwait", socket, "r", thread)
+			yield("yield")
+			yield("unschedule", thread)
 			-- accept any connection request pending in the socket
 			result, errmsg = socket:accept(...)
-			if result then result = WrapperOf[result] end                             -- [[VERBOSE]] verbose:socket(false, "waiting completed")
+			if result then result = WrapperOf[result] end                             --[[VERBOSE]] verbose:socket(false, "waiting completed")
 		end
-	end                                                                           -- [[VERBOSE]] verbose:socket(false, "new connection ",result and "accepted" or "failed")
+	end                                                                           --[[VERBOSE]] verbose:socket(false, "new connection ",result and "accepted" or "failed")
 	return result, errmsg
 end
 
-function CoSocket:send(data, i, j)                                              -- [[VERBOSE]] verbose:socket(true, "sending byte stream: ",verbose.viewer:tostring(data:sub(i or 1, j)))
+function CoSocket:send(data, i, j)                                              --[[VERBOSE]] verbose:socket(true, "sending byte stream: ",verbose.viewer:tostring(data:sub(i or 1, j)))
 	-- fill space already avaliable in the socket
 	local socket = self.__object
 	local result, errmsg, lastbyte = socket:send(data, i, j)
@@ -100,25 +114,30 @@ function CoSocket:send(data, i, j)                                              
 	-- check if the job has not yet been completed
 	if not result and errmsg == "timeout" then
 		local timeout = self.timeout
-		if timeout ~= 0 then                                                        -- [[VERBOSE]] verbose:socket(true, "waiting for more space to write stream to be sent")
+		if timeout ~= 0 then                                                        --[[VERBOSE]] verbose:socket(true, "waiting for more space to write stream to be sent")
 			-- wait for more space on the socket
-			local event = yield("waitwrite", socket, timeout, self.timeoutkind)
-			while event == socket do -- otherwise it was a timeout (event==nil)
+			local thread = yield("running")
+			if timeout == nil then
+				yield("unschedule", thread)
+			else
+				yield("schedule", thread, self.timeoutkind, timeout)
+			end
+			yield("addwait", socket, "w", thread)
+			while yield("yield") == socket do -- otherwise it was a timeout (event==nil)
 				-- fill any space free on the socket one last time
 				result, errmsg, lastbyte = socket:send(data, lastbyte+1, j)
-				if result or errmsg ~= "timeout" then                                   -- [[VERBOSE]] verbose:socket("stream was sent until byte ",lastbyte)
+				if result or errmsg ~= "timeout" then                                   --[[VERBOSE]] verbose:socket("stream was sent until byte ",lastbyte)
 					break
 				end
-				event = yield("yield") -- wait more
 			end
-			yield("forgetwrite", socket)
+			yield("unschedule", thread)
 		end
-	end                                                                           -- [[VERBOSE]] verbose:socket(false, "stream sending ",result and "completed" or "failed")
+	end                                                                           --[[VERBOSE]] verbose:socket(false, "stream sending ",result and "completed" or "failed")
 	
 	return result, errmsg, lastbyte
 end
 
-function CoSocket:receive(pattern)                                              -- [[VERBOSE]] verbose:socket(true, "receiving byte stream")
+function CoSocket:receive(pattern)                                              --[[VERBOSE]] verbose:socket(true, "receiving byte stream")
 	-- get data already avaliable in the socket
 	local socket = self.__object
 	local result, errmsg, partial = socket:receive(pattern)
@@ -126,16 +145,22 @@ function CoSocket:receive(pattern)                                              
 	-- check if the job has not yet been completed
 	if not result and errmsg == "timeout" then
 		local timeout = self.timeout
-		if timeout ~= 0 then                                                        -- [[VERBOSE]] verbose:socket(true, "waiting for new data to be read")
+		if timeout ~= 0 then                                                        --[[VERBOSE]] verbose:socket(true, "waiting for new data to be read")
 			-- initialize data read buffer with data already read
 			local buffer = { partial }
 			
 			-- register socket for network event watch
-			local event = yield("waitread", socket, timeout, self.timekind)
-			while event == socket do -- otherwise it was a timeout (event==nil)
+			local thread = yield("running")
+			if timeout == nil then
+				yield("unschedule", thread)
+			else
+				yield("schedule", thread, self.timeoutkind, timeout)
+			end
+			yield("addwait", socket, "r", thread)
+			while yield("yield") == socket do -- otherwise it was a timeout (event==nil)
 				-- reduce the number of required bytes
 				if type(pattern) == "number" then
-					pattern = pattern - #partial                                          -- [[VERBOSE]] verbose:socket("got more ",#partial," bytes, waiting for more ",pattern)
+					pattern = pattern - #partial                                          --[[VERBOSE]] verbose:socket("got more ",#partial," bytes, waiting for more ",pattern)
 				end
 	 			-- read any data left on the socket one last time
 				result, errmsg, partial = socket:receive(pattern)
@@ -148,7 +173,6 @@ function CoSocket:receive(pattern)                                              
 						break
 					end
 				end
-				event = yield("yield")
 			end
 		
 			-- concat buffered data
@@ -158,14 +182,14 @@ function CoSocket:receive(pattern)                                              
 				partial = concat(buffer)
 			end
 		
-			yield("forgetread", socket, reading)                                      -- [[VERBOSE]] verbose:socket(false, "waiting completed")
+			yield("unschedule", thread)
 		end
-	end                                                                           -- [[VERBOSE]] verbose:socket(false, "data reading ",result and "completed: "..verbose.viewer:tostring(result) or "failed")
+	end                                                                           --[[VERBOSE]] verbose:socket(false, "data reading ",result and "completed: "..verbose.viewer:tostring(result) or "failed")
 	
 	return result, errmsg, partial
 end
 
-function CoSocket:close()                                                       -- [[VERBOSE]] verbose:socket("closing socket")
+function CoSocket:close()                                                       --[[VERBOSE]] verbose:socket("closing socket")
 	return self.__object:close()
 end
 
@@ -175,7 +199,7 @@ end
 
 local sockets = setmetatable({}, {__index = socketcore})
 
-function sockets.select(recvt, sendt, timeout, timekind)                        -- [[VERBOSE]] verbose:socket(true, "selecting sockets ready")
+function sockets.select(recvt, sendt, timeout, timekind)                        --[[VERBOSE]] verbose:socket(true, "selecting sockets ready")
 	-- collect sockets and check for concurrent use
 	local recv, send
 	if recvt and #recvt > 0 then
@@ -205,13 +229,25 @@ function sockets.select(recvt, sendt, timeout, timekind)                        
 		errmsg == "timeout" and
 		next(readok) == nil and
 		next(writeok) == nil
-	then                                                                          -- [[VERBOSE]] verbose:socket(true, "waiting for sockets to become ready")
+	then                                                                          --[[VERBOSE]] verbose:socket(true, "waiting for sockets to become ready")
 		-- block until some socket event is signal or timeout
-		yield("waitsockets", recv, send, timeout, timekind)
-		yield("forgetsockets", recv, send)
+		local thread = yield("running")
+		if timeout == nil then
+			yield("unschedule", thread)
+		else
+			yield("schedule", thread, self.timeoutkind, timeout)
+		end
+		for _, socket in ipairs(recv) do
+			yield("addwait", socket, "r", thread)
+		end
+		for _, socket in ipairs(send) do
+			yield("addwait", socket, "w", thread)
+		end
+		yield("yield")
+		yield("unschedule", thread)
 		
 		-- collect all ready sockets
-		readok, writeok, errmsg = selectsockets(recv, send, 0)                      -- [[VERBOSE]] verbose:socket(false, "waiting completed")
+		readok, writeok, errmsg = selectsockets(recv, send, 0)                      --[[VERBOSE]] verbose:socket(false, "waiting completed")
 	end
 	
 	-- replace sockets for the corresponding cosocket wrapper
@@ -226,7 +262,7 @@ function sockets.select(recvt, sendt, timeout, timekind)                        
 		writeok[index] = wrapper
 		writeok[wrapper] = true
 		writeok[socket] = nil
-	end                                                                           -- [[VERBOSE]] verbose:socket(false, "returning sockets ready")
+	end                                                                           --[[VERBOSE]] verbose:socket(false, "returning sockets ready")
 	
 	return readok, writeok, errmsg
 end
@@ -248,11 +284,11 @@ function sockets.udp()
 	return result, errmsg
 end
 
-function sockets.cosocket(socket)
+function sockets.cosocket(socket, ...)
 	if type(socket) == "userdata" then
 		socket = WrapperOf[socket]
 	end
-	return socket
+	return socket, ...
 end
 
 return sockets

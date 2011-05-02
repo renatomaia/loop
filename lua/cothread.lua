@@ -45,37 +45,37 @@ end
 -- Verbose Support -------------------------------------------------------------
 --------------------------------------------------------------------------------
 
--- [[VERBOSE]] local string = _G.require "string"
--- [[VERBOSE]] local strrep = string.rep
--- [[VERBOSE]] local char = string.char
--- [[VERBOSE]] local byte = string.byte
--- [[VERBOSE]] local lastcode = byte("Z")
--- [[VERBOSE]] local function nextstr(text)
--- [[VERBOSE]] 	for i = #text, 1, -1 do
--- [[VERBOSE]] 		local code = text:byte(i)
--- [[VERBOSE]] 		if code < lastcode then
--- [[VERBOSE]] 			return text:sub(1,i-1)..char(code+1)..strrep("A", #text-i)
--- [[VERBOSE]] 		end
--- [[VERBOSE]] 	end
--- [[VERBOSE]] 	return strrep("A", #text+1)
--- [[VERBOSE]] end
--- [[VERBOSE]] 
--- [[VERBOSE]] local tostring = _G.tostring
--- [[VERBOSE]] local lastused = {thread="",userdata=""}
--- [[VERBOSE]] local DefaultLabels = setmetatable({}, {
--- [[VERBOSE]] 	__mode = "k",
--- [[VERBOSE]] 	__index = function(self, value)
--- [[VERBOSE]] 		local type = type(value)
--- [[VERBOSE]] 		local last = lastused[type]
--- [[VERBOSE]] 		if last ~= nil then
--- [[VERBOSE]] 			last = nextstr(last)
--- [[VERBOSE]] 			lastused[type] = last
--- [[VERBOSE]] 			self[value] = last
--- [[VERBOSE]] 			return last
--- [[VERBOSE]] 		end
--- [[VERBOSE]] 		return tostring(value)
--- [[VERBOSE]] 	end,
--- [[VERBOSE]] })
+--[[VERBOSE]] local string = _G.require "string"
+--[[VERBOSE]] local strrep = string.rep
+--[[VERBOSE]] local char = string.char
+--[[VERBOSE]] local byte = string.byte
+--[[VERBOSE]] local lastcode = byte("Z")
+--[[VERBOSE]] local function nextstr(text)
+--[[VERBOSE]] 	for i = #text, 1, -1 do
+--[[VERBOSE]] 		local code = text:byte(i)
+--[[VERBOSE]] 		if code < lastcode then
+--[[VERBOSE]] 			return text:sub(1,i-1)..char(code+1)..strrep("A", #text-i)
+--[[VERBOSE]] 		end
+--[[VERBOSE]] 	end
+--[[VERBOSE]] 	return strrep("A", #text+1)
+--[[VERBOSE]] end
+--[[VERBOSE]] 
+--[[VERBOSE]] local tostring = _G.tostring
+--[[VERBOSE]] local lastused = {thread="",userdata=""}
+--[[VERBOSE]] local DefaultLabels = setmetatable({}, {
+--[[VERBOSE]] 	__mode = "k",
+--[[VERBOSE]] 	__index = function(self, value)
+--[[VERBOSE]] 		local type = type(value)
+--[[VERBOSE]] 		local last = lastused[type]
+--[[VERBOSE]] 		if last ~= nil then
+--[[VERBOSE]] 			last = nextstr(last)
+--[[VERBOSE]] 			lastused[type] = last
+--[[VERBOSE]] 			self[value] = last
+--[[VERBOSE]] 			return last
+--[[VERBOSE]] 		end
+--[[VERBOSE]] 		return tostring(value)
+--[[VERBOSE]] 	end,
+--[[VERBOSE]] })
 
 --------------------------------------------------------------------------------
 -- Begin of Instantiation Code -------------------------------------------------
@@ -83,7 +83,7 @@ end
 
 local function new(cothread)
 	local _ENV = {}
-	_G.pcall(_G.setfenv, 2, _ENV) -- compatibility with Lua 5.1
+	if _G._VERSION=="Lua 5.1" then _G.setfenv(1,_ENV) end -- Lua 5.1 compatibility
 	
 	if cothread == nil then cothread = {} end
 
@@ -160,8 +160,8 @@ end
 local function unschedule(thread)
 	local place = placeof[thread]
 	if place ~= nil then
-		removedataof(thread, place)                                                 -- [[VERBOSE]] verbose:threads(thread, " unscheduled")
-		return scheduled:removefrom(place)                                          -- [[VERBOSE]],verbose:state()
+		removedataof(thread, place)                                                 --[[VERBOSE]] verbose:threads(thread, " unscheduled")
+		return scheduled:removefrom(place)                                          --[[VERBOSE]],verbose:state()
 	end
 end
 
@@ -171,30 +171,30 @@ local function nextready()
 end
 
 local function dothread(thread, success, operation, ...)
-	if status(thread) == "suspended" then                                         -- [[VERBOSE]] verbose:threads(false, thread," yielded with operation ",operation)
+	if status(thread) == "suspended" then                                         --[[VERBOSE]] verbose:threads(false, thread," yielded with operation ",operation)
 		return yieldops[operation](thread, ...)
-	end                                                                           -- [[VERBOSE]] verbose:threads(false, thread,success and " finished successfully" or " raised an error")
+	end                                                                           --[[VERBOSE]] verbose:threads(false, thread,success and " finished successfully" or " raised an error")
 	-- 'thread' has just finished and is dead now
 	unschedule(thread)
 	local trap = cothread.traps[thread]
-	if trap ~= nil then                                                           -- [[VERBOSE]] verbose:threads("executing trap of ",thread)
+	if trap ~= nil then                                                           --[[VERBOSE]] verbose:threads("executing trap of ",thread)
 		return trap(thread, success, operation, ...)
-	elseif not success then                                                       -- [[VERBOSE]] verbose:threads("handling error of ",thread)
+	elseif not success then                                                       --[[VERBOSE]] verbose:threads("handling error of ",thread)
 		return cothread.error(thread, operation, ...)
 	end
 	return nil, operation, ... -- resume next scheduled thread with the results
 end
 
 local function dostep(thread, ...)
-	if thread ~= nil then                                                         -- [[VERBOSE]] verbose:threads(true, "resuming ",thread)
+	if thread ~= nil then                                                         --[[VERBOSE]] verbose:threads(true, "resuming ",thread)
 		return dostep(dothread(thread, resume(thread, ...)))
-	end                                                                           -- [[VERBOSE]] verbose:scheduler(false, "scheduling step ended")
+	end                                                                           --[[VERBOSE]] verbose:scheduler(false, "scheduling step ended")
 	return ...
 end
 
 local function dorun(...)
 	local thread = nextready()
-	if thread ~= nil then                                                         -- [[VERBOSE]] verbose:scheduler(true, "scheduling step restarted")
+	if thread ~= nil then                                                         --[[VERBOSE]] verbose:scheduler(true, "scheduling step restarted")
 		return dorun(dostep(thread, ...))
 	end
 	return ...
@@ -251,7 +251,7 @@ scheduleop("next", function(thread, ...)
 		if lastready == nil then
 			lastready = thread
 		end
-	end                                                                           -- [[VERBOSE]] verbose:threads(thread," scheduled as next ready thread");verbose:state()
+	end                                                                           --[[VERBOSE]] verbose:threads(thread," scheduled as next ready thread");verbose:state()
 	return thread, ...
 end)
 
@@ -259,7 +259,7 @@ scheduleop("last", function(thread, ...)
 	if lastready ~= thread then
 		reschedule(thread, lastready)
 		lastready = thread
-	end                                                                           -- [[VERBOSE]] verbose:threads(thread," scheduled as last ready thread");verbose:state()
+	end                                                                           --[[VERBOSE]] verbose:threads(thread," scheduled as last ready thread");verbose:state()
 	return thread, ...
 end)
 
@@ -270,17 +270,17 @@ scheduleop("after", function(thread, place, ...)
 			if lastready == place then
 				lastready = thread
 			end
-		end                                                                       -- [[VERBOSE]] verbose:threads(thread," scheduled after ready thread ",place);verbose:state()
+		end                                                                       --[[VERBOSE]] verbose:threads(thread," scheduled after ready thread ",place);verbose:state()
 		return thread, ...
 	end
 	return nil, ...
 end)
 
-yieldop("yield", function(current, ...)                                         -- [[VERBOSE]] verbose:threads(current," yielded")
+yieldop("yield", function(current, ...)                                         --[[VERBOSE]] verbose:threads(current," yielded")
 	return ...
 end)
 
-yieldop("suspend", function(current, ...)                                       -- [[VERBOSE]] verbose:threads(current," suspended itself")
+yieldop("suspend", function(current, ...)                                       --[[VERBOSE]] verbose:threads(current," suspended itself")
 	unschedule(current)
 	return ...
 end)
@@ -302,7 +302,7 @@ end)
 --@return ...
 --	values yielded by the last resumed thread
 --
-moduleop("step", function(thread, ...)                                          -- [[VERBOSE]] verbose:scheduler(true, "scheduling step started")
+moduleop("step", function(thread, ...)                                          --[[VERBOSE]] verbose:scheduler(true, "scheduling step started")
 	return dostep(thread or nextready(), ...)
 end)
 
@@ -323,15 +323,15 @@ moduleop("run", dorun)
 
 do
 	local backup = nextready
-	local function trap()                                                         -- [[VERBOSE]] verbose:scheduler(false, "scheduling halted")
+	local function trap()                                                         --[[VERBOSE]] verbose:scheduler(false, "scheduling halted")
 		nextready = backup
 	end
 	
-	moduleop("requesthalt", function()                                            -- [[VERBOSE]] verbose:scheduler("scheduling halt requested")
+	moduleop("requesthalt", function()                                            --[[VERBOSE]] verbose:scheduler("scheduling halt requested")
 		nextready = trap
 	end, "yieldable")
 	
-	moduleop("cancelhalt", function()                                             -- [[VERBOSE]] verbose:scheduler("scheduling halt canceled")
+	moduleop("cancelhalt", function()                                             --[[VERBOSE]] verbose:scheduler("scheduling halt canceled")
 		if nextready == trap then
 			nextready = backup
 			return true
@@ -362,7 +362,7 @@ moduleop("isscheduled", function(thread)
 	return scheduled[thread] ~= nil
 end, "yieldable")
 
-yieldop("running", function(current) return current, current end)               -- [[VERBOSE]] yieldop("verbose", function(current) return current, verbose end)
+yieldop("running", function(current) return current, current end)               --[[VERBOSE]] yieldop("verbose", function(current) return current, verbose end)
 
 --------------------------------------------------------------------------------
 -- Plugin Support --------------------------------------------------------------
@@ -399,7 +399,7 @@ do
 end
 
 loaded = {}
-moduleop("loadplugin", function(plugin)
+moduleop("plugin", function(plugin)
 	if loaded[plugin] == nil then
 		loaded[plugin] = true
 		plugin(_ENV, cothread)
@@ -410,68 +410,68 @@ end, "yieldable")
 -- Verbose Support -------------------------------------------------------------
 --------------------------------------------------------------------------------
 
--- [[VERBOSE]] local pairs = _G.pairs
--- [[VERBOSE]] local type = _G.type
--- [[VERBOSE]] local Viewer = _G.require "loop.debug.Viewer"
--- [[VERBOSE]] local Verbose = _G.require "loop.debug.Verbose"
--- [[VERBOSE]] verbose = Verbose{
--- [[VERBOSE]] 	viewer = Viewer{ labels = DefaultLabels },
--- [[VERBOSE]] }
--- [[VERBOSE]] verbose:newlevel{"threads"}
--- [[VERBOSE]] verbose:newlevel{"scheduler"}
--- [[VERBOSE]] verbose:newlevel{"state"}
--- [[VERBOSE]] 
--- [[VERBOSE]] local select = _G.select
--- [[VERBOSE]] local string = _G.require("string")
--- [[VERBOSE]] local format = string.format
--- [[VERBOSE]] local tabop = _G.require("loop.table")
--- [[VERBOSE]] local copy = tabop.copy
--- [[VERBOSE]] function verbose.custom:threads(...)
--- [[VERBOSE]] 	local viewer = self.viewer
--- [[VERBOSE]] 	local output = self.viewer.output
--- [[VERBOSE]] 	local labels = self.viewer.labels
--- [[VERBOSE]] 	
--- [[VERBOSE]] 	for i = 1, select("#", ...) do
--- [[VERBOSE]] 		local value = select(i, ...)
--- [[VERBOSE]] 		if type(value) == "string" then
--- [[VERBOSE]] 			output:write(value)
--- [[VERBOSE]] 		elseif type(value) == "thread" then
--- [[VERBOSE]] 			output:write("thread ",labels[value])
--- [[VERBOSE]] 		else
--- [[VERBOSE]] 			viewer:write(value)
--- [[VERBOSE]] 		end
--- [[VERBOSE]] 	end
--- [[VERBOSE]] end
--- [[VERBOSE]] 	
--- [[VERBOSE]] local stateloggers = {}
--- [[VERBOSE]] function statelogger(name, logger)
--- [[VERBOSE]] 	stateloggers[name] = logger
--- [[VERBOSE]] end
--- [[VERBOSE]] function verbose.custom:state(...)
--- [[VERBOSE]] 	local viewer = self.viewer
--- [[VERBOSE]] 	local output = self.viewer.output
--- [[VERBOSE]] 	local labels = self.viewer.labels
--- [[VERBOSE]] 	local missing = copy(scheduled)
--- [[VERBOSE]] 	local newline = "\n"..viewer.prefix
--- [[VERBOSE]] 	
--- [[VERBOSE]] 	output:write("Ready  :")
--- [[VERBOSE]] 	for thread in scheduled:forward(lastready) do
--- [[VERBOSE]] 		if missing[thread] == nil then
--- [[VERBOSE]] 			output:write("<STATE CORRUPTION>")
--- [[VERBOSE]] 			break
--- [[VERBOSE]] 		end
--- [[VERBOSE]] 		missing[thread] = nil
--- [[VERBOSE]] 		output:write(" ",labels[thread])
--- [[VERBOSE]] 		if thread == lastready then break end
--- [[VERBOSE]] 	end
--- [[VERBOSE]] 	
--- [[VERBOSE]] 	for name, logger in pairs(stateloggers) do
--- [[VERBOSE]] 		output:write(newline, format("%-7.7s:", name))
--- [[VERBOSE]] 		logger(self, missing, newline)
--- [[VERBOSE]] 	end
--- [[VERBOSE]] end
--- [[VERBOSE]] verbose:flag("print", true)
--- [[VERBOSE]] cothread.verbose = verbose
+--[[VERBOSE]] local pairs = _G.pairs
+--[[VERBOSE]] local type = _G.type
+--[[VERBOSE]] local Viewer = _G.require "loop.debug.Viewer"
+--[[VERBOSE]] local Verbose = _G.require "loop.debug.Verbose"
+--[[VERBOSE]] verbose = Verbose{
+--[[VERBOSE]] 	viewer = Viewer{ labels = DefaultLabels },
+--[[VERBOSE]] }
+--[[VERBOSE]] verbose:newlevel{"threads"}
+--[[VERBOSE]] verbose:newlevel{"scheduler"}
+--[[VERBOSE]] verbose:newlevel{"state"}
+--[[VERBOSE]] 
+--[[VERBOSE]] local select = _G.select
+--[[VERBOSE]] local string = _G.require("string")
+--[[VERBOSE]] local format = string.format
+--[[VERBOSE]] local tabop = _G.require("loop.table")
+--[[VERBOSE]] local copy = tabop.copy
+--[[VERBOSE]] function verbose.custom:threads(...)
+--[[VERBOSE]] 	local viewer = self.viewer
+--[[VERBOSE]] 	local output = self.viewer.output
+--[[VERBOSE]] 	local labels = self.viewer.labels
+--[[VERBOSE]] 	
+--[[VERBOSE]] 	for i = 1, select("#", ...) do
+--[[VERBOSE]] 		local value = select(i, ...)
+--[[VERBOSE]] 		if type(value) == "string" then
+--[[VERBOSE]] 			output:write(value)
+--[[VERBOSE]] 		elseif type(value) == "thread" then
+--[[VERBOSE]] 			output:write("thread ",labels[value])
+--[[VERBOSE]] 		else
+--[[VERBOSE]] 			viewer:write(value)
+--[[VERBOSE]] 		end
+--[[VERBOSE]] 	end
+--[[VERBOSE]] end
+--[[VERBOSE]] 	
+--[[VERBOSE]] local stateloggers = {}
+--[[VERBOSE]] function statelogger(name, logger)
+--[[VERBOSE]] 	stateloggers[name] = logger
+--[[VERBOSE]] end
+--[[VERBOSE]] function verbose.custom:state(...)
+--[[VERBOSE]] 	local viewer = self.viewer
+--[[VERBOSE]] 	local output = self.viewer.output
+--[[VERBOSE]] 	local labels = self.viewer.labels
+--[[VERBOSE]] 	local missing = copy(scheduled)
+--[[VERBOSE]] 	local newline = "\n"..viewer.prefix
+--[[VERBOSE]] 	
+--[[VERBOSE]] 	output:write("Ready  :")
+--[[VERBOSE]] 	for thread in scheduled:forward(lastready) do
+--[[VERBOSE]] 		if missing[thread] == nil then
+--[[VERBOSE]] 			output:write("<STATE CORRUPTION>")
+--[[VERBOSE]] 			break
+--[[VERBOSE]] 		end
+--[[VERBOSE]] 		missing[thread] = nil
+--[[VERBOSE]] 		output:write(" ",labels[thread])
+--[[VERBOSE]] 		if thread == lastready then break end
+--[[VERBOSE]] 	end
+--[[VERBOSE]] 	
+--[[VERBOSE]] 	for name, logger in pairs(stateloggers) do
+--[[VERBOSE]] 		output:write(newline, format("%-7.7s:", name))
+--[[VERBOSE]] 		logger(self, missing, newline)
+--[[VERBOSE]] 	end
+--[[VERBOSE]] end
+--[[VERBOSE]] verbose:flag("print", true)
+--[[VERBOSE]] cothread.verbose = verbose
 
 --------------------------------------------------------------------------------
 -- Inspection Support ----------------------------------------------------------

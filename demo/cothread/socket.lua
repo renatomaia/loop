@@ -1,6 +1,5 @@
 cothread = require "cothread"
-cothread.loadplugin(require "cothread.plugin.sleep")
-cothread.loadplugin(require "cothread.plugin.socket")
+cothread.plugin(require "cothread.plugin.socket")
 socket = require "cothread.socket"
 labels = {}
 --cothread.verbose:level(3)

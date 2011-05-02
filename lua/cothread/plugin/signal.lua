@@ -2,7 +2,7 @@ local _G = require "_G"
 local next = _G.next
 
 return function(_ENV, cothread)
-	_G.pcall(_G.setfenv, 2, _ENV) -- compatibility with Lua 5.1
+	if _G._VERSION=="Lua 5.1" then _G.setfenv(1,_ENV) end -- Lua 5.1 compatibility
 	
 	local lastwait = {}
 	local signalof = {}
@@ -70,7 +70,7 @@ return function(_ENV, cothread)
 			reschedule(thread, last)
 			newsignal(signal, thread)
 			last = thread
-		end                                                                         -- [[VERBOSE]] verbose:threads(thread," scheduled as waiting ",signal);verbose:state()
+		end                                                                         --[[VERBOSE]] verbose:threads(thread," scheduled as waiting ",signal);verbose:state()
 		return thread, ...
 	end)
 	
@@ -94,30 +94,30 @@ return function(_ENV, cothread)
 	
 	
 	
-	-- [[VERBOSE]] local string = _G.require "string"
-	-- [[VERBOSE]] local format = string.format
-	-- [[VERBOSE]] statelogger("Blocked", function(self, missing, newline)
-	-- [[VERBOSE]] 	local output = self.viewer.output
-	-- [[VERBOSE]] 	local labels = self.viewer.labels
-	-- [[VERBOSE]] 	local first = true
-	-- [[VERBOSE]] 	for signal, last in pairs(lastwait) do
-	-- [[VERBOSE]] 		if not first then
-	-- [[VERBOSE]] 			output:write(newline, "        ")
-	-- [[VERBOSE]] 			first = false
-	-- [[VERBOSE]] 		end
-	-- [[VERBOSE]] 		output:write(" ", labels[signal] or tostring(signal), "=[")
-	-- [[VERBOSE]] 		for thread in scheduled:forward(last) do
-	-- [[VERBOSE]] 			if missing[thread] == nil then
-	-- [[VERBOSE]] 				output:write("<STATE CORRUPTION>")
-	-- [[VERBOSE]] 				break
-	-- [[VERBOSE]] 			end
-	-- [[VERBOSE]] 			missing[thread] = nil
-	-- [[VERBOSE]] 			output:write(" ",labels[thread])
-	-- [[VERBOSE]] 			if thread == last then
-	-- [[VERBOSE]] 				output:write(" ]")
-	-- [[VERBOSE]] 				break
-	-- [[VERBOSE]] 			end
-	-- [[VERBOSE]] 		end
-	-- [[VERBOSE]] 	end
-	-- [[VERBOSE]] end)
+	--[[VERBOSE]] local string = _G.require "string"
+	--[[VERBOSE]] local format = string.format
+	--[[VERBOSE]] statelogger("Blocked", function(self, missing, newline)
+	--[[VERBOSE]] 	local output = self.viewer.output
+	--[[VERBOSE]] 	local labels = self.viewer.labels
+	--[[VERBOSE]] 	local first = true
+	--[[VERBOSE]] 	for signal, last in pairs(lastwait) do
+	--[[VERBOSE]] 		if not first then
+	--[[VERBOSE]] 			output:write(newline, "        ")
+	--[[VERBOSE]] 			first = false
+	--[[VERBOSE]] 		end
+	--[[VERBOSE]] 		output:write(" ", labels[signal] or tostring(signal), "=[")
+	--[[VERBOSE]] 		for thread in scheduled:forward(last) do
+	--[[VERBOSE]] 			if missing[thread] == nil then
+	--[[VERBOSE]] 				output:write("<STATE CORRUPTION>")
+	--[[VERBOSE]] 				break
+	--[[VERBOSE]] 			end
+	--[[VERBOSE]] 			missing[thread] = nil
+	--[[VERBOSE]] 			output:write(" ",labels[thread])
+	--[[VERBOSE]] 			if thread == last then
+	--[[VERBOSE]] 				output:write(" ]")
+	--[[VERBOSE]] 				break
+	--[[VERBOSE]] 			end
+	--[[VERBOSE]] 		end
+	--[[VERBOSE]] 	end
+	--[[VERBOSE]] end)
 end
