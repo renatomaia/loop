@@ -8,12 +8,12 @@ local next = _G.next
 local rawset = _G.rawset
 local setmetatable = _G.setmetatable
 
-module "loop.table"
+local table = {}
 
 --------------------------------------------------------------------------------
--- Copies all elements stored in a table into another.
+-- Copies all elements stored in a table to another.
 -- 
--- Each pair of key and value stored in table 'source' will be set into table
+-- Each pair of key and value stored in table 'source' will be set to table
 -- 'destiny'.
 -- If no 'destiny' table is defined, a new empty table is used.
 -- 
@@ -22,16 +22,14 @@ module "loop.table"
 -- 
 -- @return Table containing copied elements.
 -- 
--- @usage copied = loop.table.copy(results)
--- @usage loop.table.copy(results, newcopy)
+-- @usage copied = table.copy(results)
+-- @usage table.copy(results, copied)
 
-function copy(source, destiny)
-	if source then
-		if not destiny then destiny = {} end
-		local field, value = next(source)
-		while field ~= nil do
-			rawset(destiny, field, value)
-			field, value = next(source, field)
+function table.copy(source, destiny)
+	if source ~= nil then
+		if destiny == nil then destiny = {} end
+		for key, value in next, source do
+			rawset(destiny, key, value)
 		end
 	end
 	return destiny
@@ -45,13 +43,11 @@ end
 -- 
 -- @param tab Table which must be cleared.
 -- 
--- @usage return loop.table.clear(results)
+-- @usage assert(next(table.clear(results)) == nil)
 
-function clear(table)
-	local field = next(table)
-	while field ~= nil do
-		rawset(table, field, nil)
-		field = next(table, field)
+function table.clear(table)
+	for key in next, table do
+		table[key] = nil
 	end
 	return table
 end
@@ -63,13 +59,13 @@ end
 -- argument and returns a single value.
 -- 
 -- @param func Function which returned values must be cached.
--- @param weak [optional] String used to define the weak mode of the created table.
+-- @param weak [optional] String that defines the weak mode of the memoize.
 -- 
 -- @return Memoize table created.
 -- 
--- @usage SquareRootOf = loop.table.memoize(math.sqrt)
+-- @usage SquareRootOf = table.memoize(math.sqrt)
 
-function memoize(func, weak)
+function table.memoize(func, weak)
 	return setmetatable({}, {
 		__mode = weak,
 		__index = function(self, input)
@@ -81,3 +77,5 @@ function memoize(func, weak)
 		end,
 	})
 end
+
+return table

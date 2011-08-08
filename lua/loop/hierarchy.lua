@@ -34,7 +34,7 @@ end
 function creator(class, ...)
 	local obj = rawnew(class)
 	for class in topdown(class) do
-		local init = class.__init
+		local init = getmember(class, "__init")
 		if init then init(obj, ...) end
 	end
 	return obj

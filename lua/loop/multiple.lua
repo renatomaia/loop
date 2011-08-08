@@ -8,81 +8,48 @@ local ipairs = _G.ipairs
 local select = _G.select
 local setmetatable = _G.setmetatable
 
-local table = require "table"
-local unpack = table.unpack or _G.unpack
+local array = require "table"
+local unpack = array.unpack or _G.unpack
 
-local loop_table = require "loop.table"
-local copy = loop_table.copy
+local table = require "loop.table"
+local copy = table.copy
 
 local proto = require "loop.proto"
 local clone = proto.clone
 
 local simple = require "loop.simple"
-local simple_class = simple.class
-local simple_isclass = simple.isclass
-local simple_getsuper = simple.getsuper
-
-module "loop.multiple"
-
-clone(simple, _M)
+local initclass = simple.initclass
+local issimpleclass = simple.isclass
+local getsimplesuper = simple.getsuper
+local getclass = simple.getclass
+local new = simple.new
+local simpleclass = simple.class
 
 local function inherit(self, field)
-	self = getclass(self)
-	for _, super in ipairs(self) do
+	for _, super in ipairs(getclass(self)) do
 		local value = super[field]
 		if value ~= nil then return value end
 	end
 end
 
-local MetaClassMeta
-
-function class(class, ...)
-	if select("#", ...) > 1 then
-		local metaclass = { __call = new, __index = inherit, ... }
-		setmetatable(metaclass, MetaClassMeta)
-		return setmetatable(initclass(class), metaclass)
-	else
-		return simple_class(class, ...)
-	end
-end
-
-function isclass(class)
-	local metaclass = getclass(class)
-	if metaclass then
-		return metaclass.__index == inherit or
-		       simple_isclass(class)
-	end
-end
-
-function getsuper(class)
-	local metaclass = getclass(class)
-	if metaclass then
-		local indexer = metaclass.__index
-		if (indexer == inherit)
-			then return unpack(metaclass)
-			else return metaclass.__index
-		end
-	end
-end
-
 local function isingle(single, index)
-	if single and not index then
+	if single ~= nil and index == nil then
 		return 1, single
 	end
 end
-function supers(class)
-	local metaclass = getclass(class)
-	if metaclass then
-		local indexer = metaclass.__index
-		if indexer == inherit
-			then return ipairs(metaclass)
-			else return isingle, simple_getsuper(class)
+
+local function supers(class)
+	local classmt = getmetatable(class)
+	if classmt ~= nil then
+		if classmt.__index == inherit then
+			return ipairs(classmt)
 		end
+		return isingle, getsimplesuper(class)
 	end
 	return isingle
 end
 
-function issubclassof(class, super)
+local function issubclassof(class, super)
 	if class == super then return true end
 	for _, base in supers(class) do
 		if issubclassof(base, super) then
@@ -92,17 +59,44 @@ function issubclassof(class, super)
 	return false
 end
 
-function isinstanceof(object, class)
+local oo = clone(simple, {
+	supers = supers,
+	issubclassof = issubclassof,
+})
+
+local ClassMetatableMT = { __index = oo }
+function oo.class(class, ...)
+	if select("#", ...) > 1 then
+		local classmt = { __call = new, __index = inherit, ... }
+		setmetatable(classmt, ClassMetatableMT)
+		return setmetatable(initclass(class), classmt)
+	end
+	return simpleclass(class, ...)
+end
+
+function oo.isclass(class)
+	local classmt = getmetatable(class)
+	if classmt ~= nil then
+		if classmt.__index == inherit then
+			return true
+		end
+		return issimpleclass(class)
+	end
+	return false
+end
+
+function oo.isinstanceof(object, class)
 	return issubclassof(getclass(object), class)
 end
 
-MetaClassMeta = {
-	__index = {
-		new = new,
-		rawnew = rawnew,
-		getmember = getmember,
-		members = members,
-		getsuper = getsuper,
-		supers = supers,
-	},
-}
+function oo.getsuper(class)
+	local classmt = getmetatable(class)
+	if classmt ~= nil then
+		if classmt.__index == inherit then
+			return unpack(classmt)
+		end
+		return getsimplesuper(class)
+	end
+end
+
+return oo

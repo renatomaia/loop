@@ -13,50 +13,33 @@ local table = require "loop.table"
 local memoize = table.memoize
 
 local base = require "loop.base"
-local base_class = base.class
-local base_isclass = base.isclass
+local baseclass = base.class
+local initclass = base.initclass
+local isbaseclass = base.isclass
+local getclass = base.getclass
+local new = base.new
 
 local proto = require "loop.proto"
 local clone = proto.clone
 
-module "loop.simple"
+local oo = clone(base)
 
-clone(base, _M)
+local ClassMetatableMT = { __index = oo }
+local DerivedMT = memoize(function(super)
+	return setmetatable({ __index = super, __call = new }, ClassMetatableMT)
+end, "v")
 
-local MetaClassMeta
-local DerivedMeta = memoize(function(super)
-	return setmetatable({ __index = super, __call = new }, MetaClassMeta)
-end, "k")
-
-function class(class, super)
-	if super == nil
-		then return base_class(class)
-		else return setmetatable(initclass(class), DerivedMeta[super])
-	end
-end
-
-function isclass(class)
-	local metaclass = getmetatable(class)
-	if metaclass ~= nil then
-		local super = metaclass.__index
-		if metaclass == rawget(DerivedMeta, super) then
-			return true
-		end
-		return base_isclass(class)
-	end
-end
-
-function getsuper(class)
-	local metaclass = getmetatable(class)
-	if metaclass ~= nil then
-		local super = metaclass.__index
-		if metaclass == rawget(DerivedMeta, super) then
+local function getsuper(class)
+	local classmt = getmetatable(class)
+	if classmt ~= nil then
+		local super = classmt.__index
+		if classmt == rawget(DerivedMT, super) then
 			return super
 		end
 	end
 end
 
-function issubclassof(class, super)
+local function issubclassof(class, super)
 	while class ~= nil do
 		if class == super then return true end
 		class = getsuper(class)
@@ -64,16 +47,29 @@ function issubclassof(class, super)
 	return false
 end
 
-function isinstanceof(object, class)
+oo.getsuper = getsuper
+oo.issubclassof = issubclassof
+
+function oo.class(class, super)
+	if super ~= nil then
+		return setmetatable(initclass(class), DerivedMT[super])
+	end
+	return baseclass(class)
+end
+
+function oo.isclass(class)
+	local classmt = getmetatable(class)
+	if classmt ~= nil then
+		if classmt == rawget(DerivedMT, classmt.__index) then
+			return true
+		end
+		return isbaseclass(class)
+	end
+	return false
+end
+
+function oo.isinstanceof(object, class)
 	return issubclassof(getclass(object), class)
 end
 
-MetaClassMeta = {
-	__index = {
-		new = new,
-		rawnew = rawnew,
-		getmember = getmember,
-		members = members,
-		getsuper = getsuper,
-	},
-}
+return oo

@@ -4,10 +4,10 @@
 -- Author : Renato Maia <maia@inf.puc-rio.br>
 
 local _G = require "_G"
+local getmetatable = _G.getmetatable
 local pairs = _G.pairs
 local rawget = _G.rawget
 local setmetatable = _G.setmetatable
-local getmetatable = _G.getmetatable
 
 local function rawnew(class, object)
 	if object == nil then object = {} end
@@ -16,10 +16,10 @@ end
 
 local function new(class, ...)
 	local new = class.__new
-	if new == nil
-		then return rawnew(class, ...)
-		else return new(class, ...)
+	if new ~= nil then
+		return new(class, ...)
 	end
+	return rawnew(class, ...)
 end
 
 local function initclass(class)
@@ -28,30 +28,27 @@ local function initclass(class)
 	return class
 end
 
-local ClassMeta = setmetatable({ __call = new }, {
-	__index = {
-		new = new,
-		rawnew = rawnew,
-		getmember = rawget,
-		members = pairs,
-	},
-})
-
-return {
+local oo = {
 	initclass = initclass,
 	getclass = getmetatable,
 	getmember = rawget,
 	members = pairs,
 	new = new,
 	rawnew = rawnew,
-	
-	class = function(class)
-		return setmetatable(initclass(class), ClassMeta)
-	end,
-	isclass = function(class)
-		return getmetatable(class) == ClassMeta
-	end,
-	isinstanceof = function(object, class)
-		return getmetatable(object) == class
-	end,
 }
+
+local ClassMT = setmetatable({ __call = new }, { __index = oo })
+
+function oo.class(class)
+	return setmetatable(initclass(class), ClassMT)
+end
+
+function oo.isclass(class)
+	return getmetatable(class) == ClassMT
+end
+
+function oo.isinstanceof(object, class)
+	return getmetatable(object) == class
+end
+
+return oo

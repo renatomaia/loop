@@ -14,9 +14,9 @@ local select = _G.select
 local table = require "table"
 local unpack = table.unpack or _G.unpack
 
-local loop_table = require "loop.table"
-local copy = loop_table.copy
-local clear = loop_table.clear
+local tabop = require "loop.table"
+local copy = tabop.copy
+local clear = tabop.clear
 
 local proto = require "loop.proto"
 local clone = proto.clone
@@ -24,23 +24,23 @@ local clone = proto.clone
 local multiple = require "loop.multiple"
 local multiple_class = multiple.class
 local multiple_getclass = multiple.getclass
+local multiple_getmember = multiple.getmember
 local multiple_isinstanceof = multiple.isinstanceof
+local multiple_members = multiple.members
 local multiple_rawnew = multiple.rawnew
 local multiple_supers = multiple.supers
 
-module "loop.cached"
 
-clone(multiple, _M)
 
-local EndKey = {}
-OrderedSet = multiple_class{ [EndKey] = EndKey }
+local OrderedSet = multiple_class()
+
 function OrderedSet:enqueue(value)
 	if self[value] == nil then
-		local last = self[EndKey]
-		if value ~= last then
+		local last = self.last
+		if last ~= nil then
 			self[last] = value
-			self[EndKey] = value
 		end
+		self.last = value
 	end
 end
 
@@ -53,44 +53,171 @@ local function subsiterator(queue, class)
 		return class
 	end
 end
-function subs(class)
+
+local function subs(class)
 	local queue = OrderedSet()
 	queue:enqueue(class)
-	return subsiterator, queue, EndKey
+	return subsiterator, queue, "last"
 end
 
-function getcached(class)
+local CachedClass
+
+local function getcached(class)
 	local cached = multiple_getclass(class)
 	if multiple_isinstanceof(cached, CachedClass) then
 		return cached
 	end
 end
---------------------------------------------------------------------------------
-local ClassProxyOf = _G.loop.ClassOf
-if ClassProxyOf == nil then
-	ClassProxyOf = setmetatable({}, { __mode = "k" })
-	_G.loop.ClassOf = ClassProxyOf
+
+
+
+local function class(class, ...)
+	class = getcached(class) or CachedClass(class)
+	class:updatehierarchy(...)
+	class:updateinheritance()
+	return class.proxy
 end
---------------------------------------------------------------------------------
-CachedClass = multiple_class()
+
+local function rawnew(class, object)
+	local cached = getcached(class)
+	if cached then class = cached.class end
+	return multiple_rawnew(class, object)
+end
+
+local function new(class, ...)
+	local new = class.__new
+	if new ~= nil then
+		return new(class, ...)
+	end
+	return rawnew(class, ...)
+end
+
+local function getclass(object)
+	local class = multiple_getclass(object)
+	return class ~= nil and class.__class or class
+end
+
+local function isclass(class)
+	return getcached(class) ~= nil
+end
+
+local function getsuper(class)
+	local supers = {}
+	local cached = getcached(class)
+	if cached then
+		for index, super in ipairs(cached.supers) do
+			supers[index] = super.proxy
+		end
+		class = cached.class
+	end
+	for _, super in multiple_supers(class) do
+		supers[#supers + 1] = super
+	end
+	return unpack(supers)
+end
+
+local function icached(cached, index)
+	local super
+	local supers = cached.supers
+	index = index + 1
+	-- check if index points to a cached superclass
+	super = supers[index]
+	if super then return index, super.proxy end
+	-- check if index points to an uncached superclass
+	super = cached.uncached[index - #supers]
+	if super then return index, super end
+end
+local function supers(class)
+	local cached = getcached(class)
+	if cached
+		then return icached, cached, 0
+		else return multiple_supers(class)
+	end
+end
+
+local function issubclassof(class, super)
+	if class == super then return true end
+	for _, superclass in supers(class) do
+		if issubclassof(superclass, super) then return true end
+	end
+	return false
+end
+
+local function isinstanceof(object, class)
+	return issubclassof(getclass(object), class)
+end
+
+local function getmember(class, name)
+	local cached = getcached(class)
+	if cached
+		then return cached.members[name]
+		else return multiple_getmember(class, name)
+	end
+end
+
+local function members(class)
+	local cached = getcached(class)
+	if cached
+		then return pairs(cached.members)
+		else return multiple_members(class)
+	end
+end
+
+local function allmembers(class)
+	local cached = getcached(class)
+	if cached
+		then return pairs(cached.class)
+		else return multiple_members(class)
+	end
+end
+
+
+
+local oo = {
+	OrderedSet = OrderedSet, -- for extension packages (see 'scoped')
+	subs = subs,             -- for extension packages (see 'scoped')
+	getcached = getcached,   -- for extension packages (see 'scoped')
+	
+	class = class,
+	rawnew = rawnew,
+	new = new,
+	getclass = getclass,
+	isclass = isclass,
+	
+	getsuper = getsuper,
+	supers = supers,
+	issubclassof = issubclassof,
+	
+	isinstanceof = isinstanceof,
+	
+	getmember = getmember,
+	members = members,
+	allmembers = allmembers,
+}
+
+
+
+CachedClass = multiple_class({}, oo)
 
 local function proxy_newindex(proxy, field, value)
 	return multiple_getclass(proxy):updatefield(field, value)
 end
 function CachedClass:__new(class)
 	local meta = {}
+	local members = copy(class, {})
+	local proxy = (class == nil) and {} or clear(class)
 	self = multiple_rawnew(self, {
 		__call = new,
 		__index = meta,
 		__newindex = proxy_newindex,
 		supers = {},
 		subs = {},
-		members = copy(class, {}),
+		members = members,
 		class = meta,
-		proxy = (class == nil) and {} or clear(class),
+		proxy = proxy,
 	})
-	setmetatable(self.proxy, self)
-	ClassProxyOf[meta] = self.proxy
+	setmetatable(proxy, self)
+	meta.__class = proxy
 	return self
 end
 
@@ -173,7 +300,8 @@ function CachedClass:updatemembers()
 	if rawget(class, "__index") == nil then
 		rawset(class, "__index", class)
 	end
-	-- set class proxy as the result of getmetatable function
+	-- set class proxy as the result of getclass function
+	class.__class = self.proxy
 end
 
 function CachedClass:updatefield(name, member)
@@ -194,7 +322,7 @@ function CachedClass:updatefield(name, member)
 		queue:enqueue(sub)
 	end
 	repeat
-		local current = queue[current]
+		current = queue[current]
 		if current == nil then break end
 		class = current.class
 		members = current.members
@@ -215,111 +343,7 @@ function CachedClass:updatefield(name, member)
 	until false
 	return old
 end
---------------------------------------------------------------------------------
-function class(class, ...)
-	class = getcached(class) or CachedClass(class)
-	class:updatehierarchy(...)
-	class:updateinheritance()
-	return class.proxy
-end
 
-function getclass(object)
-	local class = multiple_getclass(object)
-	return ClassProxyOf[class] or class
-end
 
-function rawnew(class, object)
-	local cached = getcached(class)
-	if cached then class = cached.class end
-	return multiple_rawnew(class, object)
-end
 
-function new(class, ...)
-	local new = class.__new
-	if new
-		then return new(class, ...)
-		else return rawnew(class, ...)
-	end
-end
-
-function isclass(class)
-	return getcached(class) ~= nil
-end
-
-function superclass(class)
-	local supers = {}
-	local cached = getcached(class)
-	if cached then
-		for index, super in ipairs(cached.supers) do
-			supers[index] = super.proxy
-		end
-		class = cached.class
-	end
-	for _, super in multiple_supers(class) do
-		supers[#supers + 1] = super
-	end
-	return unpack(supers)
-end
-
-local function icached(cached, index)
-	local super
-	local supers = cached.supers
-	index = index + 1
-	-- check if index points to a cached superclass
-	super = supers[index]
-	if super then return index, super.proxy end
-	-- check if index points to an uncached superclass
-	super = cached.uncached[index - #supers]
-	if super then return index, super end
-end
-function supers(class)
-	local cached = getcached(class)
-	if cached
-		then return icached, cached, 0
-		else return multiple_supers(class)
-	end
-end
-
-function issubclassof(class, super)
-	if class == super then return true end
-	for _, superclass in supers(class) do
-		if issubclassof(superclass, super) then return true end
-	end
-	return false
-end
-
-function isinstanceof(object, class)
-	return issubclassof(getclass(object), class)
-end
-
-function getmember(class, name)
-	local cached = getcached(class)
-	if cached
-		then return cached.members[name]
-		else return multiple_getmember(class, name)
-	end
-end
-
-function members(class)
-	local cached = getcached(class)
-	if cached
-		then return pairs(cached.members)
-		else return multiple_members(class)
-	end
-end
-
-function allmembers(class)
-	local cached = getcached(class)
-	if cached
-		then return pairs(cached.class)
-		else return multiple_members(class)
-	end
-end
---------------------------------------------------------------------------------
-CachedClass.new = new
-CachedClass.rawnew = rawnew
-CachedClass.getmember = getmember
-CachedClass.members = members
-CachedClass.getsuper = getsuper
-CachedClass.supers = supers
-CachedClass.allmembers = allmembers
+return oo
