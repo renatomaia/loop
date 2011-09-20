@@ -677,7 +677,7 @@ function activate(level)
 		end
 	end
 	crawler:crawl()
-	viewer:getpackageinfo(loaded)
+	viewer:packnames(loaded)
 	local thread, setuphooklevel = setuphook(false)
 	currentthread = running() or false
 	breaklevel = (level or 1)+setuphooklevel-1

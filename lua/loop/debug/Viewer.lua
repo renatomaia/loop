@@ -67,8 +67,9 @@ local escapecodes = {
 	["\t"] = [[\t]],
 	["\v"] = [[\v]],
 }
+local codefmt = "\\%.3d"
 local function escapecode(char)
-	return escapecodes[char] or "\\"..byte(char)
+	return escapecodes[char] or codefmt:format(byte(char))
 end
 local function escapechar(char)
 	return "\\"..char

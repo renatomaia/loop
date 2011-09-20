@@ -50,22 +50,26 @@ local function write(self, newthread, flag, ...)
 	if count > 0 then
 		local viewer = self.viewer
 		local output = viewer.output
+		local showthread = self.showthread
 		local timed  = self.timed
 		local custom = self.custom
 		local pause  = self.pause
 		
 		if CurrentThread ~= newthread then
-			CurrentThread = newthread
-			output:write(ThreadRuler)
-			if newthread then viewer:write(newthread) end
-			output:write("\n")
+			if type(showthread) == "table" then showthread = showthread[flag] end
+			if showthread then
+				CurrentThread = newthread
+				output:write(ThreadRuler)
+				if newthread then viewer:write(newthread) end
+				output:write("\n")
+			end
 		end
 		
 		local prefix = viewer.prefix
 		local timelength = self.timelength
 		if timelength > 0 then
-			timed = (type(timed) == "table") and timed[flag] or timed
-			if timed == true then
+			if type(timed) == "table" then timed = timed[flag] end
+			if timed then
 				output:write(date(self.timeformat or nil), " ")
 			else
 				output:write(prefix:sub(1, timelength+1))
@@ -136,7 +140,6 @@ end
 
 timestamp = false
 thread = false
-nothreads = false
 timelength = 0
 timeformat = false
 viewer = Viewer{ maxdepth = 2 }
@@ -148,6 +151,7 @@ function __new(class, verbose)
 	verbose.custom = rawget(verbose, "custom") or {}
 	verbose.pause  = rawget(verbose, "pause")  or {}
 	verbose.timed  = rawget(verbose, "timed")  or {}
+	verbose.showthread = rawget(verbose, "showthread")or {}
 	verbose.tabsof = memoize(function() return rawget(verbose.tabsof, CurrentThread) or 0 end, "k")
 	return verbose
 end

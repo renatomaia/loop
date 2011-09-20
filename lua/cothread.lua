@@ -12,6 +12,7 @@ local setmetatable = _G.setmetatable
 local coroutine = require "coroutine"
 local status = coroutine.status
 local resume = coroutine.resume
+local yield = coroutine.yield
 
 local BiCyclicSets = require "loop.collection.BiCyclicSets"
 
@@ -204,11 +205,19 @@ end
 -- Plugin Operations -----------------------------------------------------------
 --------------------------------------------------------------------------------
 
+function yieldop(name, op)
+	yieldops[name] = op
+	cothread[name] = function(...)
+		return yield(name, ...)
+	end
+	return op
+end
+
 function scheduleop(name, finder)
 	findplace[name] = finder
-	yieldops[name] = function(current, ...)
+	yieldop(name, function(current, ...)
 		return select(2, finder(current, ...))
-	end
+	end)
 	return finder
 end
 
@@ -220,11 +229,6 @@ function moduleop(name, op, yieldable)
 			return current, op(...)
 		end
 	end
-	return op
-end
-
-function yieldop(name, op)
-	yieldops[name] = op
 	return op
 end
 

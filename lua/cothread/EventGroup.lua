@@ -11,32 +11,41 @@ local yield = coroutine.yield
 local resume = coroutine.resume
 local running = coroutine.running
 
+local tabop = require "loop.memoize"
+local memoize = tabop.memoize
+
 local oo = require "loop.base"
 local class = oo.class
 local rawnew = oo.rawnew
 
-local function notifierbody(group)
+local function timerbody(self)
 	yield() -- finish initialization
 	while true do
-		if group:deactivate() then
-			yield("notify", group)
-			yield("yield")
-		end
+		self:disable()
+		yield("notify", self)
+		yield("suspend")
 	end
 end
 
-local function notifier(group)
-	local thread = create(notifierbody)
-	resume(thread, group)
+local function notifierbody(self, ...)
+	yield() -- finish initialization
+	while true do
+		yield("notify", self)
+		yield(...)
+	end
+end
+
+local function newthread(body, ...)
+	local thread = create(body)
+	resume(thread, ...) -- initialization
 	return thread
 end
 
 
-local WeakKeys = class{__mode = "k"}
-local timeoutOf = WeakKeys()
-local timeKindOf = WeakKeys()
-local timerOf = WeakKeys()
-local activated = WeakKeys()
+local enabled = setmetatable({}, {__mode = "k"})
+local timerOf = memoize(function(self)
+	return newthread(timerbody, self)
+end, "k")
 
 
 local EventGroup = class()
@@ -44,9 +53,9 @@ local EventGroup = class()
 function EventGroup:add(event)
 	local thread = self[event]
 	if thread == nil then
-		thread = notifier(self)
+		thread = newthread(notifierbody, self, "wait", event)
 		self[event] = thread
-		if activated[self] ~= nil then
+		if enabled[self] ~= nil then
 			yield("schedule", thread, "wait", event)
 		end
 		return true
@@ -57,66 +66,39 @@ function EventGroup:remove(event)
 	local thread = self[event]
 	if thread ~= nil then
 		self[event] = nil
-		if activated[self] ~= nil then
+		if enabled[self] ~= nil then
 			yield("unschedule", thread)
 		end
 		return true
 	end
 end
 
-function EventGroup:settimeout(timeout, kind)
-	if kind == nil then kind = "delay" end
-	if timeout ~= timeoutOf[self] or kind ~= timeKindOf[self] then
-		local timer = timerOf[self]
-		if timeout ~= nil then
-			if timer == nil then
-				timer = notifier(self)
-				timerOf[self] = timer
-			end
-			timeoutOf[self] = timeout
-			timeKindOf[self] = kind
-			if activated[self] ~= nil then
-				yield("schedule", timer, kind, timeout)
-			end
-		elseif timer ~= nil then
-			timerOf[self] = nil
-			timeoutOf[self] = nil
-			timeKindOf[self] = nil
-			if activated[self] ~= nil then
-				yield("unschedule", timer)
-			end
-		end
-	end
-end
-
-function EventGroup:gettimeout()
-	return timeoutOf[self], timeKindOf[self]
-end
-
-function EventGroup:activate()
-	if activated[self] == nil then
+function EventGroup:enable(timeout)
+	if enabled[self] == nil then
 		for event, thread in pairs(self) do
 			yield("schedule", thread, "wait", event)
 		end
-		local timer = timerOf[self]
-		if timer ~= nil then
-			yield("schedule", timer, timerKindOf[self], timeoutOf[self])
+		if timeout == nil then
+			enabled[self] = true
+		else
+			local timer = timerOf[self]
+			yield("schedule", timer, "defer", timeout)
+			enabled[self] = timer
 		end
-		activated[self] = true
 		return true
 	end
 end
 
-function EventGroup:deactivate()
-	if activated[self] ~= nil then
+function EventGroup:disable()
+	local timer = enabled[self]
+	if timer ~= nil then
 		for _, thread in pairs(self) do
 			yield("unschedule", thread)
 		end
-		local timer = timerOf[self]
-		if timer ~= nil then
+		if timer ~= true then
 			yield("unschedule", timer)
 		end
-		activated[self] = nil
+		enabled[self] = nil
 		return true
 	end
 end
@@ -132,12 +114,10 @@ return EventGroup
 --function receive(socket, timeout)
 --	if timeout ~= nil then
 --		local events = EventGroup()
---		events:settimeout(timeout)
---		events:add(event1)
---		events:add(event2)
---		events:add(event3)
---		events:activate()
+--		events:add(socket)
+--		events:enable(yield("now")+timeout)
 --		yield("wait", events)
+--		events:disable() -- if this evaluates to 'false', there was a timeout.
 --	else
 --		yield("wait", socket)
 --	end

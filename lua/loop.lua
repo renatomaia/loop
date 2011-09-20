@@ -52,8 +52,7 @@ end
 
 function getclass(object)
 	local class = getmetatable(object)
-	if ClassOf then class = ClassOf[class] or class end
-	return class
+	return class ~= nil and class.__class or class
 end
 
 function issubclassof(class, super)

@@ -4,6 +4,7 @@
 
 local coroutine = require "coroutine"
 local create = coroutine.create
+local resume = coroutine.resume
 local yield = coroutine.yield
 
 local oo = require "loop.base"
@@ -11,18 +12,19 @@ local class = oo.class
 local rawnew = oo.rawnew
 
 
+local function nextwake(self)
+	local started = self.started
+	local rate = self.rate
+	local now = yield("now")
+	local elapsed = (now-started)%rate
+	return now+rate-elapsed
+end
+
 local function timer(self)
+	yield() -- initialization completed
 	while true do
 		self:action()
-		local started = self.started
-		if started then
-			local rate = self.rate
-			local now = yield("now")
-			local elapsed = (now-started)%rate
-			yield("defer", now+rate-elapsed)
-		else
-			yield("suspend")
-		end
+		yield("defer", nextwake(self))
 	end
 end
 
@@ -31,20 +33,24 @@ local Timer = class()
 
 function Timer:__new(...)
 	self = rawnew(self, ...)
-	self.thread = create(timer)
+	if self.thread == nil then
+		local thread = create(timer)
+		resume(thread, self) -- initializate timer thread
+		self.thread = thread
+	end
 	return self
 end
 
 function Timer:enable()
-	if not self.started then
+	if self.started == nil then
 		self.started = yield("now")
-		yield("resume", self.thread, self)
+		yield("schedule", self.thread, "defer", nextwake(self))
 		return true
 	end
 end
 
 function Timer:disable()
-	if self.started then
+	if self.started ~= nil then
 		self.started = nil
 		yield("unschedule", self.thread)
 		return true
