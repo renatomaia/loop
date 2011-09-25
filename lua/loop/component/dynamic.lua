@@ -104,7 +104,7 @@ end
 local ExternalState = oo.class({}, InternalState)
 
 function ExternalState:__index(name)
-	local port, manager = oo.superclass(ExternalState).__index(self, name)
+	local port, manager = oo.getsuper(ExternalState).__index(self, name)
 	if port and manager then
 		return rawget(manager, "__external") or manager
 	else

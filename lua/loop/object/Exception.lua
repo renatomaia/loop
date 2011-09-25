@@ -15,7 +15,7 @@ function Exception:__concat(other)
 end
 
 function Exception:__tostring()
-	return self[1]:gsub(
+	return tostring(self[1]):gsub(
 		"(%$+)([_%a][_%w]*)",
 		function(prefix, field)
 			local size = #prefix

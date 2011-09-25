@@ -65,7 +65,7 @@ Wrapper = oo.class()
 
 function Wrapper:__new(object)
 	local name = object.__name
-	object.__new         = false
+	object.__new         = oo.rawnew
 	object.__methodkey   = "  method"..name
 	object.__indexkey    = "  index"..name
 	object.__newindexkey = "  newindex"..name
@@ -267,7 +267,7 @@ function ReceptacleWrapper:__new(state, key, context)
 		break
 	end
 	
-	rawset(self, "__new", oo.class(Wrapper:__new{
+	rawset(self, "__create", oo.class(Wrapper:__new{
 		__get = Receptacle.__get,
 		__state = state,
 		__context = context,
@@ -298,7 +298,7 @@ function ReceptacleWrapper:__newindex(key, value)
 end
 
 function ReceptacleWrapper:__bind(port, key)
-	return self.__receptacle:__bind(self.__new{ __external = port }, key)
+	return self.__receptacle:__bind(self.__create{ __external = port }, key)
 end
 
 function ReceptacleWrapper:__unbind(key)
@@ -320,7 +320,7 @@ function ReceptacleWrapper:__all()
 end
 
 function ReceptacleWrapper:__intercept(interceptor, event, field)
-	return self.__new:__intercept(interceptor, event, field)
+	return self.__create:__intercept(interceptor, event, field)
 end
 
 --------------------------------------------------------------------------------
