@@ -383,7 +383,7 @@ if modfuncs then
 		outh:write(prefix,' int luaopen_',cname,'(lua_State*);\n')
 		outc:write(prefix,[[ int luaopen_]],cname,[[(lua_State *L) {
 	int arg = lua_gettop(L);
-	luaL_loadbuffer(L,(const char*)opcodes_]],cname,[[,sizeof(opcodes_]],cname,[[),"]],module,[[") && lua_error(L);
+	if (luaL_loadbuffer(L,(const char*)opcodes_]],cname,[[,sizeof(opcodes_]],cname,[[),"]],module,[[")) lua_error(L);
 	lua_insert(L,1);
 	lua_call(L,arg,1);
 	return 1;
@@ -412,7 +412,7 @@ prefix,[[ int ]],funcload,[[(lua_State *L) {
 	-- preload scripts
 	for module, cname in pairs(scripts) do
 		outc:write([[
-	luaL_loadbuffer(L,(const char*)opcodes_]],cname,[[,sizeof(opcodes_]],cname,[[),"]],module,[[") && lua_error(L);
+	if (luaL_loadbuffer(L,(const char*)opcodes_]],cname,[[,sizeof(opcodes_]],cname,[[),"]],module,[[")) lua_error(L);
 	lua_setfield(L, -2, "]],module,[[");
 ]])
 	end
