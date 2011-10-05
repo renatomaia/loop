@@ -1,56 +1,40 @@
---------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
--- Project: LOOP Class Library                                                --
--- Release: 2.3 beta                                                          --
--- Title  : Stream that Serializes and Restores Values from Files             --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP Class Library
+-- Release: 3.0
+-- Title  : Stream that Serializes and Restores Values from Files
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
-local assert = assert
-local table = require "table"
+local _G = require "_G"
+local assert = _G.assert
+
+local array = require "table"
+local concat = array.concat
+
 local oo = require "loop.simple"
-local Serializer = require "loop.serial.Serializer"
+local class = oo.class
 
-module"loop.serial.FileStream"
+local Stream = require "loop.serial.Stream"
+local put = Stream.put
 
-oo.class(_M, Serializer)
 
-buffersize = 1024
 
-function write(self, ...)
+local FileStream = class({}, Stream)
+
+function FileStream:write(...)
 	assert(self.file:write(...))
 end
 
-function put(self, ...)
-	self:serialize(...)
-	assert(self.file:write("\0"))
+function FileStream:put(...)
+	put(self, ...)
+	self:write("\0\n")
 end
 
-function get(self)
+function FileStream:read()
 	local lines = {}
-	local line
-	repeat
-		if self.remains == nil then
-			local errmsg
-			line, errmsg = self.file:read(self.buffersize)
-			if line == nil then
-				error(errmsg or "end of file")
-			end
-		else
-			line = self.remains
-			self.remains = nil
-		end
-		if line and line:find("%z") then
-			line, self.remains = line:match("^([^%z]*)%z(.*)$")
-		end
+	for line in self.file:lines() do
 		lines[#lines+1] = line
-	until not line or self.remains
-	return assert(self:load("return "..table.concat(lines)))()
+		if line:find("return") == 1 then return concat(lines) end
+	end
+	error("incomplete stream")
 end
+
+return FileStream

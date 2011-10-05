@@ -1,47 +1,49 @@
---------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
--- Project: LOOP Class Library                                                --
--- Release: 2.3 beta                                                          --
--- Title  : Stream that Serializes and Restores Values from Strings           --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP Class Library
+-- Release: 3.0
+-- Title  : Stream that Serializes and Restores Values from Strings
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
-local assert = assert
-local select = select
-local table = require "table"
+local _G = require "_G"
+local select = _G.select
+
+local array = require "table"
+local concat = array.concat
+
 local oo = require "loop.simple"
-local Serializer = require "loop.serial.Serializer"
+local class = oo.class
 
-module"loop.serial.StringStream"
+local Stream = require "loop.serial.Stream"
+local put = Stream.put
 
-oo.class(_M, Serializer)
 
-pos = 1
 
-__tostring = table.concat
+local StringStream = class({
+	pos = 1,
+	count = 0,
+	__tostring = concat
+}, Stream)
 
-function write(self, ...)
-	for i=1, select("#", ...) do
-		self[#self+1] = select(i, ...)
+function StringStream:write(...)
+	local count = self.count
+	local size = select("#", ...)
+	for i=1, size do
+		self[count+i] = select(i, ...)
 	end
+	self.count = count+size
 end
 
-function put(self, ...)
-	if #self > 0 then self[#self+1] = "\0" end
-	self:serialize(...)
+function StringStream:put(...)
+	put(self, ...)
+	self:write("\0")
 end
 
-function get(self)
+function StringStream:read()
 	local code = self.data or self:__tostring()
-	local newpos = code:find("%z", self.pos) or #code + 1
-	code = code:sub(self.pos, newpos - 1)
-	self.pos = newpos + 1
-	return assert(self:load("return "..code))()
+	local pos = self.pos
+	local zero = code:find("%z", pos)
+	if zero == nil then error("incomplete stream") end
+	self.pos = zero+1
+	return code:sub(pos, zero-1)
 end
+
+return StringStream

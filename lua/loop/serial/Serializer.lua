@@ -1,291 +1,196 @@
---------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
--- Project: LOOP Class Library                                                --
--- Release: 2.3 beta                                                          --
--- Title  : Serializer that Serialize Values to Lua Code                      --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP Class Library
+-- Release: 3.0
+-- Title  : Serializer that Serialize Values to Lua Code
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
-local _G = _G
-local getmetatable = getmetatable
-local setmetatable = setmetatable
-local getfenv = getfenv
-local setfenv = setfenv
-local package = package
-local assert = assert
-local select = select
-local pairs = pairs
-local pcall = pcall
-local ipairs = ipairs
-local loadstring = loadstring
-local rawget = rawget
-local rawset = rawset
-local require = require
-local tostring = tostring
-local tonumber = tonumber
-local error = error
-local type = type
+local _G = require "_G"
+local error = _G.error
+local getfenv = _G.pcall(_G.getfenv, 2) and _G.getfenv or nil
+local getmetatable = _G.getmetatable
+local pairs = _G.pairs
+local tostring = _G.tostring
+local type = _G.type
 
-local debug = debug
 local string = require "string"
-local table = require "loop.table"
+local byte = string.byte
+local dump = string.dump
+local gsub = string.gsub
+
+local math = require "math"
+local inf = math.huge
+
+local debug = _G.debug -- only if available
+local getupvalue = debug and debug.getupvalue
+local upvalueid = debug and debug.upvalueid
+
 local oo = require "loop.base"
+local class = oo.class
 
-module("loop.serial.Serializer", oo.class)
 
-__mode = "k"
 
-namespace = "serial"
+local escapecodes = {
+	["\b"] = [[\b]],
+	["\f"] = [[\f]],
+	["\n"] = [[\n]],
+	["\t"] = [[\t]],
+	["\v"] = [[\v]],
+}
+local codefmt = "\\%.3d"
+local function escapecode(char)
+	return escapecodes[char] or codefmt:format(byte(char))
+end
+local function escapechar(char)
+	return "\\"..char
+end
 
-------------------------------------------------------------------------------
-_M.globals = _G
-_M.require = require
-_M.getmetatable = getmetatable
-_M.setmetatable = setmetatable
-_M.getfenv = getfenv
-_M.setfenv = setfenv
-_M.getupvalue = debug and debug.getupvalue
-_M.setupvalue = debug and debug.setupvalue
-_M.package = package and package.loaded
-------------------------------------------------------------------------------
-Environment = oo.class{ __index = _G }
+local function newlabel(self)
+	local count = (self.lastlabel or 0) + 1
+	self.lastlabel = count
+	return "v"..count
+end
 
-function addmembers(self, pack)
-	if type(pack) == "table" then
-		for field, member in pairs(pack) do
-			local kind = type(member)
-			if
-				self[member] == nil and
-				kind ~= "boolean" and kind ~= "number" and kind ~= "string" and
-				type(field) == "string" and field:match("^[%a_]+[%w_]*$")
-			then
-				self[member] = self[pack].."."..field
+
+
+local Serializer = class{
+	ignoredenv = _G,
+	varprefix = "",
+	getfenv = getfenv,
+	getmetatable = getmetatable,
+	getupvalue = getupvalue,
+	upvalueid = upvalueid,
+}
+
+function Serializer:number(value)
+	if value ~= value then
+		return "0/0"
+	elseif value == inf then
+		return "1/0"
+	elseif value == -inf then
+		return "-1/0"
+	end
+	return tostring(value)
+end
+
+function Serializer:string(value)
+	value = gsub(value, '[\\"]', escapechar)
+	value = gsub(value, '[^%d%p%w ]', escapecode)
+	return '"'..value..'"'
+end
+
+function Serializer:table(value, partial)
+	local label
+	if partial == nil then
+		partial = {}
+		self[value] = partial
+		-- attempt to serialize contents
+		for key, value in pairs(value) do
+			key = self:serialize(key)
+			value = self:serialize(value)
+			partial[key] = value
+		end
+		-- check if table was parially written in a label
+		label = self[value]
+		if label ~= partial then
+			for key, value in pairs(partial) do
+				self:write(label,"[",key,"] = ",value,"\n")
 			end
+			partial = nil -- table was completelly written
 		end
 	end
-end
-
-function __new(self, object)
-	self = oo.rawnew(self, object)
-	self.environment = self.environment or Environment()
-	self.environment[self.namespace] = self
-	if self.globals then
-		self[self.globals] = self.namespace..".globals"
-		for field, member in pairs(self.globals) do
-			if
-				self[member] == nil and
-				type(field) == "string" and field:match("^[%a_]+[%w_]*$") and
-				type(member) == "function" and not pcall(string.dump, member)
-			then
-				self[member] = self.namespace..".globals."..field
-			end
+	-- write serialized contents (part or all content)
+	if partial ~= nil then
+		label = newlabel(self)
+		self[value] = label
+		self:write(self.varprefix,label," = {\n")
+		for key, value in pairs(partial) do
+			self:write("\t[",key,"] = ",value,",\n")
+			partial[key] = nil -- this entry shall not be written again
+		end
+		self:write("}\n")
+	end
+	-- write serialized metatable
+	local getmetatble = self.getmetatable
+	if getmetatable then
+		local meta = getmetatable(value)
+		if meta ~= nil then
+			meta = self:serialize(meta)
+			self:write("setmetatable(",label,", ",meta,")\n")
 		end
 	end
-	if self.package then
-		for name, pack in pairs(self.package) do
-			if self[pack] == nil then
-				self[pack] = self.namespace..'.require("'..name..'")'
-				self:addmembers(pack)
-			end
-		end
-	end
-	return self
+	return label
 end
 
-------------------------------------------------------------------------------
-local Incomplete = oo.class()
-
-function Incomplete:__load(contents, metatable)
-	table.copy(contents, self)
-	return setmetatable(self, metatable)
-end
-
-function value(self, id, type, ...)
-	local value = self[id]
-	if not value then
-		if type == "function" then
-			value = assert(loadstring((...)))
-		elseif type == "userdata" then
-			value = assert(self[...], "unknown userdata")()
-		elseif type == "table" then
-			local meta
-			value, meta = ...
-			if meta and self.setmetatable then
-				self.setmetatable(value, meta)
-			end
-		else
-			value = Incomplete()
-		end
-		self[id] = value
-	elseif type == "table" and oo.getclass(value) == Incomplete then
-		value:__load(...)
-	end
-	return value
-end
-
-function setup(self, value, ...)
-	local type = type(value)
-	if type == "function" then
-		if self.setfenv then self.setfenv(value, ... or self.globals) end
-		local setupvalue = self.setupvalue
-		if setupvalue then
-			local up = 1
-			while setupvalue(value, up, select(up+1, ...) or nil) do
-				up = up + 1
-			end
-		end
-	else
-		local loader = getmetatable(value)
-		if loader then loader = loader.__load end
-		if loader then loader(value, ...) end
-	end
-	return value
-end
-
-function load(self, data)
-	local errmsg
-	data, errmsg = loadstring(data)
-	if data then setfenv(data, self.environment) end
-	return data, errmsg
-end
-------------------------------------------------------------------------------
-function serialstring(self, string)
-	self:write(string.format("%q", string))
-end
-
-function serialtable(self, table, id)
-	self[table] = self.namespace..":value("..id..")"
+Serializer["function"] = function(self, value)
 	
-	-- serialize contents
-	self:write(self.namespace,":value(",id,",'table',{")
-	for key, val in pairs(table) do
-		self:write("[")
-		self:serialize(key)
-		self:write("]=")
-		self:serialize(val)
-		self:write(",")
-	end
-	self:write("}")
-
-	-- serialize metatable
-	if self.getmetatable then
-		local meta = self.getmetatable(table)
-		if meta then
-			self:write(",")
-			self:serialize(meta)
-		end
-	end
-	
-	self:write(")")
-end
-
-function serialfunction(self, func, id)
-	self[func] = self.namespace..":value("..id..")"
-	self:write(self.namespace,":setup(")
-	
-	-- serialize bytecodes
-	self:write(self.namespace,":value(",id,",'function','")
-	local bytecodes = string.dump(func)
-	for i = 1, #bytecodes do
-		self:write("\\",string.byte(bytecodes, i))
-	end
-	self:write("')")
-
-	-- serialize environment
-	local env
-	if self.getfenv then
-		env = self.getfenv(func)
-		if env == self.globals then env = nil end
-	end
-	self:write(",")
-	self:serialize(env)
+	-- serialize the function
+	local label = newlabel(self)
+	local opcodes = self:string(dump(value))
+	self:write(self.varprefix,label," = loadstring(",opcodes,")\n")
+	self[value] = label
 
 	-- serialize upvalues
-	if self.getupvalue then
-		local name, value
-		local up = 1
-		repeat
-			name, value = self.getupvalue(func, up)
-			if name then
-				self:write(",")
-				self:serialize(value)
+	local getupvalue = self.getupvalue
+	if getupvalue then
+		local upvalueid = self.upvalueid
+		local upvalues = self.upvalues
+		if upvalueid and upvalues == nil then
+			upvalues = {}
+			self.upvalues = upvalues
+		end
+		for i = 1, inf do
+			local upname, upvalue = getupvalue(value, i)
+			if upname == nil then break end
+			if upvalueid then
+				local upid = upvalueid(value, i)
+				local upinfo = upvalues[upid]
+				if upinfo == nil then
+					upvalues[upid] = {func=label,index=i}
+				else
+					self:write("upvaluejoin(",label,", ",i,", ",
+					                        upinfo.func,", ",upinfo.index,")\n")
+					upvalue = nil -- no need to serialize upvalue's contents
+				end
 			end
-			up = up + 1
-		until not name
+			if upvalue ~= nil then
+				upvalue = self:serialize(upvalue)
+				self:write("setupvalue(",label,", ",i,", ",upvalue,")\n")
+			end
+		end
 	end
 	
-	self:write(")")
-end
-
-function serialcustom(self, id, name, ...)
-	local state = select("#", ...) > 0
-	if state then
-		self:write(self.namespace,":setup(")
-	end
-	self:write(self.namespace,":value(",id,",'userdata','",name,"')")
-	if state then
-		self:write(",")
-		self:serialize(...)
-		self:write(")")
-	end
-end
-
-function serialuserdata(self, userdata, id)
-	local serializer = getmetatable(userdata)
-	if serializer then
-		serializer = serializer.__serialize
-		if serializer then
-			self[userdata] = self.namespace..":value("..id..")"
-			return self:serialcustom(id, serializer(userdata))
+	-- serialize environment
+	local getfenv = self.getfenv
+	if getfenv then
+		local env = getfenv(value)
+		if env ~= self.ignoredenv then
+			env = self:serialize(env)
+			self:write("setfenv(",label,", ",env,")\n")
 		end
 	end
-	error("unable to serialize a userdata without custom serialization")
+	
+	return label
 end
 
-local function getidfor(value)
-	local meta = getmetatable(value)
-	local backup
-	if meta then
-		backup = rawget(meta, "__tostring")
-		if backup ~= nil then rawset(meta, "__tostring", nil) end
-	end
-	local id = string.match(tostring(value), "%l+: (%w+)")
-	if meta then
-		if backup ~= nil then rawset(meta, "__tostring", backup) end
-	end
-	return tonumber(id, 16) or id
-end
-
-function serialize(self, ...)
-	for i=1, select("#", ...) do
-		if i ~= 1 then self:write(",") end
-		local value = select(i, ...)
-		local type = type(value)
-		if type == "nil" or type == "boolean" or type == "number" then
-			self:write(tostring(value))
-		elseif type == "string" then
-			self:serialstring(value)
-		else
-			local id = self[value]
-			if id then
-				self:write(id)
-			elseif self[type] then
-				self[type](self, value, getidfor(value))
-			else
-				error("unable to serialize a "..type)
+function Serializer:serialize(value)
+	local result
+	local valuetype = type(value)
+	if valuetype == "nil" or valuetype == "boolean" then
+		result = tostring(value)
+	elseif valuetype == "number" then
+		result = self:number(value)
+	elseif valuetype == "string" then
+		result = self:string(value)
+	else
+		result = self[value]
+		if type(result) ~= "string" then
+			local serializer = self[valuetype]
+			if not serializer then
+				error("unable to serialize a "..valuetype)
 			end
+			result = serializer(self, value, result)
 		end
 	end
+	return result
 end
 
-_M["table"]    = serialtable
-_M["function"] = serialfunction
-_M["userdata"] = serialuserdata
-_M["thread"]   = serialthread
+return Serializer
