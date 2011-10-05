@@ -6,6 +6,6 @@ return Suite{
 	Publisher    = require "loop.tests.library.Publisher",
 	CyclicSets   = require "loop.tests.library.CyclicSets",
 	Queue        = require "loop.tests.library.Queue",
-	StringStream = require "loop.tests.library.StringStream",
+	StringStream = require "loop.tests.library.Streams",
 	--SortedMap    = require "loop.tests.library.SortedMap",
 }
