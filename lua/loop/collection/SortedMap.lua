@@ -4,28 +4,25 @@
 -- Author : Renato Maia <maia@inf.puc-rio.br>
 
 
-local global = require "_G"
+local _G = require "_G"
 local tostring = _G.tostring
 
 local math = require "math"
 local random = math.random
 
-local table = require "table"
-local concat = table.concat
+local array = require "table"
+local concat = array.concat
 
 local oo = require "loop.base"
 local class = oo.class
 
-module(..., class)
 
--- default definitions ---------------------------------------------------------
+local SortedMap = class{
+	levelprob = .5,
+	before = function(key, other) return key < other end,
+}
 
-levelprob = .5
-before = function(key, other) return key < other end
-
--- internal operations ---------------------------------------------------------
-
-function newlevel(self)
+function SortedMap:newlevel()
 	local level = 1
 	local prob = self.levelprob
 	local max  = self.levelmax or (#self + 1)
@@ -35,7 +32,7 @@ function newlevel(self)
 	return level
 end
 
-function getnode(self)
+function SortedMap:getnode()
 	local pool = self.nodepool
 	if pool then
 		local node = pool.freenodes
@@ -47,7 +44,7 @@ function getnode(self)
 	return { key = nil, value = nil }
 end
 
-function freenode(self, node, last)
+function SortedMap:freenode(node, last)
 	local pool = self.nodepool
 	if pool then
 		if last == nil then last = node end
@@ -58,12 +55,12 @@ end
 
 -- operations on list nodes ----------------------------------------------------
 
-function nextnode(self, node)
+function SortedMap:nextnode(node)
 	if node == nil then node = self end
 	return node[1]
 end
 
-function popnode(self)
+function SortedMap:popnode()
 	local node = self[1]
 	for level = 1, #self do
 		if self[level] ~= node then break end
@@ -72,8 +69,8 @@ function popnode(self)
 	return node
 end
 
-function findnode(self, key, path)
-	local before = self.before or before
+function SortedMap:findnode(key, path)
+	local before = self.before
 	local prev, node = self
 	for level = #self, 1, -1 do
 		node = prev
@@ -87,7 +84,7 @@ end
 
 -- operations on paths to node -------------------------------------------------
 
-function addto(self, path, node)
+function SortedMap:addto(path, node)
 	local newlevel = self:newlevel()
 	if newlevel > #self then
 		for level = #self+1, newlevel do
@@ -96,13 +93,13 @@ function addto(self, path, node)
 	end
 	for level = newlevel+1, #path do path[level] = nil end
 	for level = newlevel, 1, -1 do
-		prev = path[level]
+		local prev = path[level]
 		node[level] = prev[level]
 		prev[level] = node
 	end
 end
 
-function removefrom(self, path, node)
+function SortedMap:removefrom(path, node)
 	for level = 1, #self do
 		local prev = path[level]
 		if prev[level] ~= node then break end
@@ -110,7 +107,7 @@ function removefrom(self, path, node)
 	end
 end
 
-function cropto(self, path)
+function SortedMap:cropto(path)
 	if path[1] ~= self then
 		for level = 1, #self do
 			self[level] = path[level][level]
@@ -121,16 +118,16 @@ end
 
 -- sorted map operations -------------------------------------------------------
 
-function empty(self)
+function SortedMap:empty()
 	return (self[1] ~= nil)
 end
 
-function head(self)
+function SortedMap:head()
 	local node = self[1]
 	if node then return node.value, node.key end
 end
 
-function next(self, key, orGreater)
+function SortedMap:next(key, orGreater)
 	local node = self:findnode(key)
 	if node and (orGreater or node.key == key) then
 		node = self:nextnode(node)
@@ -141,24 +138,24 @@ function next(self, key, orGreater)
 end
 
 local function iterator(holder)
-	node = holder[1][1]
+	local node = holder[1][1]
 	if node then
 		holder[1] = node
 		return node.key, node.value
 	end
 end
-function pairs(self)
+function SortedMap:pairs()
 	return iterator, {self}
 end
 
-function get(self, key, orGreater)
+function SortedMap:get(key, orGreater)
 	local node = self:findnode(key)
 	if node and (orGreater or node.key == key) then
 		return node.value, node.key
 	end
 end
 
-function put(self, key, value, orGreater, onlyAdd)
+function SortedMap:put(key, value, orGreater, onlyAdd)
 	local new = self:getnode()
 	local found = self:findnode(key, new)
 	if found and (orGreater or found.key == key) then
@@ -175,7 +172,7 @@ function put(self, key, value, orGreater, onlyAdd)
 	end
 end
 
-function remove(self, key, orGreater)
+function SortedMap:remove(key, orGreater)
 	local path = {}
 	local node = self:findnode(key, path)
 	if node and (orGreater or node.key == key) then
@@ -185,7 +182,7 @@ function remove(self, key, orGreater)
 	end
 end
 
-function pop(self)
+function SortedMap:pop()
 	local node = self:popnode()
 	if node then
 		self:freenode(node)
@@ -193,7 +190,7 @@ function pop(self)
 	end
 end
 
-function cropuntil(self, key, orGreater)
+function SortedMap:cropuntil(key, orGreater)
 	local path = {}
 	local node = self:findnode(key, path)
 	if orGreater or (node and node.key == key) then
@@ -209,7 +206,7 @@ end
 
 -- meta operations -------------------------------------------------------------
 
-function __tostring(self, tostring, concat)
+function SortedMap:__tostring()
 	local result = { "{ " }
 	local node = self[1]
 	while node ~= nil do
@@ -236,9 +233,9 @@ end
 --   | | [21] = <value>
 --   +-+-[25] = <value>
 --       [26] = <value>
-function debug(self, output)
+function SortedMap:debug(output)
 	output = output or _G.io.stderr
-	local current = {global.unpack(self)}
+	local current = {_G.unpack(self)}
 	while #current > 0 do
 		local node = current[1]
 		for level = #self, 2, -1 do
@@ -259,3 +256,5 @@ function debug(self, output)
 		output:write ",\n"
 	end
 end
+
+return SortedMap
