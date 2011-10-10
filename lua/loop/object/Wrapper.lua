@@ -11,18 +11,18 @@ local memoize = tabop.memoize
 local oo = require "loop.base"
 local class = oo.class
 
-module(..., class)
-
 local methods = memoize(function(method)
 	return function(self, ...)
 		return method(self.__object, ...)
 	end
-end)
+end, "k")
 
-function __index(self, key)
-	local value = self.__object[key]
-	if type(value) == "function"
-		then return methods[value]
-		else return value
-	end
-end
+return class{
+	__index = function(self, key)
+		local value = self.__object[key]
+		if type(value) == "function"
+			then return methods[value]
+			else return value
+		end
+	end,
+}

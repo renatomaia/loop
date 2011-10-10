@@ -29,13 +29,13 @@ local memoize = tabop.memoize
 local Wrapper = require "loop.object.Wrapper"                                   --[[VERBOSE]] local verbose = _G.require("cothread").verbose
 
 local CoSocket = {}
-local WrapperOf = memoize(function(socket)
-	if socket then
+local function wrap(socket)
+	if type(socket) == "userdata" then
 		socket:settimeout(0)
 		socket = copy(CoSocket, Wrapper{ __object = socket })
 	end
 	return socket
-end, "k")
+end
 
 
 function CoSocket:settimeout(timeout, timestamp)                                --[[VERBOSE]] verbose:socket("setting timeout of ",self,timestamp and " to moment " or " to ",timeout)
@@ -85,7 +85,7 @@ function CoSocket:accept(...)                                                   
 	-- check if the job has not yet been completed
 	local timeout = self.timeout
 	if result then
-		result = WrapperOf[result]
+		result = wrap(result)
 	elseif errmsg == "timeout" then
 		if timeout ~= 0 then                                                        --[[VERBOSE]] verbose:socket(true, "waiting for new connection request")
 			-- wait for a connection request signal
@@ -100,7 +100,7 @@ function CoSocket:accept(...)                                                   
 			yield("unschedule", thread)
 			-- accept any connection request pending in the socket
 			result, errmsg = socket:accept(...)
-			if result then result = WrapperOf[result] end                             --[[VERBOSE]] verbose:socket(false, "waiting completed")
+			if result then result = wrap(result) end                                  --[[VERBOSE]] verbose:socket(false, "waiting completed")
 		end
 	end                                                                           --[[VERBOSE]] verbose:socket(false, "new connection ",result and "accepted" or "failed")
 	return result, errmsg
@@ -197,21 +197,26 @@ end
 -- Wrapped Lua Socket API ------------------------------------------------------
 --------------------------------------------------------------------------------
 
-local sockets = setmetatable({}, {__index = socketcore})
+local sockets = setmetatable({ cosocket = wrap }, {__index = socketcore})
 
 function sockets.select(recvt, sendt, timeout, timekind)                        --[[VERBOSE]] verbose:socket(true, "selecting sockets ready")
 	-- collect sockets and check for concurrent use
+	local wrapperOf = {}
 	local recv, send
 	if recvt and #recvt > 0 then
 		recv = {}
 		for index, wrapper in ipairs(recvt) do
-			recv[index] = wrapper.__object
+			local socket = wrapper.__object
+			wrapperOf[socket] = wrapper
+			recv[index] = socket
 		end
 	end
 	if sendt and #sendt > 0 then
 		send = {}
 		for index, wrapper in ipairs(sendt) do
-			send[index] = wrapper.__object
+			local socket = wrapper.__object
+			wrapperOf[socket] = wrapper
+			send[index] = socket
 		end
 	end
 	
@@ -252,13 +257,13 @@ function sockets.select(recvt, sendt, timeout, timekind)                        
 	
 	-- replace sockets for the corresponding cosocket wrapper
 	for index, socket in ipairs(readok) do
-		local wrapper = WrapperOf[socket]
+		local wrapper = wrapperOf[socket]
 		readok[index] = wrapper
 		readok[wrapper] = true
 		readok[socket] = nil
 	end
 	for index, socket in ipairs(writeok) do
-		local wrapper = WrapperOf[socket]
+		local wrapper = wrapperOf[socket]
 		writeok[index] = wrapper
 		writeok[wrapper] = true
 		writeok[socket] = nil
@@ -273,22 +278,11 @@ function sockets.sleep(timeout)
 end
 
 function sockets.tcp()
-	local result, errmsg = createtcp()
-	if result then return WrapperOf[result] end
-	return result, errmsg
+	return wrap(createtcp())
 end
 
 function sockets.udp()
-	local result, errmsg = createudp()
-	if result then return WrapperOf[result] end
-	return result, errmsg
-end
-
-function sockets.cosocket(socket, ...)
-	if type(socket) == "userdata" then
-		socket = WrapperOf[socket]
-	end
-	return socket, ...
+	return wrap(createudp())
 end
 
 return sockets
