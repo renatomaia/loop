@@ -36,7 +36,7 @@ function Mutex:try(timeout)                                                     
 		if timeout == nil then
 			yield("suspend")
 		elseif yield("defer", timeout) == Token then
-			yield("unschedule", yield("running"))
+			yield("unschedule", thread)
 			timeout = nil
 		end                                                                         --[[VERBOSE]] verbose:mutex("notification received")
 		remove(self, thread)
@@ -96,7 +96,7 @@ function Mutex.select(timeout, ...)                                             
 		if timeout == nil then
 			yield("suspend")
 		elseif yield("defer", timeout) == Token then
-			yield("unschedule", yield("running"))
+			yield("unschedule", thread)
 		end                                                                         --[[VERBOSE]] verbose:mutex("notification received")
 		for i = 1, count do
 			local self = select(i, ...)
