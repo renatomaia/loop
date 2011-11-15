@@ -113,6 +113,10 @@ return function(_ENV, cothread)
 				opset:remove(socket)
 			end
 		end
+		if #reading == 0 and #writing == 0 then
+			unschedule(watcher)
+			idle = defaultidle
+		end                                                                         --[[VERBOSE]] verbose:threads(thread," unscheduled and it not waiting sockets anymore");verbose:state()
 	end
 	
 	moduleop("addwait", function(socket, event, thread)
