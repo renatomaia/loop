@@ -45,8 +45,9 @@ end
 
 function Stream:get()
 	local loader = assert(loadstring(self:read()))
-	pcall(setfenv, loader, self) -- Lua 5.1 compatibility
-	return loader(self)
+	local env = self.environment or self
+	pcall(setfenv, loader, env) -- Lua 5.1 compatibility
+	return loader(env)
 end
 
 return Stream
