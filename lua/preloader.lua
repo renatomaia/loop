@@ -359,7 +359,11 @@ if not compileonly then
 	for module, cname in pairs(cmodules) do
 		local header = headers[module]
 		if header == nil then
-			outc:write('int luaopen_',cname,'(lua_State*);\n')
+			if modfuncs then
+				outh:write(prefix,' int luaopen_',cname,'(lua_State*);\n')
+			else
+				outc:write('int luaopen_',cname,'(lua_State*);\n')
+			end
 		end
 	end
 	outc:write('\n')
