@@ -162,7 +162,7 @@ local function unschedule(thread)
 	local place = placeof[thread]
 	if place ~= nil then
 		removedataof(thread, place)                                                 --[[VERBOSE]] verbose:threads(thread, " unscheduled")
-		return scheduled:removefrom(place)                                          --[[VERBOSE]],verbose:state()
+		return scheduled:remove(thread)                                             --[[VERBOSE]],verbose:state()
 	end
 end
 
