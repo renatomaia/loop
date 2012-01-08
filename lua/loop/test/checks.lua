@@ -81,7 +81,7 @@ local function doresult(info, title, actual, expected, expres, actres, ...)
 			if not expres then title = "not "..title end
 		end
 		local except = Exception{
-			message = "$title ("..info[actres]..")",
+			"$title ("..info[actres]..")",
 			title = title,
 			actual = checks.viewer:tostring(actual),
 			expected = checks.viewer:tostring(expected),
@@ -175,7 +175,7 @@ checks.viewer = Viewer
 checks.error = _G.error
 
 function checks.fail(message)
-	checks.error(Exception{message = message}, 2)
+	checks.error(Exception{message}, 2)
 end
 
 local AND = checks.AND

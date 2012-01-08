@@ -54,7 +54,7 @@ function assert(self, value, ...)
 	return value, ...
 end
 
-AssertionFailure = "Assertion Failure"
+AssertionFailure = "[Assertion Failure] $message"
 
 function fail(self, message, level)
 	error(Exception{AssertionFailure, message = message}, (level or 1) + 1)
