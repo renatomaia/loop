@@ -1,5 +1,5 @@
 return function()
-	for _, e in ipairs{newproxy(), false} do
+	for _, e in ipairs{io.stdout, false} do
 		newTest{ "S schedules T to wait E", "N unschedules T",
 			tasks = {
 				S = function(_ENV) assert(schedule(T, "wait", E) == T) end,

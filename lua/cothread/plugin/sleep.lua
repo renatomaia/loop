@@ -133,8 +133,10 @@ return function(_ENV, cothread)
 		local place
 		if found ~= nil and found.key == time then
 			wakeindex:freenode(entry)
-			place = found.value                                                       --[[VERBOSE]] verbose:threads("wake time of ",thread," is the same of ",place)
-			reschedule(thread, place)
+			place = found.value
+			if place ~= thread then                                                   --[[VERBOSE]] verbose:threads("wake time of ",thread," is the same of ",place)
+				reschedule(thread, place)
+			end
 		else
 			if found == nil then
 				place = wakeindex:head()

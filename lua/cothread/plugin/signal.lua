@@ -94,6 +94,7 @@ return function(_ENV, cothread)
 	
 	
 	
+	--[[VERBOSE]] local pairs = _G.pairs
 	--[[VERBOSE]] local string = _G.require "string"
 	--[[VERBOSE]] local format = string.format
 	--[[VERBOSE]] statelogger("Blocked", function(self, missing, newline)

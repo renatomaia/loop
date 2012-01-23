@@ -38,11 +38,14 @@ local function wrap(socket)
 end
 
 
-function CoSocket:settimeout(timeout, timestamp)                                --[[VERBOSE]] verbose:socket("setting timeout of ",self,timestamp and " to moment " or " to ",timeout)
+function CoSocket:settimeout(timeout, mode)                                     --[[VERBOSE]] verbose:socket("setting timeout of ",self,timestamp and " to moment " or " to ",timeout)
 	if not timeout or timeout < 0 then
 		self.timeout = nil
 		self.timeoutkind = nil
 	else
+		if type(mode) == "string" and mode:find("t", 1, true) == 1 then
+			mode = "delay"
+		end
 		self.timeout = timeout
 		self.timeoutkind = timestamp and "defer" or "delay"
 	end
@@ -109,7 +112,7 @@ end
 function CoSocket:send(data, i, j)                                              --[[VERBOSE]] verbose:socket(true, "sending byte stream: ",verbose.viewer:tostring(data:sub(i or 1, j)))
 	-- fill space already avaliable in the socket
 	local socket = self.__object
-	local result, errmsg, lastbyte = socket:send(data, i, j)
+	local result, errmsg, lastbyte, elapsed = socket:send(data, i, j)
 
 	-- check if the job has not yet been completed
 	if not result and errmsg == "timeout" then
@@ -125,7 +128,9 @@ function CoSocket:send(data, i, j)                                              
 			yield("addwait", socket, "w", thread)
 			while yield("yield") == socket do -- otherwise it was a timeout (event==nil)
 				-- fill any space free on the socket one last time
-				result, errmsg, lastbyte = socket:send(data, lastbyte+1, j)
+				local extra
+				result, errmsg, lastbyte, extra = socket:send(data, lastbyte+1, j)
+				if extra then elapsed = elapsed + extra end
 				if result or errmsg ~= "timeout" then                                   --[[VERBOSE]] verbose:socket("stream was sent until byte ",lastbyte)
 					break
 				end
@@ -134,13 +139,13 @@ function CoSocket:send(data, i, j)                                              
 		end
 	end                                                                           --[[VERBOSE]] verbose:socket(false, "stream sending ",result and "completed" or "failed")
 	
-	return result, errmsg, lastbyte
+	return result, errmsg, lastbyte, elapsed
 end
 
-function CoSocket:receive(pattern)                                              --[[VERBOSE]] verbose:socket(true, "receiving byte stream")
+function CoSocket:receive(pattern, ...)                                              --[[VERBOSE]] verbose:socket(true, "receiving byte stream")
 	-- get data already avaliable in the socket
 	local socket = self.__object
-	local result, errmsg, partial = socket:receive(pattern)
+	local result, errmsg, partial, elapsed = socket:receive(pattern, ...)
 	
 	-- check if the job has not yet been completed
 	if not result and errmsg == "timeout" then
@@ -162,8 +167,10 @@ function CoSocket:receive(pattern)                                              
 				if type(pattern) == "number" then
 					pattern = pattern - #partial                                          --[[VERBOSE]] verbose:socket("got more ",#partial," bytes, waiting for more ",pattern)
 				end
-	 			-- read any data left on the socket one last time
-				result, errmsg, partial = socket:receive(pattern)
+				-- read any data left on the socket one last time
+				local extra
+				result, errmsg, partial, extra = socket:receive(pattern)
+				if extra then elapsed = elapsed + extra end
 				if result then
 					buffer[#buffer+1] = result
 					break
@@ -186,11 +193,37 @@ function CoSocket:receive(pattern)                                              
 		end
 	end                                                                           --[[VERBOSE]] verbose:socket(false, "data reading ",result and "completed: "..verbose.viewer:tostring(result) or "failed")
 	
-	return result, errmsg, partial
+	return result, errmsg, partial, elapsed
 end
 
-function CoSocket:close()                                                       --[[VERBOSE]] verbose:socket("closing socket")
-	return self.__object:close()
+local sockops = {
+	"accept",
+	"bind",
+	"close",
+	"connect",
+	"dirty",
+	"getfd",
+	"getpeername",
+	"getsockname",
+	"getstats",
+	"listen",
+	"receive",
+	"send",
+	"setfd",
+	"setoption",
+	"setpeername",
+	"setsockname",
+	"setstats",
+	"settimeout",
+	"shutdown",
+}
+for _, opname in ipairs(sockops) do
+	if CoSocket[opname] == nil then
+		CoSocket[opname] = function(self, ...)                                        --[[VERBOSE]] verbose:socket("socket operation ",opname)
+			local socket = self.__object
+			return socket[opname](socket, ...)
+		end
+	end
 end
 
 --------------------------------------------------------------------------------
@@ -222,7 +255,7 @@ function sockets.select(recvt, sendt, timeout, timekind)                        
 	
 	-- if no socket is given then return
 	if recv == nil and send == nil then
-		return {}, {}
+		return {}, {}, "timeout"
 	end
 	
 	-- collect any ready socket
@@ -240,7 +273,7 @@ function sockets.select(recvt, sendt, timeout, timekind)                        
 		if timeout == nil then
 			yield("unschedule", thread)
 		else
-			yield("schedule", thread, self.timeoutkind, timeout)
+			yield("schedule", thread, timekind, timeout)
 		end
 		for _, socket in ipairs(recv) do
 			yield("addwait", socket, "r", thread)

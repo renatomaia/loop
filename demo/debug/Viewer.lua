@@ -11,7 +11,7 @@ Good bye, cruel world!
 	[{}] = "table",
 	[function() end] = "function",
 	[coroutine.create(function() end)] = "thread",
-	[newproxy()] = "userdata",
+	[io.stdout] = "userdata",
 })
 end
 

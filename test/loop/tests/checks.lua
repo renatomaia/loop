@@ -13,7 +13,7 @@ local copy = tabop.copy
 local t = {1,2,3,a="a",b="b",c="c"}
 local f = function() end
 local c = coroutine.create(f)
-local u = newproxy()
+local u = io.stdout
 
 local _ENV = require "loop.test.checks"
 if like == nil then setfenv(1, _ENV) end

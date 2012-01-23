@@ -10,7 +10,7 @@ local vararg = require "vararg"
 local pack = vararg.pack
 
 local function newvalue(label)
-	---[[
+	--[[
 	local value = newproxy(true)
 	getmetatable(value).__tostring = function() return label end
 	return value
@@ -151,7 +151,7 @@ do
 	print("\n--- Function Tuples --------------------------------------------\n")
 	
 	local TupleOf = setmetatable({}, {__mode="v"})
-	local Nil = newproxy()
+	local Nil = {}
 	local function tuple(...)
 		local id = tuples.index
 		local values = pack(...)

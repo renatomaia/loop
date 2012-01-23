@@ -4,17 +4,11 @@
 
 local _G = require "_G"
 local getmetatable = _G.getmetatable
-local newproxy = _G.newproxy
 
 local oo = require "loop.base"
 local class = oo.class
 
-local prototype = newproxy(true)
-local Dummy = class(getmetatable(prototype))
-
-function Dummy:__new()
-	return newproxy(prototype)
-end
+local Dummy = class()
 
 local function none() end
 local function number() return 0 end
@@ -41,6 +35,5 @@ Dummy.__index    = function(self) return self end
 Dummy.__len      = number
 Dummy.__pairs    = function() return none end
 Dummy.__tostring = string
-Dummy.__metatable = prototype
 
 return Dummy

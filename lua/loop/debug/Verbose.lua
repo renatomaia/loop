@@ -152,7 +152,7 @@ function __new(class, verbose)
 	verbose.pause  = rawget(verbose, "pause")  or {}
 	verbose.timed  = rawget(verbose, "timed")  or {}
 	verbose.showthread = rawget(verbose, "showthread")or {}
-	verbose.tabsof = memoize(function() return rawget(verbose.tabsof, CurrentThread) or 0 end, "k")
+	verbose.tabsof = memoize(function() return 0 end, "k")
 	return verbose
 end
 

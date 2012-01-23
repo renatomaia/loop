@@ -1,88 +1,44 @@
-local _G = _G
+
+local _G = require "_G"
+local assert = _G.assert
+local error = _G.error
+local getmetatable = _G.getmetatable
+local ipairs = _G.ipairs
+local pairs = _G.pairs
+local type = _G.type
+local unpack = _G.unpack
+
+local math = require "math"
+local inf = math.huge
+local min = math.min
+
+local array = require "table"
+local concat = array.concat
+
+local table = require "loop.table"
+local memoize = table.memoize
+
+local oo = require "loop.base"
+local class = oo.class
+local rawnew = oo.rawnew
 
 --------------------------------------------------------------------------------
--- Project: LuaCooperative                                                    --
--- Release: 2.0 beta                                                          --
--- Title  :                                                                   --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
-
-local assert       = assert
-local error        = error
-local getmetatable = getmetatable
-local ipairs       = ipairs
-local newproxy     = newproxy
-local pairs        = pairs
-local type         = type
-local unpack       = unpack
-
-local math    = require "math"
-local table   = require "table"
-local package = require "package"
-local tabop   = require "loop.table"
-local oo      = require "loop.base"
-
-module("socket")
-
-package.loaded["socket.core"] = _M
-
-hostname = "localhost"
-ip2name = {
-	["127.0.0.1"] = "localhost",
-}
-name2ip = {
-	localhost = {
-		"127.0.0.1", {
-			name = "localhost",
-			alias = {},
-			ip = {
-				[1] = "127.0.0.1",
-			},
-		},
-	}
-}
-peers = tabop.memoize(function() return {} end)
-
-dns = {
-	gethostname = function()
-		return hostname
-	end,
-	tohostname = function(address)
-		local name = ip2name[address]
-		if not name then return nil, "host not found" end
-		return name
-	end,
-	toip = function(address)
-		local info = name2ip[address]
-		if not info then return nil, "host not found" end
-		return unpack(info)
-	end,
-}
-
---------------------------------------------------------------------------------
-
-functime = {}
 
 local now = 0
-
-function gettime()
-	return now
-end
-
-function sleep(time)
-	now = now+time
-end
+local ip2name = {}
+local name2ip = {}
+local peers = memoize(function() return {} end)
 
 --------------------------------------------------------------------------------
 
-local ReadStream = oo.class{
+local ReadStream = class{
 	event = 1,
 	consumed = 0,
 	stats = 0,
 }
 
 function ReadStream:__new(...)
-	self = oo.rawnew(self, ...)
+	self = rawnew(self, ...)
 	self.buffer = self.buffer or {}
 	return self
 end
@@ -95,7 +51,7 @@ end
 function ReadStream:getbuffer()
 	local buffer = self.buffer
 	self.buffer = {}
-	return table.concat(buffer)
+	return concat(buffer)
 end
 
 function ReadStream:next()
@@ -111,7 +67,7 @@ function ReadStream:getstats()
 	return self.stats + self.consumed
 end
 
-function ReadStream:getstats(stats)
+function ReadStream:setstats(stats)
 	self.stats = stats - self.consumed
 end
 
@@ -119,7 +75,7 @@ function ReadStream:ready()
 	if not self.closed then
 		local event = self[self.event]
 		if event == nil then
-			return math.huge
+			return inf
 		elseif event == false then
 			self.closed = true
 		elseif type(event) == "number" then
@@ -188,7 +144,7 @@ end
 
 --------------------------------------------------------------------------------
 
-local WriteStream = oo.class{
+local WriteStream = class{
 	event = ReadStream.event,
 	ready = ReadStream.ready,
 	stats = ReadStream.stats,
@@ -247,16 +203,17 @@ end
 
 --------------------------------------------------------------------------------
 
-local Socket = oo.class{
+local class2op = {
+	client = "connects",
+	server = "accepts",
+}
+
+local Socket = class{
 	class = "master",
 	ip = "0.0.0.0",
 	port = 0,
 }
 
-local class2op = {
-	client = "connects",
-	server = "accepts",
-}
 function Socket:ready()
 	local peer = self.peer
 	if peer == nil then return nil end
@@ -266,7 +223,7 @@ function Socket:ready()
 	
 	local nextpos = list.nextpos or 1
 	local current = list[nextpos]
-	if current == nil then return math.huge end
+	if current == nil then return inf end
 	if current == false or current.timestamp == nil then return now end
 	return current.timestamp
 end
@@ -307,7 +264,7 @@ end
 
 --------------------------------------------------------------------------------
 
-local connections = tabop.memoize(function(userdata)
+local connections = memoize(function(userdata)
 	return Socket{ birth = now }
 end, "k")
 
@@ -319,42 +276,39 @@ local function getinfo(self, op, class)
 	return info
 end
 
-
 --------------------------------------------------------------------------------
 
-local TCP = newproxy(true)
-local TCPClass = getmetatable(TCP)
-TCPClass.__index = TCPClass
+local TCP = class()
 
-function TCPClass:setoption(option, value)
+function TCP:setoption(option, value)
 	return 1
 end
-function TCPClass:settimeout(value)
+function TCP:settimeout(value)
 	local info = connections[self]
-	if not value or value < 0 or value == math.huge then
+	if not value or value < 0 or value == inf then
 		info.timeout = nil
 	else
 		info.timeout = value
 	end
 end
-function TCPClass:getpeername()
+function TCP:getpeername()
 	local peer = connections[self].peer
 	if peer == nil then return nil, "getpeername failed" end
 	return peer.ip, peer.port
 end
-function TCPClass:getsockname()
+function TCP:getsockname()
 	local info = connections[self]
 	return info.ip, info.port
 end
-function TCPClass:setpeername(address, port)
+function TCP:setpeername(address, port)
 	local peer = connections[self].peer
 	server.hostname, server.port = address, port
 end
-function TCPClass:setsockname(address, port)
+function TCP:setsockname(address, port)
 	local info = connections[self]
 	info.hostname, info.port = address, port
 end
-function TCPClass:close()
+function TCP:close()
 	local info = connections[self]
 	local closed = info.closed
 	if not closed then
@@ -366,7 +320,7 @@ function TCPClass:close()
 	return nil, "already closed"
 end
 
-function TCPClass:receive(pattern, prefix)
+function TCP:receive(pattern, prefix)
 	local info = connections[self]
 	local timeout = info.timeout
 	if timeout then timeout = now+timeout end
@@ -379,25 +333,25 @@ function TCPClass:receive(pattern, prefix)
 	end
 	return info.read:receive(pattern, timeout)
 end
-function TCPClass:send(data, i, j)
+function TCP:send(data, i, j)
 	local info = connections[self]
 	local timeout = info.timeout
 	if timeout then timeout = now+timeout end
 	return info.write:send(data, i, j, timeout)
 end
 
-function TCPClass:getstats()
+function TCP:getstats()
 	local info = connections[self]
 	return info.read:getstats(), info.write:getstats(), now-info.birth
 end
-function TCPClass:setstats(received, sent, age)
+function TCP:setstats(received, sent, age)
 	local info = connections[self]
 	info.read:setstats(received)
 	info.write:setstats(sent)
 	info.birth = now-age
 end
 
-function TCPClass:bind(address, port)
+function TCP:bind(address, port)
 	local info = getinfo(self, "bind", "master")
 	local peer = peers[port][address]
 	if peer == nil then return nil, "host not found" end
@@ -407,7 +361,7 @@ function TCPClass:bind(address, port)
 	info.peer = peer
 	return 1
 end
-function TCPClass:connect(address, port)
+function TCP:connect(address, port)
 	local info = getinfo(self, "connect", "master")
 	local peer = peers[port][address]
 	if peer == nil then return nil, "host not found" end
@@ -415,7 +369,7 @@ function TCPClass:connect(address, port)
 	info.peer = peer
 	return info:getnextconn()
 end
-function TCPClass:listen(backlog)
+function TCP:listen(backlog)
 	local info = getinfo(self, "listen", "master")
 	info.class = "server"
 	if info.port == 0 then
@@ -425,9 +379,9 @@ function TCPClass:listen(backlog)
 	end
 	return 1
 end
-function TCPClass:accept()
+function TCP:accept()
 	local info = getinfo(self, "accept", "server")
-	local sock = newproxy(TCP)
+	local sock = TCP()
 	local sinf = connections[sock]
 	sinf.class = "server"
 	sinf.peer = info.peer
@@ -442,7 +396,7 @@ function TCPClass:accept()
 end
 
 local validmodes = {send=true,receive=true,both=true}
-function TCPClass:shutdown(mode)
+function TCP:shutdown(mode)
 	local info = getinfo(self, "shutdown", "client")
 	assert(validmodes[mode] ~= nil,
 		"bad argument #1 to 'shutdown' (invalid shutdown method)")
@@ -455,24 +409,22 @@ function TCPClass:shutdown(mode)
 	return 1
 end
 
-function TCPClass:dirty() error("unsupported") end
-function TCPClass:getfd() error("unsupported") end
-function TCPClass:setfd() error("unsupported") end
+function TCP:dirty() error("unsupported") end
+function TCP:getfd() error("unsupported") end
+function TCP:setfd() error("unsupported") end
 
 --------------------------------------------------------------------------------
 
-local UDP = newproxy(true)
-local UDPClass = getmetatable(UDP)
-UDPClass.__index = UDPClass
+local UDP = class()
 
-function UDPClass:receive(size) end
-function UDPClass:receivefrom(size) end
-function UDPClass:send(datagram) end
-function UDPClass:sendto(datagram) end
+function UDP:receive(size) end
+function UDP:receivefrom(size) end
+function UDP:send(datagram) end
+function UDP:sendto(datagram) end
 
 --------------------------------------------------------------------------------
 
-function addhost(info)
+local function addhost(info)
 	assert(info.ip, "missing server IP address")
 	assert(info.hostname, "missing server hostname")
 	assert(info.port, "missing server port number")
@@ -484,11 +436,11 @@ function addhost(info)
 			name = info.hostname,
 			alias = info.alias or {},
 			ip = { info.ip, unpack(info.moreips) },
-		}
+		},
 	}
 	info.accepts  = info.accepts  or {}
 	info.connects = info.connects or {}
-	for id, connections in pairs{accepts=info.accepts, connects=info.connects} do
+	for id, connections in pairs{accepts=info.accepts,connects=info.connects} do
 		if type(connections) == "number" then
 			local list = {}
 			for i = 1, connections do
@@ -519,60 +471,109 @@ function addhost(info)
 	end
 end
 
-function udp()
-	error("Oops! Not supported yet!")
-	return newproxy(UDP)
-end
-
-function tcp()
-	return newproxy(TCP)
-end
-
-function select(recv, send, timeout)
-	if timeout == nil or timeout < 0 then
-		timeout = math.huge
-	else
-		timeout = now+timeout
-	end
-	for op, list in pairs{read=recv, write=send} do
-		for _, sock in ipairs(list) do
-			local info = connections[sock]
-			info = info[op] or info
-			local when = info:ready()
-			timeout = math.min(timeout, when)
+local function protect_cont(ok, err, ...)
+	if not ok then
+		if type(err) ~= "table" then
+			error(err)
 		end
+		return nil, err[1]
 	end
-	if timeout == math.huge then
-		error("application would hang forever")
-	end
-	now = timeout
-	local result = {
-		read = {},
-		write = {},
-		error = "timeout",
-	}
-	for op, list in pairs{read=recv, write=send} do
-		for _, sock in ipairs(list) do
-			local info = connections[sock]
-			info = info[op] or info
-			if info:ready() <= timeout then
-				result.error = nil
-				local ok = result[op]
-				ok[#ok+1] = sock
-				ok[sock] = true
-				-- connects sockets waiting for connection completion
-				if info.class == "client" and info.read == nil then
-					assert(info:getnextconn(),
-						"oops! ready socket could not be connected")
+	return err, ...
+end
+
+return {
+	addhost = addhost,
+	
+	gettime = function()
+		return now
+	end,
+	sleep = function(time)
+		now = now+time
+	end,
+	
+	dns = {
+		gethostname = function()
+			return hostname
+		end,
+		tohostname = function(address)
+			local name = ip2name[address]
+			if not name then return nil, "host not found" end
+			return name
+		end,
+		toip = function(address)
+			local info = name2ip[address]
+			if not info then return nil, "host not found" end
+			return unpack(info)
+		end,
+	},
+	
+	udp = function()
+		error("Oops! Not supported yet!")
+		return UDP()
+	end,
+	tcp = function()
+		return TCP()
+	end,
+
+	select = function(recv, send, timeout)
+		if timeout == nil or timeout < 0 then
+			timeout = inf
+		else
+			timeout = now+timeout
+		end
+		for op, list in pairs{read=recv, write=send} do
+			for _, sock in ipairs(list) do
+				local info = connections[sock]
+				info = info[op] or info
+				local when = info:ready()
+				timeout = min(timeout, when)
+			end
+		end
+		if timeout == inf then
+			error("application would hang forever")
+		end
+		now = timeout
+		local result = {
+			read = {},
+			write = {},
+			error = "timeout",
+		}
+		for op, list in pairs{read=recv, write=send} do
+			for _, sock in ipairs(list) do
+				local info = connections[sock]
+				info = info[op] or info
+				if info:ready() <= timeout then
+					result.error = nil
+					local ok = result[op]
+					ok[#ok+1] = sock
+					ok[sock] = true
+					-- connects sockets waiting for connection completion
+					if info.class == "client" and info.read == nil then
+						assert(info:getnextconn(),
+							"oops! ready socket could not be connected")
+					end
 				end
 			end
 		end
-	end
-	return result.read, result.write, result.error
-end
-
-skip = nil
-protect = nil
-newtry = nil
-
-return _M
+		return result.read, result.write, result.error
+	end,
+	
+	skip = nil,
+	
+	protect = function(func)
+		return function(...)
+			return protect_cont(pcall(func, ...))
+		end
+	end,
+	newtry = function(handler)
+		return function(ok, ...)
+			if not ok then
+				pcall(handler)
+				error{(...)}
+			end
+			return ok, ...
+		end
+	end,
+	
+	_DEBUG = true,
+}

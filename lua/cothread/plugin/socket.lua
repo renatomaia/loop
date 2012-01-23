@@ -9,6 +9,7 @@ local newcoroutine = coroutine.create
 local yield = coroutine.yield
 
 local math = require "math"
+local inf = math.huge
 local max = math.max
 
 local tabop = require "loop.table"
@@ -38,8 +39,7 @@ return function(_ENV, cothread)
 		suspendprocess(max(0, timeout-now()))                                       --[[VERBOSE]] verbose:scheduler("sleeping ended")
 	end
 	idle = defaultidle
-	now = gettime
-	moduleop("now", now, "yieldable")
+	moduleop("now", gettime, "yieldable")
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -63,7 +63,8 @@ return function(_ENV, cothread)
 
 	local function watchsockets(timeout)
 		if #reading == 0 and #writing == 0 then return end
-		if timeout ~= nil then timeout = max(timeout-now(), 0) end                  --[[VERBOSE]] verbose:scheduler(true, "processing network events")
+		if timeout == inf then timeout = nil end
+		if timeout ~= nil then timeout = max(timeout-now(), 0) end                  --[[VERBOSE]] verbose:scheduler("processing network events")
 		local recvok, sendok = selectsockets(reading, writing, timeout)
 		local sock2thread = threadof[reading]
 		for _, socket in ipairs(recvok) do
@@ -78,31 +79,16 @@ return function(_ENV, cothread)
 			end
 		end
 	end
-
-
-	local function resumewatcher()
-		if #reading > 0 or #writing > 0 then
-			schedule(watcher)
+	
+	watcher = {"fake thread"}                                                     -- [[VERBOSE]] verbose.viewer.labels[watcher] = "SocketWatcher"
+	
+	local function checkwatching()
+		if #reading == 0 and #writing == 0 then
+			unschedule(watcher)
+			idle = defaultidle
 		end
 	end
-	watcher = newcoroutine(function()
-		while true do
-			if scheduled[watcher] == watcher then
-				watchsockets()
-			else
-				watchsockets(0)
-			end
-			if #reading == 0 and #writing == 0 then
-				yield("suspend")
-			elseif scheduled[waker] ~= nil then
-				onreschedule(waker, resumewatcher)
-				yield("suspend", waker)
-			else
-				yield("yield")
-			end
-		end
-	end)                                                                          --[[VERBOSE]] verbose.viewer.labels[watcher] = "SocketWatcher"
-
+	
 	local function unscheduled(thread)
 		for opset, socketsof in pairs(socketof) do
 			local threadsof = threadof[opset]
@@ -113,10 +99,7 @@ return function(_ENV, cothread)
 				opset:remove(socket)
 			end
 		end
-		if #reading == 0 and #writing == 0 then
-			unschedule(watcher)
-			idle = defaultidle
-		end                                                                         --[[VERBOSE]] verbose:threads(thread," unscheduled and it not waiting sockets anymore");verbose:state()
+		checkwatching()                                                             --[[VERBOSE]] verbose:threads(thread," unscheduled and it not waiting sockets anymore");verbose:state()
 	end
 	
 	moduleop("addwait", function(socket, event, thread)
@@ -127,11 +110,7 @@ return function(_ENV, cothread)
 			opset:add(socket)
 			onunschedule(thread, unscheduled)
 			idle = watchsockets
-			if scheduled[waker] == nil then
-				schedule(watcher)
-			else
-				onreschedule(waker, resumewatcher)
-			end                                                                       --[[VERBOSE]] verbose:threads(thread," waiting for socket ",socket);verbose:state()
+			schedule(watcher, "defer", inf)                                           --[[VERBOSE]] verbose:threads(thread," waiting for socket ",socket);verbose:state()
 			return true
 		end
 	end, "yieldable")
@@ -149,10 +128,7 @@ return function(_ENV, cothread)
 			if next(sockets) == nil then
 				onunschedule(thread, nil)
 			end
-			if #reading == 0 and #writing == 0 then
-				unschedule(watcher)
-				idle = defaultidle
-			end                                                                       --[[VERBOSE]] verbose:threads(thread," not waiting for socket ",socket," anymore");verbose:state()
+			checkwatching()                                                           --[[VERBOSE]] verbose:threads(thread," not waiting for socket ",socket," anymore");verbose:state()
 		end
 	end, "yieldable")
 	
