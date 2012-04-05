@@ -24,14 +24,6 @@ local tailOf = setmetatable({}, OneAsDefaultValue)
 
 local Queue = class()
 
--- { }              :__len() --> { }               : 0
--- { one }          :__len() --> { one }           : 1
--- { one two }      :__len() --> { one two }       : 2
--- { one two three }:__len() --> { one two three } : 3
-function Queue:__len()
-	return headOf[self] - tailOf[self]
-end
-
 -- { }       :empty() --> { }        : true
 -- { item ? }:empty() --> { item ? } : false
 function Queue:empty(item)
@@ -106,13 +98,30 @@ function Queue:remove(index)
 	end
 end
 
+-- { ? }              :get() --> { ? }                : error "attempt to perform arithmetic on local 'index' (a nil value)"
+-- { ? }              :get(0) --> { ? }               : nil
+-- { one ? }          :get(1) --> { one ? }           : one
+-- { one two ? }      :get(2) --> { one two ? }       : two
+-- { one two three ? }:get(3) --> { one two three ? } : three
+function Queue:get(index)
+	return self[headOf[self]+index-1]
+end
+
+-- { }              :__len() --> { }               : 0
+-- { one }          :__len() --> { one }           : 1
+-- { one two }      :__len() --> { one two }       : 2
+-- { one two three }:__len() --> { one two three } : 3
+function Queue:__len()
+	return headOf[self] - tailOf[self]
+end
+
 local function iterator(self, index)
 	local pos = headOf[self]+index
 	if pos < tailOf[self] then
 		return index+1, self[pos]
 	end
 end
-function Queue:items()
+function Queue:__ipairs()
 	return iterator, self, 0
 end
 
