@@ -104,7 +104,7 @@ for name, info in pairs(checks) do
 		local params = select("#", ...)
 		if params == 0
 			then params = empty
-			else params = {n=count, ...}
+			else params = {n=params, ...}
 		end
 		return function(actual, invert)
 			return doresult(info, title, actual, expected, not invert,
