@@ -1,3 +1,5 @@
+local ContextFuncCompleted
+
 local oo = require "loop.base"
 local Component = oo.class()
 function Component:context(context)
@@ -12,6 +14,7 @@ function Component:context(context)
 			error("set receptacle is not empty")
 		end
 	end
+	ContextFuncCompleted = true
 end
 function Component:check()
 	Component.context(self, self.context)
@@ -34,5 +37,9 @@ return function(cpack, ppack)
 	Component.factory = factory
 	
 	factory()                     -- context is set using method 'context'
-	factory{context=true}:check() -- context is placed in field 'context'
+	assert(ContextFuncCompleted == true)
+	ContextFuncCompleted = nil
+	
+	factory{context=false}:check() -- context is placed in field 'context'
+	assert(ContextFuncCompleted == true)
 end

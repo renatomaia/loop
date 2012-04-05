@@ -1,51 +1,38 @@
---------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
--- Project: LOOP - Lua Object-Oriented Programming                            --
--- Release: 2.3 beta                                                          --
--- Title  : Component Model with Wrapping Container                           --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
--- Exported API:                                                              --
---   Template                                                                 --
---   factoryof(component)                                                     --
---   templateof(factory|component)                                            --
---   ports(template)                                                          --
---   segmentof(portname, component)                                           --
---------------------------------------------------------------------------------
+-- Project: LOOP - Lua Object-Oriented Programming
+-- Title  : Component Model with Wrapping Container
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
-local error  = error
-local pairs  = pairs
-local rawget = rawget
-local select = select
-local type   = type
 
-local oo   = require "loop.cached"
+local _G = require "_G"
+local error = _G.error
+local pairs = _G.pairs
+local rawget = _G.rawget
+local select = _G.select
+local type = _G.type
+
+local table = require "loop.table"
+local memoize = table.memoize
+
+local oo = require "loop.cached"
+local allmembers = oo.allmembers
+local class = oo.class
+local getclass = oo.getclass
+local isinstanceof = oo.isinstanceof
+local issubclassof = oo.issubclassof
+
 local base = require "loop.component.base"
+local base_factoryof = base.factoryof
+local base_ports = base.ports
 
-module "loop.component.wrapped"
 
---------------------------------------------------------------------------------
-
-local impl, obj
-local function method(_, ...) return impl(obj, ...) end
-function delegate(value, delegatee)
-	if type(value) == "function" then
-		impl, obj = value, delegatee
-		return method
+local MethodCache = memoize(function(method)
+	return function(self, ...)
+		return method(self.__container.__state.__component, ...)
 	end
-	return value
-end
+end, "k")
 
---------------------------------------------------------------------------------
 
-local ExternalState = oo.class()
+local ExternalState = class()
 
 function ExternalState:__index(name)
 	self = self.__container
@@ -53,10 +40,12 @@ function ExternalState:__index(name)
 	local port, manager = state[name], self[name]
 	if port and manager then
 		return rawget(manager, "__external") or manager
-	else
-		component = state.__component
-		return delegate(port or component[name], component)
 	end
+	local value = port or state.__component[name]
+	if type(value) == "function" then
+		return MethodCache[value]
+	end
+	return value
 end
 
 function ExternalState:__newindex(name, value)
@@ -72,9 +61,8 @@ function ExternalState:__newindex(name, value)
 	end
 end
 
---------------------------------------------------------------------------------
 
-BaseTemplate = oo.class({}, base.BaseTemplate)
+local BaseTemplate = class({}, base.BaseTemplate)
 
 function BaseTemplate:__container(segments)
 	local container = {
@@ -89,7 +77,7 @@ function BaseTemplate:__build(segments)
 	local container = self:__container(segments)
 	local state = container.__state
 	local context = container.__internal
-	for port, class in oo.allmembers(oo.getclass(self)) do
+	for port, class in allmembers(getclass(self)) do
 		if port:find("^%a[%w_]*$") then
 			container[port] = class(state, port, context)
 		end
@@ -104,38 +92,46 @@ function BaseTemplate:__build(segments)
 	return container.__external
 end
 
-function Template(template, ...)
-	return oo.class(template, BaseTemplate, ...)
-end
 
---------------------------------------------------------------------------------
-
-function factoryof(component)
+local function factoryof(component)
 	local container = component.__container
-	return base.factoryof(container and container.__state or component)
+	return base_factoryof(container and container.__state or component)
 end
 
-function templateof(factory)
-	if not oo.isinstanceof(factory, BaseTemplate) then
+local function templateof(factory)
+	if not isinstanceof(factory, BaseTemplate) then
 		factory = factoryof(factory)
 	end
-	return oo.getclass(factory)
+	return getclass(factory)
 end
 
-function ports(template)
-	if not oo.issubclassof(template, BaseTemplate) then
+
+local module = {
+	MethodCache = MethodCache,
+	BaseTemplate = BaseTemplate,
+	factoryof = factoryof,
+	templateof = templateof,
+}
+
+
+function module.Template(template, ...)
+	return class(template, BaseTemplate, ...)
+end
+
+
+function module.ports(template)
+	if not issubclassof(template, BaseTemplate) then
 		template = templateof(template)
 	end
-	return base.ports(template)
+	return base_ports(template)
 end
 
-function segmentof(comp, port)
+function module.segmentof(comp, port)
 	return comp.__container.__state[port]
 end
 
---------------------------------------------------------------------------------
 
-function addport(comp, name, port, class)
+function module.addport(comp, name, port, class)
 	local container = comp.__container
 	if container then
 		local context = container.__internal
@@ -152,7 +148,7 @@ function addport(comp, name, port, class)
 	end
 end
 
-function removeport(comp, name)
+function module.removeport(comp, name)
 	local container = comp.__container
 	if container then
 		local state = container.__state
@@ -162,6 +158,8 @@ function removeport(comp, name)
 		error("bad argument #1 to 'removeport' (component expected, got "..type(comp)..")")
 	end
 end
+
+return module
 
 --[[----------------------------------------------------------------------------
 MyCompTemplate = comp.Template{

@@ -1,45 +1,26 @@
---------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
--- Project: LOOP - Lua Object-Oriented Programming                            --
--- Release: 2.3 beta                                                          --
--- Title  : Base Component Model                                              --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
--- Exported API:                                                              --
---   Template                                                                 --
---   Facet                                                                    --
---   Receptacle                                                               --
---   ListReceptacle                                                           --
---   HashReceptacle                                                           --
---   SetReceptacle                                                            --
---   factoryof(component)                                                     --
---   templateof(factory|component)                                            --
---   ports(template)                                                          --
---   segmentof(portname, component)                                           --
---------------------------------------------------------------------------------
+-- Project: LOOP - Lua Object-Oriented Programming
+-- Title  : Base Component Model
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
-local next   = next
-local pairs  = pairs
-local pcall  = pcall
-local rawget = rawget
-local rawset = rawset
-local select = select
-local type   = type
+
+local _G = require "_G"
+local next = _G.next
+local pairs = _G.pairs
+local pcall = _G.pcall
+local rawget = _G.rawget
+local rawset = _G.rawset
+local select = _G.select
+local type = _G.type
 
 local oo = require "loop.cached"
+local allmembers = oo.allmembers
+local class = oo.class
+local getclass = oo.getclass
+local issubclassof = oo.issubclassof
+local rawnew = oo.rawnew
 
-module "loop.component.base"
 
---------------------------------------------------------------------------------
-
-BaseTemplate = oo.class()
+local BaseTemplate = class()
 
 function BaseTemplate:__call(...)
 	return self:__build(self:__init(...))
@@ -74,7 +55,7 @@ function BaseTemplate:__setcontext(segment, context)
 end
 
 function BaseTemplate:__build(segments)
-	for port, class in oo.allmembers(oo.getclass(self)) do
+	for port, class in allmembers(getclass(self)) do
 		if port:match("^%a[%w_]*$") then
 			class(segments, port, segments)
 		end
@@ -89,22 +70,30 @@ function BaseTemplate:__build(segments)
 	return segments
 end
 
-function Template(template, ...)
-	if select("#", ...) > 0
-		then return oo.class(template, ...)
-		else return oo.class(template, BaseTemplate)
-	end
-end
 
---------------------------------------------------------------------------------
-
-function factoryof(component)
+local function factoryof(component)
 	return component.__factory
 end
 
-function templateof(object)
-	return oo.getclass(factoryof(object) or object)
+local function templateof(object)
+	return getclass(factoryof(object) or object)
 end
+
+
+local module = {
+	BaseTemplate = BaseTemplate,
+	factoryof = factoryof,
+	templateof = templateof,
+}
+
+
+function module.Template(template, ...)
+	if select("#", ...) > 0
+		then return class(template, ...)
+		else return class(template, BaseTemplate)
+	end
+end
+
 
 local nextmember
 local function portiterator(state, name)
@@ -115,58 +104,53 @@ local function portiterator(state, name)
 	until name:find("^%a")
 	return name, port
 end
-function ports(template)
-	if not oo.issubclassof(template, BaseTemplate) then
+function module.ports(template)
+	if not issubclassof(template, BaseTemplate) then
 		template = templateof(template)
 	end
 	local state, var
-	nextmember, state, var = oo.allmembers(template)
+	nextmember, state, var = allmembers(template)
 	return portiterator, state, var
 end
 
-function segmentof(comp, port)
+function module.segmentof(comp, port)
 	return comp[port]
 end
 
---------------------------------------------------------------------------------
 
-function addport(comp, name, port, class)
+function module.addport(comp, name, port, class)
 	if class then
 		comp[name] = class(comp[name], comp)
 	end
 	port(comp, name, comp)
-	comp.__factory:__setcontext(comp[name], context)
+	comp.__factory:__setcontext(comp[name], comp)
 end
 
-function removeport(comp, name)
+function module.removeport(comp, name)
 	comp[name] = nil
 end
 
---------------------------------------------------------------------------------
 
-function Facet(segments, name)
+function module.Facet(segments, name)
 	segments[name] = segments[name] or
 	                 segments.__component[name] or
 	                 segments.__component
 	return false
 end
 
---------------------------------------------------------------------------------
-
-function Receptacle()
+function module.Receptacle()
 	return false
 end
 
---------------------------------------------------------------------------------
 
-MultipleReceptacle = oo.class{
+local MultipleReceptacle = class{
 	__all = pairs,
 	__hasany = next,
 	__get = rawget,
 }
 
 function MultipleReceptacle:__new(segments, name)
-	local receptacle = oo.rawnew(self, segments[name])
+	local receptacle = rawnew(self, segments[name])
 	segments[name] = receptacle
 	return receptacle
 end
@@ -184,38 +168,35 @@ function MultipleReceptacle:__unbind(key)
 	return port
 end
 
---------------------------------------------------------------------------------
 
-ListReceptacle = oo.class({}, MultipleReceptacle)
+module.ListReceptacle = class({}, MultipleReceptacle)
 
-function ListReceptacle:__bind(port)
+function module.ListReceptacle:__bind(port)
 	local index = #self + 1
 	rawset(self, index, port)
 	return index
 end
 
---------------------------------------------------------------------------------
 
-HashReceptacle = oo.class({}, MultipleReceptacle)
+module.HashReceptacle = class({}, MultipleReceptacle)
 
-function HashReceptacle:__bind(port, key)
+function module.HashReceptacle:__bind(port, key)
 	rawset(self, key, port)
 	return key
 end
 
---------------------------------------------------------------------------------
 
-SetReceptacle = oo.class({}, MultipleReceptacle)
+module.SetReceptacle = class({}, MultipleReceptacle)
 
-function SetReceptacle:__bind(port)
+function module.SetReceptacle:__bind(port)
 	rawset(self, port, port)
 	return port
 end
 
---------------------------------------------------------------------------------
 
-_M[Facet         ] = "Facet"
-_M[Receptacle    ] = "Receptacle"
-_M[ListReceptacle] = "ListReceptacle"
-_M[HashReceptacle] = "HashReceptacle"
-_M[SetReceptacle ] = "SetReceptacle"
+--for name, value in pairs(module) do
+--	module[value] = name
+--end
+
+
+return module

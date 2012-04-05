@@ -1,40 +1,27 @@
---------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
--- Project: LOOP - Lua Object-Oriented Programming                            --
--- Release: 2.3 beta                                                          --
--- Title  : Port Model with Interception Support                              --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
--- Exported API:                                                              --
---   Facet                                                                    --
---   Receptacle                                                               --
---   ListReceptacle                                                           --
---   HashReceptacle                                                           --
---   SetReceptacle                                                            --
---   intercept(template|factory|comp, portname, event, interceptor)           --
---------------------------------------------------------------------------------
+-- Project: LOOP - Lua Object-Oriented Programming
+-- Title  : Port Model with Interception Support
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
-local getmetatable = getmetatable
-local pairs        = pairs
-local rawget       = rawget
-local rawset       = rawset
-local tostring     = tostring
-local type         = type
 
-local tabop = require "loop.table"
-local oo    = require "loop.cached"
+local _G = require "_G"
+local getmetatable = _G.getmetatable
+local pairs = _G.pairs
+local rawget = _G.rawget
+local rawset = _G.rawset
+local tostring = _G.tostring
+local type = _G.type
+
+local table = require "loop.table"
+local memoize = table.memoize
+
+local oo = require "loop.cached"
+local class = oo.class
+local getclass = oo.getclass
+local isinstanceof = oo.isinstanceof
+local rawnew = oo.rawnew
+
 local base  = require "loop.component.base"
 
-module "loop.component.intercepted"
-
---------------------------------------------------------------------------------
 
 local function doafter(iceptor, request, method, ...)
 	local operation = iceptor.after
@@ -59,21 +46,20 @@ local function dobefore(iceptor, request, method, ...)
 	end
 end
 
---------------------------------------------------------------------------------
 
-Wrapper = oo.class()
+local Wrapper = class()
 
 function Wrapper:__new(object)
 	local name = object.__name
-	object.__new         = oo.rawnew
-	object.__methodkey   = "  method"..name
-	object.__indexkey    = "  index"..name
+	object.__new = rawnew
+	object.__methodkey = "  method"..name
+	object.__indexkey = "  index"..name
 	object.__newindexkey = "  newindex"..name
-	object.__callkey     = "  call"..name
-	return oo.rawnew(self, object)
+	object.__callkey = "  call"..name
+	return rawnew(self, object)
 end
 
-MethodCache = tabop.memoize(function(method)
+local MethodCache = memoize(function(method)
 	return function(self, ...)
 		local object = self:__get()
 		local iceptor = rawget(self, "  method") or self.__factory[self.__methodkey]
@@ -95,9 +81,8 @@ local function getfield(table, field)
 	return table[field]
 end
 function Wrapper:__index(field)
-	-- NOTE: retrieve class members first
-	local class = oo.getclass(self)
-	if class[field] then return class[field] end
+	local class = getclass(self)
+	if class[field] then return class[field] end -- retrieve class members first
 
 	local object = self:__get()
 	local factory = self.__factory
@@ -166,31 +151,8 @@ function Wrapper:__intercept(event, iceptor)
 	rawset(self, "  "..event, iceptor)
 end
 
-function intercept(scope, port, event, iceptor)
-	local container = rawget(scope, "__container")
-	local wrapper = container and container[port]
-	if oo.isinstanceof(wrapper, Wrapper)
-		then rawset(wrapper, "  "..event, iceptor)
-		else scope["  "..event..port] = iceptor
-	end
-end
 
---[[----------------------------------------------------------------------------
-
--- Intercept at all ports of all components
-loop.component.intercepted.Wrapper:__intercept(event, iceptor)
--- Intercept all facets of all components
-loop.component.intercepted.Facet:__intercept(event, iceptor)
--- Intercept a particular port of a component type
-loop.component.intercepted.intercept(MyCompType, "MyPort", event, iceptor)
--- Intercept a particular port of a component implementation
-loop.component.intercepted.intercept(MyCompFactory, "MyPort", event, iceptor)
--- Intercept a particular port of a component instance
-loop.component.intercepted.intercept(MyComponent, "MyPort", event, iceptor)
-
-----------------------------------------------------------------------------]]--
-
-Facet = oo.class({}, Wrapper)
+local Facet = class({}, Wrapper)
 
 function Facet:__new(state, key, context)
 	local wrapper = Wrapper.__new(self, {
@@ -212,9 +174,8 @@ function Facet:__get()
 	return self.__state[self.__key]
 end
 
---------------------------------------------------------------------------------
 
-Receptacle = oo.class({}, Wrapper)
+local Receptacle = class({}, Wrapper)
 
 function Receptacle:__new(state, key, context)
 	local wrapper = Wrapper.__new(self, {
@@ -251,12 +212,11 @@ end
 
 Receptacle.__hasany = Receptacle.__get
 
---------------------------------------------------------------------------------
 
-local ReceptacleWrapper = oo.class()
+local ReceptacleWrapper = class()
 
 function ReceptacleWrapper:__new(state, key, context)
-	self = oo.rawnew(self, state[key])
+	self = rawnew(self, state[key])
 	
 	local connections
 	for key, port in self.__receptacle:__all() do
@@ -267,7 +227,7 @@ function ReceptacleWrapper:__new(state, key, context)
 		break
 	end
 	
-	rawset(self, "__create", oo.class(Wrapper:__new{
+	rawset(self, "__create", class(Wrapper:__new{
 		__get = Receptacle.__get,
 		__state = state,
 		__context = context,
@@ -323,31 +283,49 @@ function ReceptacleWrapper:__intercept(interceptor, event, field)
 	return self.__create:__intercept(interceptor, event, field)
 end
 
---------------------------------------------------------------------------------
 
-MultipleReceptacle = oo.class()
+local MultipleReceptacle = class()
 
 function MultipleReceptacle:__new(segments, name, context)
-	segments[name] = { __receptacle = oo.rawnew(self, segments[name]) }
+	segments[name] = { __receptacle = rawnew(self, segments[name]) }
 	return ReceptacleWrapper(segments, name, context)
 end
 
---------------------------------------------------------------------------------
 
-ListReceptacle = oo.class({}, MultipleReceptacle, base.ListReceptacle)
 
---------------------------------------------------------------------------------
+local module = {
+	Facet = Facet,
+	Receptacle = Receptacle,
+	ListReceptacle = class({}, MultipleReceptacle, base.ListReceptacle),
+	HashReceptacle = class({}, MultipleReceptacle, base.HashReceptacle),
+	SetReceptacle = class({}, MultipleReceptacle, base.SetReceptacle),
+}
 
-HashReceptacle = oo.class({}, MultipleReceptacle, base.HashReceptacle)
+--[[----------------------------------------------------------------------------
+-- Intercept at all ports of all components
+loop.component.intercepted.Wrapper:__intercept(event, iceptor)
+-- Intercept all facets of all components
+loop.component.intercepted.Facet:__intercept(event, iceptor)
+-- Intercept a particular port of a component type
+loop.component.intercepted.intercept(MyCompType, "MyPort", event, iceptor)
+-- Intercept a particular port of a component implementation
+loop.component.intercepted.intercept(MyCompFactory, "MyPort", event, iceptor)
+-- Intercept a particular port of a component instance
+loop.component.intercepted.intercept(MyComponent, "MyPort", event, iceptor)
+----------------------------------------------------------------------------]]--
+function module.intercept(scope, port, event, iceptor)
+	local container = rawget(scope, "__container")
+	local wrapper = container and container[port]
+	if isinstanceof(wrapper, Wrapper)
+		then rawset(wrapper, "  "..event, iceptor)
+		else scope["  "..event..port] = iceptor
+	end
+end
 
---------------------------------------------------------------------------------
 
-SetReceptacle = oo.class({}, MultipleReceptacle, base.SetReceptacle)
+--for name, value in pairs(module) do
+--	module[value] = name
+--end
 
---------------------------------------------------------------------------------
 
-_M[Facet         ] = "Facet"
-_M[Receptacle    ] = "Receptacle"
-_M[ListReceptacle] = "ListReceptacle"
-_M[HashReceptacle] = "HashReceptacle"
-_M[SetReceptacle ] = "SetReceptacle"
+return module

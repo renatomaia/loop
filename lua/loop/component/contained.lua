@@ -1,37 +1,20 @@
---------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
--- Project: LOOP - Lua Object-Oriented Programming                            --
--- Release: 2.3 beta                                                          --
--- Title  : Component Model with Full Containment Support                     --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
--- Exported API:                                                              --
---   Template                                                                 --
---   factoryof(component)                                                     --
---   templateof(factory|component)                                            --
---   ports(template)                                                          --
---   segmentof(portname, component)                                           --
---------------------------------------------------------------------------------
+-- Project: LOOP - Lua Object-Oriented Programming
+-- Title  : Component Model with Full Containment Support
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
-local pairs  = pairs
-local select = select
-local type   = type
 
-local oo          = require "loop.cached"
-local base        = require "loop.component.wrapped"
+local _G = require "_G"
+local pairs = _G.pairs
+local select = _G.select
+local type = _G.type
 
-module "loop.component.contained"
+local oo = require "loop.cached"
+local class = oo.class
 
---------------------------------------------------------------------------------
+local base = require "loop.component.wrapped"
 
-BaseTemplate = oo.class({}, base.BaseTemplate)
+
+local BaseTemplate = class({}, base.BaseTemplate)
 
 function BaseTemplate:__init(...)
 	local state = { __factory = self }
@@ -50,22 +33,23 @@ function BaseTemplate:__init(...)
 	return state
 end
 
-function Template(template, ...)
-	return oo.class(template, BaseTemplate, ...)
+
+local module = {
+	MethodCache = base.MethodCache, -- used by 'dynamic' component model
+	BaseTemplate = BaseTemplate,
+	
+	factoryof  = base.factoryof,
+	templateof = base.templateof,
+	ports      = base.ports,
+	segmentof  = base.segmentof,
+	
+	addport    = base.addport,
+	removeport = base.removeport,
+}
+
+
+function module.Template(template, ...)
+	return class(template, BaseTemplate, ...)
 end
 
---------------------------------------------------------------------------------
-
-delegate = base.delegate -- used by 'dynamic' component model
-
---------------------------------------------------------------------------------
-
-factoryof  = base.factoryof
-templateof = base.templateof
-ports      = base.ports
-segmentof  = base.segmentof
-
---------------------------------------------------------------------------------
-
-addport    = base.addport
-removeport = base.removeport
+return module

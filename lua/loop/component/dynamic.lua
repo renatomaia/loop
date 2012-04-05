@@ -1,45 +1,33 @@
-local _G = _G
+-- Project: LOOP - Lua Object-Oriented Programming
+-- Title  : Component Model with Dynamically Adaptable Containers
+-- Author : Renato Maia <maia@inf.puc-rio.br>
 
---------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
--- Project: LOOP - Lua Object-Oriented Programming                            --
--- Release: 2.3 beta                                                          --
--- Title  : Component Model with Dynamically Adaptable Containers             --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
--- Exported API:                                                              --
---   Template                                                                 --
---   factoryof(component)                                                     --
---   templateof(factory|component)                                            --
---   ports(template)                                                          --
---   segmentof(portname, component)                                           --
---   addport(template|factory|component, portname, porttype [, portimpl])     --
---   removeport(template|factory|component, portname)                         --
---------------------------------------------------------------------------------
 
-local next   = next
-local rawget = rawget
-local select = select
+local _G = require "_G"
+local next = _G.next
+local rawget = _G.rawget
+local select = _G.select
+local type = _G.type
 
-local oo   = require "loop.cached"
+local oo = require "loop.cached"
+local class = oo.class
+local getclass = oo.getclass
+local getsuper = oo.getsuper
+local isclass = oo.isclass
+local isinstanceof = oo.isinstanceof
+
 local base = require "loop.component.contained"
+local base_addport = base.addport
+local base_BaseTemplate = base.BaseTemplate
+local base_ports = base.ports
+local base_removeport = base.removeport
+local MethodCache = base.MethodCache
 
-module "loop.component.dynamic"
 
---------------------------------------------------------------------------------
+local WeakTable = class{ __mode = "k" }
 
-local WeakTable = oo.class{ __mode = "k" }
 
---------------------------------------------------------------------------------
-
-local DynamicPort = oo.class()
+local DynamicPort = class()
 
 function DynamicPort:__call(state, name, ...)
 	if self.class then
@@ -52,9 +40,8 @@ function DynamicPort:__tostring()
 	return self.name
 end
 
---------------------------------------------------------------------------------
 
-local InternalState = oo.class()
+local InternalState = class()
 
 function InternalState:__index(name)
 	self = self.__container
@@ -63,7 +50,7 @@ function InternalState:__index(name)
 	if manager == nil then
 		local factory = state.__factory
 		local class = factory[name]
-		if oo.getclass(class) == DynamicPort then
+		if getclass(class) == DynamicPort then
 			local context = self.__internal
 			self[class] = class(state, class, context)
 			port, manager = state[class], self[class]
@@ -80,7 +67,7 @@ function InternalState:__newindex(name, value)
 	if manager == nil then
 		local factory = state.__factory
 		local class = factory[name]
-		if oo.getclass(class) == DynamicPort then
+		if getclass(class) == DynamicPort then
 			local context = self.__internal
 			self[class] = class(state, class, context)
 			manager = self[class]
@@ -92,103 +79,107 @@ function InternalState:__newindex(name, value)
 	elseif manager ~= nil then
 		state[name] = value
 	else
-
-if state.__component == nil then _G.print(_G.debug.traceback()) end
-
 		state.__component[name] = value
 	end
 end
 
---------------------------------------------------------------------------------
 
-local ExternalState = oo.class({}, InternalState)
+local ExternalState = class({}, InternalState)
 
 function ExternalState:__index(name)
-	local port, manager = oo.getsuper(ExternalState).__index(self, name)
+	local port, manager = getsuper(ExternalState).__index(self, name)
 	if port and manager then
 		return rawget(manager, "__external") or manager
 	else
-		local component = self.__container.__state.__component
-		return base.delegate(port or component[name], component)
+		local value = port or self.__container.__state.__component[name]
+		if type(value) == "function" then
+			return MethodCache[value]
+		end
+		return value
 	end
 end
 
---------------------------------------------------------------------------------
 
-BaseTemplate = oo.class({}, base.BaseTemplate)
+local BaseTemplate = class({}, base_BaseTemplate)
 
 function BaseTemplate:__container(comp)
-	local container = WeakTable(base.BaseTemplate.__container(self, comp))
+	local container = WeakTable(base_BaseTemplate.__container(self, comp))
 	container.__state = WeakTable(container.__state)
 	container.__internal = InternalState{ __container = container }
 	container.__external = ExternalState{ __container = container }
 	return container
 end
 
-function Template(template, ...)
-	return oo.class(template, BaseTemplate, ...)
+
+local module = {
+	BaseTemplate = BaseTemplate,
+	factoryof = base.factoryof,
+	templateof = base.templateof,
+}
+
+
+function module.Template(template, ...)
+	return class(template, BaseTemplate, ...)
 end
 
---------------------------------------------------------------------------------
-
-factoryof = base.factoryof
-templateof = base.templateof
 
 local function portiterator(container, name)
 	local factory = container.__state.__factory
 	local port = factory[name]
-	if oo.getclass(port) == DynamicPort then
+	if getclass(port) == DynamicPort then
 		name = port
 	end
 	repeat
 		name = next(container, name)
 		if name == nil then
 			return nil
-		elseif oo.getclass(name) == DynamicPort then
+		elseif getclass(name) == DynamicPort then
 			return name.name, name.port
 		end
 	until name:find("^%a[%w_]*$")
-	return name, oo.getclass(factory)[name]
+	return name, getclass(factory)[name]
 end
 
-function ports(component)
+function module.ports(component)
 	local container = component.__container
 	if container
 		then return portiterator, container
-		else return base.port(component)
+		else return base_ports(component)
 	end
 end
 
-function segmentof(comp, name)
+function module.segmentof(comp, name)
 	local state = comp.container.__state
 	local port = state.__factory[name]
-	if oo.getclass(port) == DynamicPort then
+	if getclass(port) == DynamicPort then
 		name = port
 	end
 	return state[port]
 end
 
---------------------------------------------------------------------------------
 
-function addport(scope, name, port, class)
-	if oo.isclass(scope) or oo.isinstanceof(scope, BaseTemplate) then
+function module.addport(scope, name, port, class)
+	if isclass(scope) or isinstanceof(scope, BaseTemplate) then
 		scope[name] = DynamicPort{
 			name = name,
 			port = port,
 			class = class,
 		}
 	else
-		base.addport(scope, name, port, class)
+		base_addport(scope, name, port, class)
 	end
 end
 
-function removeport(scope, name)
-	if oo.isclass(scope) or oo.isinstanceof(scope, BaseTemplate) then
+function module.removeport(scope, name)
+	if isclass(scope) or isinstanceof(scope, BaseTemplate) then
 		scope[name] = nil
 	else
-		base.removeport(scope, name)
+		base_removeport(scope, name)
 	end
 end
+
+
+return module
 
 --[[----------------------------------------------------------------------------
 MyCompTemplate = comp.Template{
