@@ -73,7 +73,7 @@ end
 
 function Serializer:string(value)
 	value = gsub(value, '[\\"]', escapechar)
-	value = gsub(value, '[^%d%p%w ]', escapecode)
+	value = gsub(value, '[^%p%w ]', escapecode)
 	return '"'..value..'"'
 end
 
@@ -171,23 +171,33 @@ Serializer["function"] = function(self, value)
 	return label
 end
 
+local boolean = {
+	[true] = "true",
+	[false] = "false",
+}
+
 function Serializer:serialize(value)
 	local result
-	local valuetype = type(value)
-	if valuetype == "nil" or valuetype == "boolean" then
-		result = tostring(value)
-	elseif valuetype == "number" then
-		result = self:number(value)
-	elseif valuetype == "string" then
-		result = self:string(value)
+	if value == nil then
+		result = "nil"
 	else
-		result = self[value]
-		if type(result) ~= "string" then
-			local serializer = self[valuetype]
-			if not serializer then
-				error("unable to serialize a "..valuetype)
+		result = boolean[value]
+		if result == nil then
+			local valuetype = type(value)
+			if valuetype == "number" then
+				result = self:number(value)
+			elseif valuetype == "string" then
+				result = self:string(value)
+			else
+				result = self[value]
+				if type(result) ~= "string" then
+					local serializer = self[valuetype]
+					if not serializer then
+						error("unable to serialize a "..valuetype)
+					end
+					result = serializer(self, value, result)
+				end
 			end
-			result = serializer(self, value, result)
 		end
 	end
 	return result
