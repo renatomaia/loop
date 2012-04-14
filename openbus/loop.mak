@@ -11,6 +11,7 @@ LUASRC= \
 	$(LUADIR)/loop/collection/ArrayedSet.lua \
 	$(LUADIR)/loop/collection/BiCyclicSets.lua \
 	$(LUADIR)/loop/collection/CyclicSets.lua \
+	$(LUADIR)/loop/collection/LRUCache.lua \
 	$(LUADIR)/loop/collection/OrderedSet.lua \
 	$(LUADIR)/loop/collection/Queue.lua \
 	$(LUADIR)/loop/collection/SortedMap.lua \
