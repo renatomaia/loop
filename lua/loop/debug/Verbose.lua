@@ -41,10 +41,6 @@ module(..., class)
 
 --------------------------------------------------------------------------------
 
-local FlagColWidth = 12 -- 9 for flag, 2 for square brackets, and 1 for a space
-local ThreadRuler = strrep("-", 80).."> "
-local CurrentThread = false
-
 local function write(self, newthread, flag, ...)
 	local count = select("#", ...)
 	if count > 0 then
@@ -55,11 +51,11 @@ local function write(self, newthread, flag, ...)
 		local custom = self.custom
 		local pause  = self.pause
 		
-		if CurrentThread ~= newthread then
+		if self.lastthread ~= newthread then
 			if type(showthread) == "table" then showthread = showthread[flag] end
 			if showthread then
-				CurrentThread = newthread
-				output:write(ThreadRuler)
+				self.lastthread = newthread
+				output:write(self.threadruler)
 				if newthread then viewer:write(newthread) end
 				output:write("\n")
 			end
@@ -76,9 +72,10 @@ local function write(self, newthread, flag, ...)
 			end
 		end
 		
-		if #flag+3 > FlagColWidth then
-			output:write("[", flag:sub(1, 9), "] ")
-			output:write(viewer.prefix:sub(timelength + FlagColWidth+1))
+		local taglength = self.taglength
+		if #flag > taglength then
+			output:write("[", flag:sub(1, taglength), "] ")
+			output:write(viewer.prefix:sub(timelength + taglength+4))
 		else
 			output:write("[", flag, "] ")
 			output:write(viewer.prefix:sub(timelength + #flag+4))
@@ -114,7 +111,7 @@ local function updatetabs(self, thread, shift)
 		tabs = max(tabs + shift, 0)
 		self.tabsof[thread] = tabs
 	end
-	viewer.prefix = strrep(" ", self.timelength + FlagColWidth)
+	viewer.prefix = strrep(" ", self.timelength + self.taglength+3)
 	              ..viewer.indentation:rep(tabs)
 end
 
@@ -138,20 +135,22 @@ end
 
 --------------------------------------------------------------------------------
 
+taglength = 9
 timestamp = false
-thread = false
-timelength = 0
 timeformat = false
+timelength = 0 -- internal: should only be accessed by this class
+lastthread = false -- internal: should only be accessed by this class
+threadruler = strrep("-", 80).."> "
 viewer = Viewer{ maxdepth = 2 }
 
 function __new(class, verbose)
 	verbose = rawnew(class, verbose)
-	verbose.flags  = {}
+	verbose.flags = {}
 	verbose.groups = rawget(verbose, "groups") or {}
 	verbose.custom = rawget(verbose, "custom") or {}
-	verbose.pause  = rawget(verbose, "pause")  or {}
-	verbose.timed  = rawget(verbose, "timed")  or {}
-	verbose.showthread = rawget(verbose, "showthread")or {}
+	verbose.pause = rawget(verbose, "pause")  or {}
+	verbose.timed = rawget(verbose, "timed")  or {}
+	verbose.showthread = rawget(verbose, "showthread") or {}
 	verbose.tabsof = memoize(function() return 0 end, "k")
 	return verbose
 end
