@@ -59,7 +59,6 @@ local keywords = {
 	["until"] = true,
 	["while"] = true,
 }
-
 local escapecodes = {
 	["\b"] = [[\b]],
 	["\f"] = [[\f]],
@@ -68,12 +67,38 @@ local escapecodes = {
 	["\v"] = [[\v]],
 }
 local codefmt = "\\%.3d"
+
+
 local function escapecode(char)
 	return escapecodes[char] or codefmt:format(byte(char))
 end
+
 local function escapechar(char)
 	return "\\"..char
 end
+
+local function addargs(list, ...)
+	local count = #list
+	for i = 1, select("#", ...) do
+		list[count+i] = select(i, ...)
+	end
+end
+
+local function newline(buffer, linebreak, prefix)
+	if linebreak then
+		buffer:write(linebreak, prefix)
+	else
+		buffer:write(" ")
+	end
+end
+
+local function tostringmetamethod(value)
+	local meta = getmetatable(value)
+	if type(meta) == "table" then
+		return rawget(meta, "__tostring"), meta
+	end
+end
+
 
 local Viewer = class{
 	maxdepth = -1,
@@ -83,7 +108,7 @@ local Viewer = class{
 	output = defaultoutput(),
 }
 
-function Viewer:writeplain(value, buffer)
+function Viewer:writenumber(value, buffer)
 	buffer:write(luatostring(value))
 end
 
@@ -147,7 +172,7 @@ function Viewer:writetable(value, buffer, history, prefix, maxdepth)
 			local linebreak = self.linebreak
 			if not self.noarrays then
 				for i = 1, #value do
-					buffer:write(linebreak, newprefix)
+					newline(buffer, linebreak, newprefix)
 					if not self.noindices then buffer:write("[", i, "] = ") end
 					self:writevalue(value[i], buffer, history, newprefix, maxdepth)
 					buffer:write(",")
@@ -159,7 +184,7 @@ function Viewer:writetable(value, buffer, history, prefix, maxdepth)
 				or keytype ~= "number"
 				or key<=0 or key>#value or (key%1)~=0
 				then
-					buffer:write(linebreak, newprefix)
+					newline(buffer, linebreak, newprefix)
 					if not self.nofields
 					and keytype == "string"
 					and not keywords[key]
@@ -177,7 +202,7 @@ function Viewer:writetable(value, buffer, history, prefix, maxdepth)
 				end
 				key, field = next(value, key)
 			until key == nil
-			buffer:write(linebreak, prefix)
+			newline(buffer, linebreak, prefix)
 		end
 	elseif not self.nolabels then
 		buffer:write(" ")
@@ -185,43 +210,51 @@ function Viewer:writetable(value, buffer, history, prefix, maxdepth)
 	buffer:write("}")
 end
 
+Viewer["number"] = Viewer.writenumber
 Viewer["string"] = Viewer.writestring
 Viewer["table"] = Viewer.writetable
 
 function Viewer:label(value)
-	local meta = getmetatable(value)
-	if type(meta) == "table" then
-		local custom = rawget(meta, "__tostring")
-		if custom ~= nil then
-			rawset(meta, "__tostring", nil)
-			local raw = luatostring(value)
-			rawset(meta, "__tostring", custom)
-			if self.tostringmeta then
-				custom = luatostring(value)
-				if custom ~= raw then
-					custom = custom.." ("..raw..")"
-				end
-			else
-				custom = raw
+	local method, table = tostringmetamethod(value)
+	if method ~= nil then
+		rawset(table, "__tostring", nil)
+		local raw = luatostring(value)
+		rawset(table, "__tostring", method)
+		if self.metalabels then
+			local custom = method(value)
+			if raw ~= custom then
+				raw = custom.." ("..raw..")"
 			end
-			return custom
 		end
+		return raw
 	end
 	return luatostring(value)
 end
 
 function Viewer:writevalue(value, buffer, history, prefix, maxdepth)
 	local luatype = type(value)
-	if luatype == "nil" or luatype == "boolean" or luatype == "number" then
-		self:writeplain(value, buffer)
+	if luatype == "nil" then
+		buffer:write("nil")
+	elseif luatype == "boolean" then
+		buffer:write(value and "true" or "false")
+	elseif luatype == "number" then
+		self:number(value, buffer)
 	elseif luatype == "string" then
 		self:string(value, buffer)
 	else
 		local label = history[value]
 		if label == nil then
-			if self.nolabels
-				then label = luatype
-				else label = self.labels[value] or self:label(value)
+			if self.metaonly then
+				local method = tostringmetamethod(value)
+				if method ~= nil then
+					label = method(value)
+					luatype = nil -- cancel detailed view
+				end
+			end
+			if label == nil then
+				label = self.nolabels
+				    and luatype
+				     or self.labels[value] or self:label(value)
 			end
 			history[value] = label
 			local writer = self[luatype]
@@ -247,11 +280,8 @@ function Viewer:write(...)
 	self:writeto(self.output, ...)
 end
 
-local function add(self, ...)
-	for i = 1, select("#", ...) do self[#self+1] = select(i, ...) end
-end
 function Viewer:tostring(...)
-	local buffer = { write = add }
+	local buffer = { write = addargs }
 	self:writeto(buffer, ...)
 	return concat(buffer)
 end

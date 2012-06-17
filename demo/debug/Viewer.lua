@@ -22,16 +22,7 @@ end
 
 print "\n\ncustom formating"
 do
-	local viewer = Viewer{
-		maxdepth = 2,
-		prefix = "--> ",
-		indentation = "|   ",
-		linebreak = "\n\r",
-		output = io.strerr,
-		tostringmeta = true, -- do not ignore '__tostring' metamethod
-	}
-	
-	viewer:write(setmetatable({
+	local table = {
 		"A", "B", "C", "D", "E", "F",
 		struct = {
 			field1 = "field one",
@@ -39,9 +30,34 @@ do
 			field3 = "field three",
 			nested = { nested = { nested = { nested = {} } } },
 		},
-	}, {
-		__tostring = function() return "custom tostring" end,
-	}))
+		custom = setmetatable({"custom tostring"}, {
+			__tostring = function(self) return self[1] end,
+		})
+	}
+	table.self = table
+	
+	io.write "['tostring' metamethod only]: "
+	local viewer = Viewer{ metaonly = true }
+	viewer:write(table)
+	
+	io.write "\n[single line]: "
+	local viewer = Viewer{
+		nolabels = true,
+		noindices = true,
+		linebreak = false,
+	}
+	viewer:write(table)
+	
+	io.write "\n[bells and whistles]: "
+	local viewer = Viewer{
+		maxdepth = 2,
+		prefix = "[bells and whistles]: ",
+		indentation = "|   ",
+		linebreak = "\n\r",
+		output = io.strerr,
+		metalabels = true, -- use '__tostring' metamethod to generate labels
+	}
+	viewer:write(table)
 end
 
 print "\n\ncustom string options"
@@ -64,6 +80,7 @@ do
 		field2 = "field two",
 		field3 = "field three",
 	}
+	table.self = table
 	
 	local viewer = Viewer{ nolabels = true } -- omit labels of values (e.g. table)
 	viewer:write(table)
@@ -73,6 +90,7 @@ do
 
 	local viewer = Viewer{ noindices = true } -- omit array indices
 	viewer:write(table)
-	viewer.noarrays = true -- write array part as ordinary entries
+	
+	local viewer = Viewer{ noarrays = true } -- write array part as ordinary entries
 	viewer:write(table)
 end
