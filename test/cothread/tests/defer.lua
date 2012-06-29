@@ -29,13 +29,21 @@ return function()
 		T = 1,
 	}
 	-- A yields to schedule B and then yields again
-	testCase{A="none" ,B="none"    ,[[ A A       ...+ B ... B ... B ... ]]}
-	testCase{A="none" ,B="ready"   ,[[ A A       ...+ B ... B ... B ... ]]}
-	testCase{A="ready",B="none"    ,[[ A A ... A ...+ B ... B ... B ... ]]}
-	testCase{A="ready",B="ready"   ,[[ A A ... A ...+ B ... B ... B ... ]]}
+	testCase{A="none" ,B="none"      ,[[ A A       ...+ B ... B ... B ... ]]}
+	testCase{A="none" ,B="ready"     ,[[ A A       ...+ B ... B ... B ... ]]}
+	testCase{A="ready",B="none"      ,[[ A A ... A ...+ B ... B ... B ... ]]}
+	testCase{A="ready",B="ready"     ,[[ A A ... A ...+ B ... B ... B ... ]]}
 	-- A yields to schedule itself and then yields again
-	testCase{A="none" ,B="A"       ,[[ A A ...+ A ... ]]}
-	testCase{A="ready",B="A"       ,[[ A A ...+ A ... ]]}
+	testCase{A="none" ,B="A"         ,[[ A A ...+ A ... ]]}
+	testCase{A="ready",B="A"         ,[[ A A ...+ A ... ]]}
+	-- A yields to schedule B in the past and then yields again
+	testCase{A="none" ,B="none" ,T=-1,[[ A A ...   B ... B ... B ... ]]}
+	testCase{A="none" ,B="ready",T=-1,[[ A A ...   B ... B ... B ... ]]}
+	testCase{A="ready",B="none" ,T=-1,[[ A A ... A B ... B ... B ... ]]}
+	testCase{A="ready",B="ready",T=-1,[[ A A ... A B ... B ... B ... ]]}
+	-- A yields to schedule itself in the past and then yields again
+	testCase{A="none" ,B="A"    ,T=-1,[[ A A ... A ... ]]}
+	testCase{A="ready",B="A"    ,T=-1,[[ A A ... A ... ]]}
 	
 	
 	newTest{ "A defers itself by T seconds and resumes B",
@@ -82,7 +90,7 @@ return function()
 	
 	
 	local T
-	newTest{ "A schedules B deferred by infinite seconds twice",
+	newTest{ "A and B schedules C to be resumed at the same moment",
 		tasks = {
 			A = function(_ENV)
 				T = now()+1
