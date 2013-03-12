@@ -100,9 +100,10 @@ scheduled = BiCyclicSets()    -- Table containing all scheduled threads.
 placeof = scheduled:reverse() -- It is organized as disjoint sets, which
                               -- values are arranged in cyclic order.
 if cothread.traps == nil then
-	cothread.traps = setmetatable({}, WeakKeys) -- Table mapping threads to the
-	                                            -- function that must be executed
-	                                            -- when the thread finishes.
+	cothread.traps = setmetatable({}, {__mode = "k"}) -- Table mapping threads to
+	                                                  -- the function that must be
+	                                                  -- executed when the thread
+	                                                  -- finishes.
 end
 if cothread.error == nil then
 	cothread.error = error -- function that handles errors raised by threads a
@@ -274,7 +275,7 @@ scheduleop("after", function(thread, place, ...)
 			if lastready == place then
 				lastready = thread
 			end
-		end                                                                       --[[VERBOSE]] verbose:threads(thread," scheduled after ready thread ",place);verbose:state()
+		end                                                                         --[[VERBOSE]] verbose:threads(thread," scheduled after ready thread ",place);verbose:state()
 		return thread, ...
 	end
 	return nil, ...
