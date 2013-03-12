@@ -64,22 +64,20 @@ function LRU:get(key)
 	local keys = self.keys
 	local last = self.last
 	local value = map[key]
-	self.last = key
 	if not contains(keys, key) then
+		value = self.retrieve(key)
 		add(keys, key, last)
 		local size = self.size
 		if size < maxsize then
 			self.size = size+1
-			value = self.retrieve(key)
 		else
-			local replaced = removefrom(keys, key)
-			value, map[replaced] = map[replaced], nil
-			value = self.retrieve(key, replaced, value)
+			map[removefrom(keys, key)] = nil
 		end
 		map[key] = value
 	elseif key ~= last then
 		move(keys, key, last)
 	end
+	self.last = key
 	return value
 end
 
