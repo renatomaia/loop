@@ -1,5 +1,7 @@
 require "cothread.tests.utils"
 
+local plugins = { false, "signal", "sleep", "socket" }
+
 local tests = {
 	"testitself",
 	"yield",
@@ -10,16 +12,21 @@ local tests = {
 	"suspend",
 	"step",
 	"halt",
-	--"instrospection",
-	--"miscelania",
-	"wait_notify",
-	"wait_unschedule",
-	"defer",
+	signal = {
+		"wait_notify",
+		"wait_unschedule",
+	},
+	sleep = {
+		"defer",
+	},
+	socket = {
+		"luasocket",
+		"socket_memleak",
+	},
 }
 
-local function testscheduler(name, scheduler)
-	print("\n--- "..name.." -----------------------------------")
-	for _, name in ipairs(tests) do
+local function testcases(name, scheduler, cases)
+	for _, name in ipairs(cases) do
 		io.write("["..name.."] ... ")
 		io.flush()
 		local test = require("cothread.tests."..name)
@@ -29,11 +36,25 @@ local function testscheduler(name, scheduler)
 	end
 end
 
+local function testscheduler(name, scheduler)
+	local loaded = {}
+	for _, plugin in ipairs(plugins) do
+		if plugin then
+			scheduler.plugin(require("cothread.plugin."..plugin))
+			loaded[#loaded+1] = plugin
+		end
+		local desc = #loaded>0 and " ("..table.concat(loaded, ", ")..")" or ""
+		print(string.format("\n--- %-30s -----------------------------", name..desc))
+		testcases(name, scheduler, tests)
+		for _, plugin in ipairs(loaded) do
+			local cases = tests[plugin]
+			if cases ~= nil then
+				testcases(name, scheduler, cases)
+			end
+		end
+	end
+end
+
 local cothread = require "cothread"
-cothread.plugin(require "cothread.plugin.signal")
-cothread.plugin(require "cothread.plugin.sleep")
 testscheduler("Module", cothread)
-local new = cothread()
-new.plugin(require "cothread.plugin.signal")
-new.plugin(require "cothread.plugin.sleep")
-testscheduler("Instance", new)
+testscheduler("Instance", cothread())
