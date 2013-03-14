@@ -27,12 +27,12 @@ local tests = {
 
 local function testcases(name, scheduler, cases)
 	for _, name in ipairs(cases) do
-		io.write("["..name.."] ... ")
+		io.write("["..name.."] ")
 		io.flush()
 		local test = require("cothread.tests."..name)
 		setTarget(scheduler)
 		test(scheduler)
-		print("OK ("..testCount()..")")
+		print(" OK ("..assertCount()..")")
 	end
 end
 

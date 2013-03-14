@@ -76,6 +76,24 @@ local function addextratasks(cothread, envmeta, count)
 	end
 end
 
+do
+	local count = 0
+	local backup = assert
+	function assert(...)
+		count = count+1
+		if count%100 == 0 then
+			io.stdout:write(".")
+			io.stdout:flush()
+		end
+		return backup(...)
+	end
+	function assertCount()
+		local result = count
+		count = 0
+		return result
+	end
+end
+
 local extracount = 3
 local cothread
 function setTarget(val)
@@ -84,12 +102,6 @@ end
 local test
 function newTest(val)
 	test = val
-end
-local count = 0
-function testCount()
-	local result = count
-	count = 0
-	return result
 end
 function testCase(case)
 	local extratasks = true
@@ -250,7 +262,5 @@ function testCase(case)
 				error("unable to reset scheduler")
 			end
 		end
-		-- notify a test was executed
-		count = count+1
 	until extratasks == true
 end

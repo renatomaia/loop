@@ -9,6 +9,8 @@ _G.socket = cosocket
 local socket = require "socket"
 
 local function print() end
+local io = {stderr={write=print}}
+
 local host, port
 
 local function testsrvr()
