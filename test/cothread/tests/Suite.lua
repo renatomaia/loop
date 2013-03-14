@@ -44,7 +44,7 @@ local function testscheduler(name, scheduler)
 			loaded[#loaded+1] = plugin
 		end
 		local desc = #loaded>0 and " ("..table.concat(loaded, ", ")..")" or ""
-		print(string.format("\n--- %-30s -----------------------------", name..desc))
+		print("\n---> "..name..desc)
 		testcases(name, scheduler, tests)
 		for _, plugin in ipairs(loaded) do
 			local cases = tests[plugin]
