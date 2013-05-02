@@ -204,15 +204,16 @@ local function proxy_newindex(proxy, field, value)
 end
 function CachedClass:__new(class)
 	local meta = {}
-	local members = copy(class, {})
+	local copied = (class == nil) and {} or copy(class)
 	local proxy = (class == nil) and {} or clear(class)
 	self = multiple_rawnew(self, {
 		__call = new,
 		__index = meta,
 		__newindex = proxy_newindex,
+		__pairs = members,
 		supers = {},
 		subs = {},
-		members = members,
+		members = copied,
 		class = meta,
 		proxy = proxy,
 	})
@@ -344,6 +345,7 @@ function CachedClass:updatefield(name, member)
 	return old
 end
 
+oo.CachedClass = CachedClass -- for extension packages (see 'scoped')
 
 
 return oo

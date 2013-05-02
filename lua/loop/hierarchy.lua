@@ -31,10 +31,8 @@ local module = {
 
 function module.creator(class, ...)
 	local obj = rawnew(class)
-	for class in topdown(class) do
-		local init = getmember(class, "__init")
-		if init then init(obj, ...) end
-	end
+	local init = obj.__init
+	if init ~= nil then init(obj, ...) end
 	return obj
 end
 
@@ -42,7 +40,7 @@ function module.mutator(class, obj, ...)
 	obj = rawnew(class, obj)
 	for class in topdown(class) do
 		local init = getmember(class, "__init")
-		if init then init(obj, ...) end
+		if init ~= nil then init(obj, ...) end
 	end
 	return obj
 end

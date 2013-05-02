@@ -11,11 +11,11 @@
 --	 Replace conditional compiler by static function constructors.
 --------------------------------------------------------------------------------
 
-local _G = require "_G"
+local _G = require "_G"                                                         -- [[VERBOSE]] local verbose = require "loop.verbose"
 local assert = _G.assert
 local getmetatable = _G.getmetatable
 local ipairs = _G.ipairs
-local loadin = _G.loadin
+local load = _G.load
 local loadstring = _G.loadstring
 local pairs = _G.pairs
 local rawget = _G.rawget
@@ -39,11 +39,12 @@ local multiple_class = multiple.class
 local multiple_isinstanceof = multiple.isinstanceof
 
 local cached = require "loop.cached"
+local getclass = cached.getclass
 local CachedClass = cached.CachedClass
 
-module "loop.scoped"                                                            --[[VERBOSE]] local verbose = require "loop.verbose"
 
-clone(cached, _M)
+
+local OrderedSet = multiple_class()
 
 function OrderedSet:insert(value, place)
 	if self[value] == nil then
@@ -55,9 +56,9 @@ end
 -- maps private and protected state objects to the object (public) table
 local Object = setmetatable({}, { __mode = "kv" })
 
-local function ProtectedPool(members)                                           --[[VERBOSE]] verbose:scoped "new protected pool"
+local function ProtectedPool(members)                                           -- [[VERBOSE]] verbose:scoped "new protected pool"
 	local class = multiple_class(members)
-	local pool = memoize(function(object)                                         --[[VERBOSE]] verbose:scoped("new 'protected' for 'public' ",object)
+	local pool = memoize(function(object)                                         -- [[VERBOSE]] verbose:scoped("new 'protected' for 'public' ",object)
 		local protected = class()
 		Object[protected] = object
 		return protected
@@ -66,21 +67,21 @@ local function ProtectedPool(members)                                           
 	return pool
 end
 
-local function PrivatePool(members)                                             --[[VERBOSE]] verbose:scoped{"new private pool", members = members}
+local function PrivatePool(members)                                             -- [[VERBOSE]] verbose:scoped{"new private pool", members = members}
 	local class = multiple_class(members)
 	local pool
-	pool = memoize(function(outter)                                               --[[VERBOSE]] verbose:scoped("new 'protected' for 'public' ",object)
-		local object = Object[outter]                                               --[[VERBOSE]] verbose:scoped("'public' is ",object or outter)
+	pool = memoize(function(outter)                                               -- [[VERBOSE]] verbose:scoped("new 'protected' for 'public' ",object)
+		local object = Object[outter]                                               -- [[VERBOSE]] verbose:scoped("'public' is ",object or outter)
 		local private = rawget(pool, object)
 		if private == nil then
-			private = class()                                                         --[[VERBOSE]] verbose:scoped("new 'private' created: ",private)
+			private = class()                                                         -- [[VERBOSE]] verbose:scoped("new 'private' created: ",private)
 			if object == nil then
-				Object[private] = outter                                                --[[VERBOSE]] verbose:scoped("'public' ",outter," registered for the new 'private' ",private)
+				Object[private] = outter                                                -- [[VERBOSE]] verbose:scoped("'public' ",outter," registered for the new 'private' ",private)
 			else
-				Object[private] = object                                                --[[VERBOSE]] verbose:scoped("'public' ",object," registered for the new 'private' ",private)
-				self[object] = private                                                  --[[VERBOSE]] verbose:scoped("new 'private' ",private," stored at the pool for 'public' ",object)
-			end                                                                       --[[VERBOSE]] else verbose:scoped("reusing 'private' ",private," associated to 'public'")
-		end                                                                         --[[VERBOSE]] verbose:scoped(false, "returning 'private' ",private," for reference ",outter)
+				Object[private] = object                                                -- [[VERBOSE]] verbose:scoped("'public' ",object," registered for the new 'private' ",private)
+				self[object] = private                                                  -- [[VERBOSE]] verbose:scoped("new 'private' ",private," stored at the pool for 'public' ",object)
+			end                                                                       -- [[VERBOSE]] else verbose:scoped("reusing 'private' ",private," associated to 'public'")
+		end                                                                         -- [[VERBOSE]] verbose:scoped(false, "returning 'private' ",private," for reference ",outter)
 		return private
 	end, "k")
 	pool.class = class
@@ -88,10 +89,10 @@ local function PrivatePool(members)                                             
 end
 
 local function bindto(class, member)
-	if type(member) == "function" then                                            --[[VERBOSE]] verbose:scoped("new method closure for ",member)
+	if type(member) == "function" then                                            -- [[VERBOSE]] verbose:scoped("new method closure for ",member)
 		local method = member
 		member = function (self, ...)
-			local pool = rawget(class, getmetatable(self))                            --[[VERBOSE]] verbose:scoped("method call on reference ",self," (pool: ",pool,")")
+			local pool = rawget(class, getmetatable(self))                            -- [[VERBOSE]] verbose:scoped("method call on reference ",self," (pool: ",pool,")")
 			if pool == nil
 				then return method(self, ...)
 				else return method(pool[self], ...)
@@ -141,8 +142,8 @@ local IndexerFactory = memoize(function(name)
 	for line, strip in ipairs(IndexerCode) do
 		local cond = strip[2]
 		if cond then
-			cond = assert(loadin(includes, "return "..cond,
-				"compiler condition "..line..":"))()
+			cond = assert(load("return "..cond,
+				"compiler condition "..line..":", "t", includes))()
 		else
 			cond = true
 		end
@@ -461,7 +462,7 @@ function ScopedClass:updatemembers()
 	end
 end
 
-function ScopedClass:updatefield(name, member, scope)                           --[[VERBOSE]] verbose:scoped(true, "updating field ",name," on scope ",scope," with value ",member)
+function ScopedClass:updatefield(name, member, scope)                           -- [[VERBOSE]] verbose:scoped(true, "updating field ",name," on scope ",scope," with value ",member)
 	member = bindto(self, member)
 	if not scope then
 		if
@@ -476,9 +477,9 @@ function ScopedClass:updatefield(name, member, scope)                           
 					or
 				type(member) == "table"
 			)
-		then                                                                        --[[VERBOSE]] verbose:scoped("updating scope field")
+		then                                                                        -- [[VERBOSE]] verbose:scoped("updating scope field")
 			self.members[name] = member
-			return self:updatemembers()                                               --[[VERBOSE]] , verbose:scoped(false, "whole scope field updated")
+			return self:updatemembers()                                               -- [[VERBOSE]] , verbose:scoped(false, "whole scope field updated")
 		end
 		scope = "public"
 	end
@@ -520,22 +521,26 @@ function ScopedClass:updatefield(name, member, scope)                           
 				end
 			end
 		until false
-	end                                                                           --[[VERBOSE]] verbose:scoped(false, "field updated")
+	end                                                                           -- [[VERBOSE]] verbose:scoped(false, "field updated")
 	return old
 end
+
 --------------------------------------------------------------------------------
-function class(class, ...)
+
+local oo = clone(cached)
+
+function oo.class(class, ...)
 	class = getclass(class) or ScopedClass(class)
 	class:updatehierarchy(...)
 	class:updateinheritance()
 	return class.proxy
 end
 
-function this(object)
+function oo.this(object)
 	return Object[object] or object
 end
 
-function priv(object, class)
+function oo.priv(object, class)
 	if class == nil then class = getclass(object) end
 	class = getclass(class)
 	if class and class.private then
@@ -546,7 +551,7 @@ function priv(object, class)
 	end
 end
 
-function prot(object)
+function oo.prot(object)
 	local class = getclass(getclass(object))
 	if class and class.protected then
 		if getclass(object) == class.protected.class
@@ -555,3 +560,6 @@ function prot(object)
 		end
 	end
 end
+
+
+return oo

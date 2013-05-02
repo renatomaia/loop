@@ -36,14 +36,16 @@ local checks = {
 	},
 	like = {
 		op = function(actual, expected, criteria)
-			criteria = copy(criteria, {})
-			if criteria.isomorphic == nil then 
-				criteria.isomorphic = false
-			end
-			if criteria.metatable == nil then 
-				criteria.metatable = false
-			elseif criteria.metatable == true then 
-				criteria.metatable = nil
+			if criteria ~= nil then
+				criteria = copy(criteria)
+				if criteria.isomorphic == nil then 
+					criteria.isomorphic = false
+				end
+				if criteria.metatable == nil then 
+					criteria.metatable = false
+				elseif criteria.metatable == true then 
+					criteria.metatable = nil
+				end
 			end
 			return Matcher(criteria):match(expected, actual)
 		end,

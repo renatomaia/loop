@@ -7,9 +7,8 @@ local _G = require "_G"
 local pairs = _G.pairs
 local getmetatable = _G.getmetatable
 
-module "loop"
-
-local function dummy() end
+local getsuper -- initialized below
+local supers -- initialized below
 
 local function isingle(single, index)
 	if single ~= nil and index == nil then
@@ -17,19 +16,39 @@ local function isingle(single, index)
 	end
 end
 
+local function getclass(object)
+	local class = getmetatable(object)
+	return class ~= nil and class.__class or class
+end
+
+local function issubclassof(class, super)
+	if class == super then return true end
+	for _, base in supers(class) do
+		if issubclassof(base, super) then
+			return true
+		end
+	end
+	return false
+end
+
 local ClassOps = {
 	new = false,
 	rawnew = false,
 	getmember = false,
 	members = false,
-	getsuper = dummy,
+	getsuper = function() end,
 	supers = function(class)
 		return isingle, getsuper(class)
 	end,
 }
 
+local oo = {
+	getclass = getclass,
+	issubclassof = issubclassof,
+}
+
 for name, default in pairs(ClassOps) do
-	_M[name] = function(class, ...)
+	oo[name] = function(class, ...)
 		local meta = getmetatable(class)
 		local method = meta and meta[name]
 		if method == nil and default then
@@ -39,7 +58,10 @@ for name, default in pairs(ClassOps) do
 	end
 end
 
-function isclass(object)
+getsuper = oo.getsuper -- declared above
+supers = oo.supers -- declared above
+
+function oo.isclass(object)
 	local meta = getmetatable(object)
 	if meta == nil then return false end
 	for name, default in pairs(ClassOps) do
@@ -50,21 +72,8 @@ function isclass(object)
 	return true
 end
 
-function getclass(object)
-	local class = getmetatable(object)
-	return class ~= nil and class.__class or class
-end
-
-function issubclassof(class, super)
-	if class == super then return true end
-	for _, base in supers(class) do
-		if issubclassof(base, super) then
-			return true
-		end
-	end
-	return false
-end
-
-function isinstanceof(object, class)
+function oo.isinstanceof(object, class)
 	return issubclassof(getclass(object), class)
 end
+
+return oo
