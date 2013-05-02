@@ -196,36 +196,6 @@ function CoSocket:receive(pattern, ...)                                         
 	return result, errmsg, partial, elapsed
 end
 
-local sockops = {
-	"accept",
-	"bind",
-	"close",
-	"connect",
-	"dirty",
-	"getfd",
-	"getpeername",
-	"getsockname",
-	"getstats",
-	"listen",
-	"receive",
-	"send",
-	"setfd",
-	"setoption",
-	"setpeername",
-	"setsockname",
-	"setstats",
-	"settimeout",
-	"shutdown",
-}
-for _, opname in ipairs(sockops) do
-	if CoSocket[opname] == nil then
-		CoSocket[opname] = function(self, ...)                                        --[[VERBOSE]] verbose:socket("socket operation ",opname)
-			local socket = self.__object
-			return socket[opname](socket, ...)
-		end
-	end
-end
-
 --------------------------------------------------------------------------------
 -- Wrapped Lua Socket API ------------------------------------------------------
 --------------------------------------------------------------------------------

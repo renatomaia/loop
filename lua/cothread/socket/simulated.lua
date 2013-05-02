@@ -434,7 +434,7 @@ local function addhost(info)
 	name2ip[info.hostname] = {
 		info.ip, {
 			name = info.hostname,
-			alias = info.alias or {},
+			alias = info.alias,
 			ip = { info.ip, unpack(info.moreips) },
 		},
 	}
