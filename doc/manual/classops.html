@@ -1,103 +1,79 @@
-<p>This section presents some advanced features and uses of the LOOP models.</p>
-
-<h2><a name="changes">Class Changes</a></h2>
-
-<p>As stated previously, LOOP models are devised mainly to be dynamic therefore it is possible to apply changes over classes. In fact, every model allows that changes over classes may be reflected over all instances. For example, if a field of a class is changed, the new value is available to all instances automatically. This is particularly true in the cached and scoped model that even though they use caches of inherited fields, the use of class proxies to intercept changes over classes allows that caches can be updated.</p>
-
-<h2><a name="invoking">Class Invocations</a></h2>
-
-<p>Method calls over classes of LOOP models implies function calls with the self parameter set to the class object. This way, changes applied to the self parameter implies changes on the class object and therefore reflects over all class instances. For example, suppose the class <code>Date</code> presented on section <%=link"Basics"%>, then the code below
+<p>For all LOOP modules, classes are fundamentally metatables.
+For this reason, you can use ordinary tables as classes in all LOOP modules.
+For example, you can create a class that inherits from a module:</p>
 
 <pre>
-Date:addyears(100) -- changes the default values of
-                   -- field 'year' from 1900 to 2000
+Array = oo.class({}, require "table")
+function Array:length()
+  return #self
+end
+
+a = Array{ "proto", "base", "simple", "multiple", "cached", "scoped" }
+print(a:length())    --> 6
+print(a:sort())
+print(a:concat(" ")) --> base cached multiple proto scoped simple
 </pre>
 
-will change the default value of the field <code>year</code> to 2000 so any <code>Date</code> instance that does not override the value of field <code>year</code> will reflect this change.</p>
+<p>Moreover, classes created with LOOP modules behave as ordinary metatables, so you can index them to get or set metamethods.
+However, each module implements classes differently to support additional features, like superclasses or access scopes.
+Each module introduces new functions to manipulate these additional class features, like iterating over the superclasses of a class.The downside of these functions is that they only manipulate classes created with that module.
+Therefore, if we use functions from module <%=link("Modules.simple")%> to inspect classes created with module <%=link("Modules.multiple")%> then things might not work as expected because the each module implements classes differently.</p>
 
-<h2><a name="interop">Interoperability</a></h2>
+<p>To minimize this problem when using different LOOP modules, all LOOP modules adopts a basic class model that allow us to manipulate them in a general way.
+This section describes such model, as well as some useful operations over classes and caveats of mixing classes from different models.</p>
 
-<p>All LOOP models are interoperable, that is, a class from one model can be used as a base class of another and objects from different models can be mixed together to compose an application. This is possible because a LOOP class is seen as a plain Lua table that is used to retrieve field values.</p>
+<h2><a name="classops">General Manipulation</a></h2>
 
-<p>However there are some drawbacks. For instance, classes from models other than the <code>scoped</code> model only inherits public members from classes of model <code>scoped</code>. Other limitation is that <code>cached</code> and <code>scoped</code> class fields always override the fields of classes from other models, no matter their order in the list of super-classes. For example, consider the following code.</p>
+<p>Most of the time it is not a problem to use different LOOP modules in a application because, unlike objects, classes created in one portion of the code usually are not exported to other portions of the code that might use a different module.
+Libraries generally only export objects but not classes.</p>
+
+<p>Anyhow, all LOOP modules adopts a basic class model where the metatable of the class provides the implementation of all operations that can be performed on that particular class.
+Therefore, to get the superclass of any class you can do:</p>
 
 <pre>
-local BaseSuper   = loop.base.class  { modelname = "simple" }
-local CachedSuper = loop.cached.class{ modelname = "cached" }
+local getsuper = getmetatable(class).getsuper
+if getsuper ~= nil then
+  super = getsuper(class)
+end
+</pre>
+
+<p>LOOP provides the special module <%=link("Modules.classops")%> to manipulate classes created with any of its modules using this general model.
+So, instead of the code above, you can do:</p>
+
+<pre>
+local oo = require "loop.classops"
+super = oo.getsuper(class)
+</pre>
+
+<h2><a name="inheritance">Inheritance Interoperability</a></h2>
+
+<p>There are some drawbacks when mixing classes from different LOOP modules in a single class hierarchy.
+In particular, classes from modules other than the <%=link("Modules.scoped")%> module only inherits public members from classes of module <%=link("Modules.scoped")%>.
+Other limitation is that fields of classes from <%=link("Modules.cached")%> and <%=link("Modules.scoped")%> modules always override the fields of classes from other modules, no matter their order in the list of super-classes. For example, consider the following code.</p>
+
+<pre>
+local BaseSuper   = loop.base.class  { attribute = "simple" }
+local CachedSuper = loop.cached.class{ attribute = "cached" }
 local MultipClass = loop.multiple.class({}, BaseSuper, CachedSuper)
 local CachedClass = loop.cached.class  ({}, BaseSuper, CachedSuper)
 
 local nocache = MultipClass()
 local cached  = CachedClass()
 
-print(nocache.modelname) --> simple
-print(cached.modelname)  --> cached
+print(nocache.attribute) --> simple
+print(cached.attribute)  --> cached
 </pre>
 
-<p>The <code>nocache</code> object does not use a cache of fields, so it looks up the class hierarchy to find the value of field <code>modelname</code> and finds it in the <code>BaseSuper</code> class. However, the <code>cached</code> object uses a cache of inherited fields that only contains fields from cached classes (<i>i.e.</i> <code>cached</code> and <code>scoped</code> models) therefore it finds the value of field <code>modelname</code> provided by class <code>CachedSuper</code> even though it is after the <code>BaseSuper</code> class in the list of super-classes of <code>CachedClass</code>.</p>
-
-<h2><a name="packaged">Packaged Classes</a></h2>
-
-<p>LOOP classes can be packaged using the <code>module</code> function provided by Lua 5.1. The simplest way to pack classes using the module function is using the class constructor as a module option. For example, consider que code below.</p>
-
-<pre>
-local string = require "string"
-local oo = require "loop.base"
-
-module("chrono.Date", oo.class)
-
-day = 1
-month = 1
-year = 1900
-
-function addyears(self, years)
-  self.year = self.year + years
-end
-
-function __tostring(self)
-  return string.format("%d/%d/%d",
-                       self.month,
-                       self.day,
-                       self.year)
-end
-</pre>
-
-<p>However, this approach does not allow to define super-classes. To avoid this, use the module variable <code>_M</code> as the class definition table. For example, consider the following class.</p>
-
-<pre>
-local oo = require "loop.simple"
-
-module "chrono.SumDate"
-
-oo.class(_M, require("chrono.Date"))
-
-function __add(self, other)
-  assert(oo.instanceof(one, _M) and
-         oo.instanceof(other, _M))
-
-  -- missing implementation ...
-end
-
-function __sub(self, other)
-  assert(oo.instanceof(one, _M) and
-         oo.instanceof(other, _M))
-
-  -- missing implementation ...
-end
-</pre>
-
-<p>The classes packaged using the module function can be used like in the following code.</p>
-
-<pre>
-local SimpleDate = require "chrono.Date"
-local AddingDate = require "chrono.SumDate"
-local mydate1 = SimpleDate()
-local mydate2 = AddingDate()
-</pre>
+<p>The <code>nocache</code> object does not use a cache of fields, so it looks up the class hierarchy to find the value of field <code>attribute</code> and finds it in the <code>BaseSuper</code> class.
+However, the <%=link("Modules.cached")%> uses a cache of inherited fields that only contains fields from cached classes (<i>i.e.</i> <%=link("Modules.cached")%> and <%=link("Modules.scoped")%> modules) therefore it finds the value of field <code>attribute</code> provided by class <code>CachedSuper</code> even though it is after the <code>BaseSuper</code> class in the list of super-classes of <code>CachedClass</code>.</p>
 
 <h2><a name="superclass">Super-Class Access</a></h2>
 
-<p>Most LOOP models provide functions for introspection of the class hierarchy, allowing the application to get the super-class of a particular class. However, the access to super-class in method implementations can be cumbersome in some situations. One main problem is that a class method is usually a plain Lua function and therefore is not bound to a particular class. This way, there is no simple way to determine the class of a method in order to figure out its super-class and the inherited method implementation. The most straightforward solution is to place super-classes in local variables and access the inherited methods using the class stored in that variable, like in the example of the following code.</p>
+<p>LOOP modules provide functions for introspection of the class hierarchy, allowing the application to get the super-class of a particular class.
+However, the access to super-class in method implementations can be cumbersome in some situations.
+One main problem is that a class method is usually a plain Lua function and therefore is not bounded to a particular class.
+This way, there is no simple way to determine the class of a method in order to figure out its super-class and the inherited method implementation.
+The most straightforward solution is to place super-classes in local variables and access the inherited methods using the class stored in that variable, like in the example of the following code.</p>
 
 <pre>
 local Square = oo.class()
@@ -121,7 +97,9 @@ function Button:draw()
 end
 </pre>
 
-<p>The first line of method <code>Button:draw()</code> calls the method <code>Square:draw()</code> over the object instance using the value stored in upvalue <code>Square</code> to retrieve the implementation of operation <code>draw</code> available in class <code>Square</code>. However, this explicit reference to the super-class <code>Square</code> may be troublesome in the scenario of maintaining the code in face of changes on the class hierarchy. To avoid such problem the acquisition of the super-class can be done through the <code>Button</code> class stored in variable <code>Button</code>, like in the code below.</p>
+<p>The first line of method <code>Button:draw()</code> calls the method <code>Square:draw()</code> over the object instance using the value stored in upvalue <code>Square</code> to retrieve the implementation of operation <code>draw</code> available in class <code>Square</code>.
+However, this explicit reference to the super-class <code>Square</code> may be troublesome in the scenario of maintaining the code in face of changes on the class hierarchy.
+To avoid such problem the acquisition of the super-class can be done through the <code>Button</code> class stored in variable <code>Button</code>, like in the code below.</p>
 
 <pre>
 local Button = oo.class({}, Square)
@@ -134,4 +112,159 @@ function Button:draw()
                    self.ypos - th/2,
                    self.label      )
 end
+</pre>
+
+<h2><a name="__init">Hierarchical Initialization</a></h2>
+
+<p>By default, LOOP classes work as Lua-like constructors, which are functions that receives a table containing named values to be used to create the new object, like in the example below:</p>
+
+<pre>
+Date = oo.class()
+function Date:__tostring()
+  return string.format("%02d/%02d/%d", self.day, self.month, self.year)
+end
+
+print(Date{day=30, month=5, year=2013}) --> 30/05/2013
+</pre>
+
+<p>However, we can use the <%=link("Basics.__new", "<code>__new</code>")%> metamethod to implement other styles of constructors.
+For example, the class can create an instance from a sequence of argument values instead of the values from a table, like in the example below:</p>
+
+<pre>
+Date = oo.class()
+function Date:__new(day, month, year)
+  local obj = {
+    day = day,
+    month = month,
+    year = year,
+  }
+  return oo.rawnew(self, obj)
+end
+function Date:__tostring()
+  return string.format("%02d/%02d/%d", self.day, self.month, self.year)
+end
+
+print(Date(30, 5, 2013)) --> 30/05/2013
+</pre>
+
+<p>The <%=link("Basics.__new", "<code>__new</code>")%> metamethod is a very basic mechanism and might not be easy to use in complex scenarios like the initialization of a class hierarchy.
+In such case, the class being instatiated might inherit from some classes that define define their own <%=link("Basics.__new", "<code>__new</code>")%> metamethod and also from others that do not.
+So the implementor of the subclass must know which <%=link("Basics.__new", "<code>__new</code>")%> must be called and which not, and in the proper order.</p>
+
+<p>To make this easy, LOOP provides module <%=link("Modules.hierarchy")%> with implementations of the <%=link("Basics.__new", "<code>__new</code>")%> designed to work with class hierarchies.
+Such implementations use the introspection mechanisms provided by LOOP (see <%=link("Classes.classops")%>) to inspect the class hierarchy and invoke a special initialization metamethod of each class of the hierarchy in order to initialize the instance properly.</p>
+
+<p>Two implementations are provided.
+Function <%=link("Modules.hierarchy.mutator")%> is designed to work as Lua-like constructors.
+This function basically iterates through the class hierarchy from the superclasses down to the actual class, calling the method <code>__init</code> of each class that provides such method.
+This way, each class that requires the initialization of an attribute must provide the method <code>__init</code> that initializes the attribute correctly.
+For example, we could rewrite the example presented in <%=link("Modules.multiple", "here")%> using this feature as illustrated below:</p>
+
+<pre>
+oo = require "loop.multiple"
+hierarchy = require "loop.hierarchy"
+
+Object = oo.class{ __new = hierarchy.mutator }
+
+Contained = oo.class({}, Object)
+function Contained:__init()
+  assert(self.name, "no name for object")
+  assert(self.container, "no container for object")
+  self.container:add(self.name, self)
+end
+
+Container = oo.class({}, Object)
+function Container:__init()
+  self.members = self.members or {}
+end
+function Container:add(name, object)
+  self.members[name] = object
+end
+function Container:search(path)
+  local container, newpath = string.match(path, "(.-)/(.+)$")
+  if container then
+    container = self.members[container]
+    if container and container.search then
+      return container:search(newpath)
+    end
+  else
+    return self.members[path]
+  end
+end
+
+ContainedContainer = oo.class({}, Contained, Container)
+.
+.
+.
+Root = Container{}
+Folder = ContainedContainer{
+  container = Root,
+  name = "my_folder",
+}
+File = Contained{
+  container = Folder,
+  name = "my_file.txt",
+  data = "Hello, I'm a file"
+}
+print(Root:search("my_folder/my_file.txt").data) --> Hello, I'm a file
+</pre>
+
+<p>The other implementation provided is function <%=link("Modules.hierarchy.creator")%>, which is designed to resemble class constructors of Java or C++.
+This function basically creates an empty instance of the class and then calls the method <code>__init</code> of this instance if such method exists.
+The <code>__init</code> method receives all the parameters provided to the constructor.</p>
+
+<p>In this case only a single <code>__init</code> method is called.
+So each class should implement a <code>__init</code> method that receives the constructor parameters for that class.
+Moreover, it must also call the <code>__init</code> function of each one of its superclasses providing the parameters expected by each superclass constructor, as illustrated in the example below:</p>
+
+<pre>
+oo = require "loop.multiple"
+hierarchy = require "loop.hierarchy"
+
+Object = oo.class{ __new = hierarchy.creator }
+
+Contained = oo.class({}, Object)
+function Contained:__init(container, name)
+  assert(name, "no name for object")
+  assert(container, "no container for object")
+  container:add(name, self)
+  self.name = name
+  self.container = container
+end
+
+Container = oo.class({}, Object)
+function Container:__init()
+  self.members = {}
+end
+function Container:add(name, object)
+  self.members[name] = object
+end
+function Container:search(path)
+  local container, newpath = string.match(path, "(.-)/(.+)$")
+  if container then
+    container = self.members[container]
+    if container and container.search then
+      return container:search(newpath)
+    end
+  else
+    return self.members[path]
+  end
+end
+
+ContainedContainer = oo.class({}, Contained, Container)
+function ContainedContainer:__init(container, name)
+  Contained.__init(self, container, name)
+  Container.__init(self)
+end
+.
+.
+.
+Root = Container()
+
+Folder = ContainedContainer(Root, "my_folder")
+
+File = Contained(Folder, "my_file.txt")
+File.data = "Hello, I'm a file"
+
+print(Root:search("my_folder/my_file.txt").data) --> Hello, I'm a file
 </pre>

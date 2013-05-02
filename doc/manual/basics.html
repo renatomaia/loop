@@ -1,101 +1,274 @@
-<p>All LOOP class models present a set of common functionalities, as is presented in this section. For instance, all models are presented as sub-packages of the LOOP package. Therefore, to require a particular model you should use the following command:</p>
+<p>
+Creating objects in Lua is very simple and clean.
+Take for example the code bellow that creates an object implementing a stack:
+</p>
 
 <pre>
--- use the LOOP model named 'simple'
--- for classes with simple inheritance
-local oo = require "loop.simple"
+Stack = { top = 0 }
+function Stack:push(value)
+  local pos = self.top+1
+  self[pos] = value
+  self.top = pos
+end
+function Stack:pop()
+  local pos = self.top
+  if pos > 0 then
+    local value = self[pos]
+    self[pos] = nil
+    self.top = pos-1
+    return value
+  end
+end
+.
+.
+.
+Stack:push("Hello")
+print(Stack:pop())
 </pre>
 
-<h2><a name="classes">Declaring Classes</a></h2>
+<p>However, if we want to create more than one stack, we will need a factory of stacks.
+There are different ways to create a factory in Lua.
+For example, you could create a function that uses the code above to create and return a new stack.
+A more usual solution however is to create objects that borrow the implementation from the original stack object, which works as a prototype or class for the new objects.
+LOOP modules are designed to aid the later approach.</p>
 
-<p>All object models currently provided by LOOP are based on classes to implement behavioral sharing. Therefore, to create a LOOP object you must first define a class for it using the operation <code>class(definition)</code>. This operation receives a table that must be used as the class. Generally, a LOOP class can be seen as the meta-table of all objects of that class, <i>i.e.</i> it contains the meta-methods that defines the behavior of its instances. Since object classes usually are also used to define common features provided by all instances, every LOOP class has a default implementation of the <code>__index</code> meta-method that retrieves fields from the class. This way, every field defined by the class is shared by all its instances. For example, suppose the following class definition.</p>
+<h2><a name="prototyping">Cloning Objects</a></h2>
 
-<pre>
--- model with no inheritance
-local oo = require "loop.base"
-
-local Date = oo.class{
-  -- default field values
-  day   = 1,
-  month = 1,
-  year  = 1900,
-}
-function Date:addyears(years)
-  self.year = self.year + years
-end
-function Date:__tostring()
-  return string.format("%d/%d/%d",
-                       self.month,
-                       self.day,
-                       self.year)
-end
-</pre>
-
-<p>The class <code>Date</code> defines the fields <code>day</code>, <code>month</code>, <code>year</code> with default values and provides the implementation of the method <code>addyear</code> and the <code>__tostring</code> meta-method that is used by the tostring function of Lua base library. Therefore, all instances of class <code>Date</code> will share this behavior.</p> 
-
-<h2><a name="objects">Creating Objects</a></h2>
-
-<p>Suppose the following code that creates an instance of class <code>Date</code> and uses it to find out the next birthday of a person.</p>
+<p>LOOP provides a module for cloning objects called <%=link("Modules.proto")%>.
+This module basically provides the <%=link("Modules.proto.clone")%> function.
+This function receives the object that will provide the members (methods and attributes) and an optional table that will become the cloned object.
+The <%=link("Modules.proto.clone")%> function is equivalent to:</p>
 
 <pre>
-function input(message, validator)
-  print(message)
-  return assert(validator(io.read()))
-end
-
-local day   = input("Enter the day of your birth"  , tonumber)
-local month = input("Enter the month of your birth", tonumber)
-local year  = input("Enter the year of your birth" , tonumber)
-local age   = input("Enter your age"               , tonumber)
-
--- new Date instance that overrides default values
-local birthday = Date {
-  day   = day,
-  month = month,
-  year  = year,
-}
-birthday:addyears(age + 1)
-print("Your next birthday will be on", birthday)
-</pre>
-
-<p>All classes of LOOP models can be instantiated like in the example above that is using the class as a constructor that receives the values used to create an instance and returns it. Alternatively, instances can be created by the operation <code>new</code> that receives as parameters the class and the values used to create the instance.</p>
-
-<h2><a name="__init">Initializing Objects</a></h2>
-
-<p>The default way instances are created is using the first argument informed as the object that must become an instance of the class. That is why the above example passes a table for the class in order to create the instance. However, this behavior can be redefined by the definition of the <code>__init</code> field on the class. This field works like a meta-method that is used to create instances of a class. The function stored at field <code>__init</code> receives the class and all the values provided to the class constructor. For example, suppose that we want to change the class <code>Date</code> so it can be instantiated from a tripe of numbers instead of a table containing possible replacements of default attribute values, then we can use the code provided below.</p>
-
-<pre>
-function Date:__init(month, day, year)
-  -- self is the class
-  return oo.rawnew(self, {
-    day   = day,
-    month = month,
-    year  = year,
-  })
+function clone(proto, clone)
+  return setmetatable(clone or {}, {__index=proto})
 end
 </pre>
 
-<p>The <code>rawnew</code> function is used to forcefully turn a table into an instance of a class without calling the <code>__init</code> function. The <code>rawnew</code> function can be roughly comparable to the setmetatable function of Lua with switched parameters (actually that is its implementation in most LOOP models). The main purpose of the <code>__init</code> function is to initialize a table so it can be turned into an instance of a class. This way the class may define may different semantics for the constructor. For example, consider the two following types of constructors.</p>
+<p>Cloning an object with <%=link("Modules.proto.clone")%> is different from copying it (see <%=link("Modules.table.copy")%>) because the cloned object does not have a copy the members of the original object.
+Instead, the cloned object references the original object and consults it to get its members whenever necessary.
+So, if the original object changes, this change will reflect on its clones.
+As an example we could make our stack object a prototype and clone it to create more stacks, like in the example below:</p>
 
 <pre>
-function Constructed:__init(...)
-  -- creates and initialize a brand
-  -- new instance with the values of
-  -- provided parameters
-  return oo.rawnew(self, { ... })
-end
+oo = require "loop.proto"
+otherStack = oo.clone(Stack)
+otherStack:push("Hello")
+print(otherStack:pop()) --> Hello
+</pre>
 
-function Mutant:__init(object)
-  object = object or {}
-  -- optionally checks if the object
-  -- presents the expected state
-  -- and turns it into an instance
-  return oo.rawnew(self, object)
+<p>It is worth noticing that when we set a field in the clone, this field is not set in the prototype.
+So when we call <code>myStack:push("Hello")</code> the line <code>self.top = pos</code> sets a value for attribute <code>top</code> in the clone, not the prototype.
+This way, next time someone consults the value of <code>top</code> in the cloned object, it will not consult the prototype to get its value.
+The clone now have a value for <code>top</code> of its own.</p>
+
+<p>One problem with cloning is that we have to avoid changing the prototype in a way that breaks the behavior of the clones.
+For example, suppose we call an operation on the prototype, like <code>Stack:push()</code>.
+This call would change the value of attribute <code>top</code> of the prototype to <code>1</code>.
+All clones without a value for <code>top</code> would automatically inherit the value <code>1</code> from the prototype.
+This way, all such clones would appear as if they have the same values of the prototype.
+This might not be what we want.
+For this reason, a better approach in many scenarios is to treat the prototype object in a special way, not as an ordinary object, but exclusively as a template or class.</p>
+
+<h2><a name="classes">Creating Classes</a></h2>
+
+<p>LOOP provides different modules that support OOP based on the concept of classes.
+A LOOP class is basicaly a metatable.
+Moreover the instances of a class are tables that have the class as their metatable.</p>
+
+<p>LOOP classes have three minor extensions in relation to ordinary metatables.
+First, the default value of metamethod <%=link("LuaManual.Metatables", "<code>__index</code>")%> is the class itself.
+So all fields of the class are shared with all its instances.
+In fact the class works as a prototype for all its instances.
+Secondly, a class can be used as a function to create instances of that class thus working as a factory.
+Finally, a class can optionally define a special metamethod called <code><a href="#__new">__new</a></code> to redefine how instances of that class are created.
+Class-based moduels provides function <%=link("Modules.base.class")%> to create classes, which is equivalent to:</p>
+
+<pre>
+function new(class, ...)
+  local new = class.__new
+  if new ~= nil then
+    return new(class, ...)
+  end
+  return setmetatable(... or {}, class)
+end
+function class(metatable)
+  if metatable == nil then
+    metatable = {}
+  end
+  if metatable.__index == nil then
+    metatable.__index = metatable
+  end
+  return setmetatable(metatable, {__call=new})
 end
 </pre>
 
-<p>When <code>Constructed</code> constructor is called, it always return a brand new instance, so it is not possible to properly make an existing table an instance of <code>Constructed</code> (unless using the <code>rawnew</code> function). On the other hand, the constructor of <code>Mutant</code> class can be used to initialize the table properly prior to the actual instantiation performed by <code>rawnew</code>.</p>
+<p>By default, classes are like prototypes but, unlike prototypes, classes can redefine some behavior of its instances through metamethods.
+Moreover, since the metamethods defined in the class only applies to the instances, the class itself might not behave like its instances.
+For this reason, classes usually are used only as a template or mold of a group of object and not as working objects.
+As an example, we could rewrite our stack implementation using a class, like in the example below:</p>
 
-<h2><a name="introsp">Introspection Mechanisms</a></h2>
+<pre>
+oo = require "loop.base"
 
-<p>Finally, all LOOP models provide introspection operations like <code>classof(object)</code>, <code>isclass(table)</code>, <code>instanceof(object, class)</code>, <code>memberof(class, name)</code> and <code>members(class)</code> for retrieving the LOOP class of an object, check whether a table is a class of the LOOP model, check whether an object is an instance of a given class, get the value of a member defined in a class, and iterating through all class members, respectively.</p>
+StackClass = oo.class{ top = 0 }
+function StackClass:push(value)
+  local pos = self.top+1
+  self[pos] = value
+  self.top = pos
+end
+function StackClass:pop()
+  local pos = self.top
+  if pos > 0 then
+    local value = self[pos]
+    self[pos] = nil
+    self.top = pos-1
+    return value
+  end
+end
+function StackClass:__tostring()
+  local strings = {}
+  for i, value in ipairs(self) do
+    strings[i] = tostring(value)
+  end
+  return "{"..table.concat(strings, ",").."}"
+end
+.
+.
+.
+myStack = StackClass()
+myStack:push("Bottom")
+myStack:push("Middle")
+myStack:push("Top")
+print(myStack)       --> {Bottom,Middle,Top}
+print(myStack:pop()) --> Top
+print(myStack:pop()) --> Middle
+print(myStack:pop()) --> Bottom
+</pre>
+
+<h2><a name="__new">The <code>__new</code> Metamethod</a></h2>
+
+<p>By default, when a class is used as a factory to create an instance of that class, it takes the first argument and turns it into an instance of the class.
+This allows for an easy way to initialize the new instance attributes when necessary.
+For example, we could create a stack with three strings inside it by providing a table with proper contents, like in the example below:</p>
+
+<pre>
+myStack = StackClass{ "Bottom", "Middle", "Top", top = 3 }
+print(myStack:pop()) --> Top
+print(myStack:pop()) --> Middle
+print(myStack:pop()) --> Bottom
+</pre>
+
+<p>However, the way instances are created can be redefined with a metamethod defined by field <code>__new</code> of the class.
+This metamethod is called to create instances of a class and receives the class and all the values provided to the factory.
+For example, suppose that we want to change the class <code>StackClass</code> so it can be instantiated from a sequence of values instead of a table containing its internal values.
+Then we can use the code provided below:</p>
+
+<pre>
+oo = require "loop.base"
+
+StackClass = oo.class{ top = 0 }
+function StackClass:__new(...)
+  local count = select("#", ...)
+  return oo.rawnew(self, { top = count, ... })
+end
+.
+.
+.
+myStack = StackClass("Bottom", "Middle", "Top")
+print(myStack:pop()) --> Top
+print(myStack:pop()) --> Middle
+print(myStack:pop()) --> Bottom
+</pre>
+
+<p>The function <%=link("Modules.base.rawnew")%> used in the code above turns a table into an instance of a class without calling the <code>__new</code> metamethod.
+One common use for the <code>__new</code> metamethod is to initialize a table so it can be turned into an instance of a class.
+For example, suppose we want to store the elements of our stack in a separate table stored in a field called <code>elements</code>.
+This way, we would have to create a new storage table for each instance of the stack class.
+We could use the <code>__new</code> metamethod to create such table at each instantiation, like in the example below:</p>
+
+<pre>
+oo = require "loop.base"
+
+StackClass = oo.class()
+function StackClass:__new(newStack)
+  newStack = newStack or {}
+  if newStack.elements == nil then
+    newStack.elements = {}
+  end
+  newStack.top = #newStack.elements
+  return oo.rawnew(self, newStack)
+end
+function StackClass:push(value)
+  local pos = self.top+1
+  self.elements[pos] = value
+  self.top = pos
+end
+function StackClass:pop()
+  local pos = self.top
+  if pos > 0 then
+    local value = self.elements[pos]
+    self.elements[pos] = nil
+    self.top = pos-1
+    return value
+  end
+end
+</pre>
+
+<h2><a name="library">Library Organization</a></h2>
+
+<p>LOOP is organized as a set of modules.
+These module are designed to allow the programmer to load only the code that provides the functionality he needs.
+For most applications only a few of these modules are actualy required.
+We can separate LOOP modules in tree categories, described below:</p>
+
+<h3>Basic Modules</h3>
+
+<p>The first group of modules are designed to provide support for different styles of OOP in Lua.
+To use <%=link("Basics.prototyping", "prototyping")%>, you might requilre only the <%=link("Modules.proto")%> module.
+However, to use <%=link("Classes", "classes")%> you might requilre one of the class-based modules listed below.
+These class-based modules are organized as incremental modules that provides the same functionality of the previous one but introducing some new funcionality.
+This way, your application can load only the module that provides the funcionality it requires.</p>
+
+<center>
+  <table>
+    <tr>
+      <th>Class-based Module</th>
+      <th>Introduced feature</th>
+    </tr>
+    <tr>
+      <td><%=link("Modules.base")%></td>
+      <td>The <%=link("Basics.__new", "<code>__new</code>")%> metamethod.</td>
+    </tr>
+    <tr>
+      <td><%=link("Modules.simple")%></td>
+      <td>Simple inheritance.</td>
+    </tr>
+    <tr>
+      <td><%=link("Modules.multiple")%></td>
+      <td>Multiple inheritance.</td>
+    </tr>
+    <tr>
+      <td><%=link("Modules.cached")%></td>
+      <td>Metamethod inheritance.</td>
+    </tr>
+    <tr>
+      <td><%=link("Modules.scoped")%></td>
+      <td>Member access control.</td>
+    </tr>
+  </table>
+</center>
+
+<h3>Complementary Modules</h3>
+
+<p>The second group contains modules with auxiliary functions that complement the functionality of the basic modules but are not necessary in most applications.</p>
+
+<ul>
+  <li><%=link("Modules.classops")%></li>
+  <li><%=link("Modules.hierarchy")%></li>
+  <li><%=link("Modules.scoped.debug")%></li>
+</ul>
+
+<h3>Utility Modules</h3>
+
+<p>Finally, LOOP provides the <%=link("Modules.table")%> module with some basic operations on tables.</p>

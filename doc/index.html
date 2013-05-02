@@ -1,6 +1,10 @@
-<h1>Class Models for The Lua Language</h1>
+<h1>Lua Object-Oriented Programming</h1>
 
-<p>LOOP stands for Lua Object-Oriented Programming and is a set of packages for supporting different models of object-oriented programming in the <a href="http://www.lua.org/">Lua</a> language. In fact, Lua is not an object-oriented language nor it was intended to be because one of the main goals of Lua is to remain simple and small. However, it provides facilities as syntactic sugar to support an object-oriented programming style. Additionally, the extension mechanisms of Lua can be used to implement most of the traditional object-oriented concepts commonly available in other languages. This lack of a standard object model avoids the use of a peculiar model instead of models customized for particular needs, like simplicity, flexibility or performance.</p>
-<p>The models provided by LOOP are not intended to define a standard for the Lua language. Instead, they are examples of the introduction of more traditional object-oriented features into the language. Particularly, LOOP models are mainly concerned to dynamicity, although there is an attempt to keep them as simple and efficient as possible. Additionally, LOOP uses the fundamental Lua concepts like tables (objects) and meta-tables (classes), traditionally used to enable an object-oriented programming style, to provide a common ground for the interoperability of objects and classes of its different models.</p>
+<p>LOOP is a set of modules with functions that help doing object-oriented programming (OOP) in <%=link("Lua")%>.
+Much like the <%=link("LuaManual.TableLib")%> module from the <%=link("LuaManual.StdLibs")%> provides functions to manipulate sequences (<i>e.g.</i> insert or remove elements), LOOP modules provide functions to manipulate objects (<i>e.g.</i> get its class) and classes (<i>e.g.</i> define its superclass).
+LOOP is based on common solutions adopted by programmers doing OOP in Lua with focus in simplicity and efficiency.</p>
+
+<p>LOOP modules are intended to aid the programmer to perform common tasks using well known solutions for OOP in Lua.
+Objects and classes created with LOOP usually interoperate well with other objects and libraries due to this adoption of well known solutions.</p>
 
 <p><strong>Note:</strong> Are you new to Lua? Then read <%=link("Intro","this")%>.</p>
