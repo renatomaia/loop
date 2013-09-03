@@ -20,6 +20,7 @@ local function testsrvr()
 		function load(code, source , mode , env)
 			local chunk = loadstring(code, source)
 			setfenv(chunk, env)
+			return chunk
 		end
 	end
 	server = assert(socket.bind("localhost", 0));

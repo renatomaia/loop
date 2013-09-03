@@ -14,7 +14,6 @@ local pairs = _G.pairs
 local pcall = _G.pcall
 local select = _G.select
 local setfenv = _G.setfenv
-local unpack = _G.unpack
 
 local package = require "package"
 local path = package.path
@@ -22,6 +21,7 @@ local path = package.path
 local array = require "table"
 local insert = array.insert
 local concat = array.concat
+local unpack = array.unpack or _G.unpack
 
 local string = require "string"
 local byte = string.byte
@@ -345,8 +345,20 @@ outh:write([[
 
 #include <lua.h>
 
+#if defined(_WINDLL)
+
+#if defined(LUA_MODULE_INTERNAL)
+#define ]],prefix,[[ __declspec(dllexport)
+#else
+#define ]],prefix,[[ __declspec(dllimport)
+#endif
+
+#else
+
 #ifndef ]],prefix,[[ 
 #define ]],prefix,[[ 
+#endif
+
 #endif
 
 ]])
@@ -403,7 +415,11 @@ if not compileonly then
 	outh:write(prefix,' int ',funcload,'(lua_State*);\n')
 	outc:write(
 prefix,[[ int ]],funcload,[[(lua_State *L) {
+#if defined(LUA_VERSION_NUM) && LUA_VERSION_NUM > 501
+	luaL_getsubtable(L, LUA_REGISTRYINDEX, "_PRELOAD");
+#else
 	luaL_findtable(L, LUA_GLOBALSINDEX, "package.preload", ]],#inputs,[[);
+#endif
 	
 ]])
 	-- preload C modules

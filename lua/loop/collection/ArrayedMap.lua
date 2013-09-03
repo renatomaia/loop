@@ -19,31 +19,30 @@ local concat = table.concat
 local insert = table.insert
 
 local oo = require "loop.base"
-local class = oo.class
 
-module(..., class)
+local module = oo.class()
 
-keys = ipairs
-keyat = rawget
+module.keys = ipairs
+module.keyat = rawget
 
-function value(self, key, value)
+function module.value(self, key, value)
 	if value == nil
 		then return self[key]
 		else self[key] = value
 	end
 end
 
-function add(self, key, value)
+function module.add(self, key, value)
 	self[#self + 1] = key
 	self[key] = value
 end
 
-function addat(self, index, key, value)
+function module.addat(self, index, key, value)
 	insert(self, index, key)
 	self[key] = value
 end
 
-function removeat(self, index)
+function module.removeat(self, index)
 	local key = self[index]
 	if key ~= nil then
 		local size = #self
@@ -56,14 +55,14 @@ function removeat(self, index)
 	end
 end
 
-function valueat(self, index, value)
+function module.valueat(self, index, value)
 	if value == nil
 		then return self[ self[index] ]
 		else self[ self[index] ] = value
 	end
 end
 
-function __tostring(self)
+function module.__tostring(self)
 	local result = { "{ " }
 	for i = 1, #self do
 		local key = self[i]
@@ -77,3 +76,5 @@ function __tostring(self)
 	result[last] = (last == 1) and "{}" or " }"
 	return concat(result)
 end
+
+return module

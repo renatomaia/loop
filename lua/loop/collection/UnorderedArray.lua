@@ -14,15 +14,14 @@ local table = require "table"
 local concat = table.concat
 
 local oo = require "loop.base"
-local class = oo.class
 
-module(..., class)
+local module = oo.class()
 
-function add(self, value)
+function module.add(self, value)
 	self[#self + 1] = value
 end
 
-function remove(self, index)
+function module.remove(self, index)
 	local size = #self
 	if index == size then
 		self[size] = nil
@@ -31,7 +30,7 @@ function remove(self, index)
 	end
 end
 
-function __tostring(self)
+function module.__tostring(self)
 	local result = { "{ " }
 	for i = 1, #self do
 		result[#result+1] = tostring(self[i])
@@ -41,3 +40,5 @@ function __tostring(self)
 	result[last] = (last == 1) and "{}" or " }"
 	return concat(result)
 end
+
+return module

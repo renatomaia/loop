@@ -1,13 +1,13 @@
 #!/bin/sh
 
-SVNBASE=https://subversion.tecgraf.puc-rio.br/engsoftware/
-VERSION=2.3
-RELEASE=beta
+SVNBASE=https://subversion.tecgraf.puc-rio.br/engdist/
+VERSION=3.0
+RELEASE=beta2
 PACKAGE=loop-$VERSION-$RELEASE
 
 if [ ! -d $PACKAGE ]; then mkdir $PACKAGE; fi
 
-svn export --force $SVNBASE/loop/trunk $PACKAGE
+svn export --force $SVNBASE/loop/branches/LOOP_3_0 $PACKAGE
 
 cd $PACKAGE
 # build docs and remove unecessary files

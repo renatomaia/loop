@@ -17,22 +17,20 @@ local table = require "table"
 local concat = table.concat
 
 local oo = require "loop.base"
-local class = oo.class
 
+local module = oo.class()
 
-module(..., class)
+module.valueat = rawget
 
-valueat = rawget
-
-function indexof(self, value)
+function module.indexof(self, value)
 	return self[value]
 end
 
-function contains(self, value)
-	return indexof(self) ~= nil
+function module.contains(self, value)
+	return module.indexof(self) ~= nil
 end
 
-function add(self, value)
+function module.add(self, value)
 	if self[value] == nil then
 		self[#self+1] = value
 		self[value] = #self
@@ -40,7 +38,7 @@ function add(self, value)
 	end
 end
 
-function remove(self, value)
+function module.remove(self, value)
 	local index = self[value]
 	if index ~= nil then
 		local size = #self
@@ -55,11 +53,11 @@ function remove(self, value)
 	end
 end
 
-function removeat(self, index)
-	return remove(self, self[index])
+function module.removeat(self, index)
+	return module.remove(self, self[index])
 end
 
-function __tostring(self)
+function module.__tostring(self)
 	local result = { "{ " }
 	for i = 1, #self do
 		result[#result+1] = tostring(self[i])
@@ -69,3 +67,5 @@ function __tostring(self)
 	result[last] = (last == 1) and "{}" or " }"
 	return concat(result)
 end
+
+return module

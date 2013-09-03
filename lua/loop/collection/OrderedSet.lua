@@ -17,29 +17,28 @@ local table = require "table"
 local concat = table.concat
 
 local oo = require "loop.base"
-local class = oo.class
 
 local CyclicSets = require "loop.collection.CyclicSets"
 local addto = CyclicSets.add
 local removeat = CyclicSets.removefrom
 
-module(..., class)
+local module = oo.class()
 
-contains = CyclicSets.contains
+module.contains = CyclicSets.contains
 
-function empty(self)
+function module.empty(self)
 	return self[self] == nil
 end
 
-function first(self)
+function module.first(self)
 	return self[ self[self] ]
 end
 
-function last(self)
+function module.last(self)
 	return self[self]
 end
 
-function successor(self, item)
+function module.successor(self, item)
 	local last = self[self]
 	if item ~= last then
 		if item == nil then item = last end
@@ -47,11 +46,11 @@ function successor(self, item)
 	end
 end
 
-function sequence(self, place)
-	return successor, self, place
+function module.sequence(self, place)
+	return module.successor, self, place
 end
 
-function insert(self, item, place)
+function module.insert(self, item, place)
 	local last = self[self]
 	if place == nil then place = last end
 	if self[place] ~= nil and addto(self, item, place) == item then
@@ -60,7 +59,7 @@ function insert(self, item, place)
 	end
 end
 
-function removefrom(self, place)
+function module.removefrom(self, place)
 	local last = self[self]
 	if place ~= last then
 		if place == nil then place = last end
@@ -72,7 +71,7 @@ function removefrom(self, place)
 	end
 end
 
-function pushfront(self, item)
+function module.pushfront(self, item)
 	local last = self[self]
 	if addto(self, item, last) == item then
 		if last == nil then self[self] = item end
@@ -80,15 +79,15 @@ function pushfront(self, item)
 	end
 end
 
-function popfront(self)
+function module.popfront(self)
 	local last = self[self]
 	if self[last] == last then
 		self[self] = nil
 	end
-	return removefrom(self, last)
+	return module.removefrom(self, last)
 end
 
-function pushback(self, item)
+function module.pushback(self, item)
 	local last = self[self]
 	if addto(self, item, last) == item then
 		self[self] = item
@@ -96,9 +95,9 @@ function pushback(self, item)
 	end
 end
 
-function __tostring(self)
+function module.__tostring(self)
 	local result = { "[ " }
-	for item in sequence(self) do
+	for item in module.sequence(self) do
 		result[#result+1] = tostring(item)
 		result[#result+1] = ", "
 	end
@@ -108,14 +107,16 @@ function __tostring(self)
 end
 
 -- set aliases
-add = pushback
+module.add = module.pushback
 
 -- stack aliases
-push = pushfront
-pop = popfront
-top = first
+module.push = module.pushfront
+module.pop = module.popfront
+module.top = module.first
 
 -- queue aliases
-enqueue = pushback
-dequeue = popfront
-head = first
+module.enqueue = module.pushback
+module.dequeue = module.popfront
+module.head = module.first
+
+return module

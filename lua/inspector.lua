@@ -13,20 +13,17 @@ registration of command processors that are invoked in the debug hook
 local _G = require "_G"
 local assert = _G.assert
 local error = _G.error
-local getfenv = _G.getfenv
 local ipairs = _G.ipairs
-local loadstring = _G.loadstring
-local module = _G.module
 local next = _G.next
 local pairs = _G.pairs
 local rawget = _G.rawget
 local rawset = _G.rawset
 local require = _G.require
 local select = _G.select
-local setfenv = _G.setfenv
 local setmetatable = _G.setmetatable
 local type = _G.type
 local xpcall = _G.xpcall
+local getfenv = _G.getfenv
 
 local coroutine = require "coroutine"
 local newcoro = coroutine.create
@@ -66,7 +63,25 @@ local memoize = loop_table.memoize
 local Crawler = require "loop.debug.Crawler"
 local Viewer = require "loop.debug.Viewer"
 
-module "inspector"
+local _ENV = {}
+if _G._VERSION == "Lua 5.1" then
+	local loadstring = _G.loadstring
+	local setfenv = _G.setfenv
+	local load51 = _G.load
+	setfenv(1,_ENV)
+
+	_G.load = function (ld, source, mode, env)
+		local loadfunc = (type(ld)=="string") and loadstring or load51
+		local chunk, errmsg = loadfunc(ld, source)
+		if chunk == nil then
+			return nil, errmsg
+		else
+			if env ~= nil then setfenv(chunk, env) end
+			return chunk
+		end
+	end
+end
+local load = _G.load
 
 input = stdin
 viewer = Viewer{ maxdepth = 2 }
@@ -404,9 +419,8 @@ local function openconsole()
 			then cmd = short.."()"
 			else cmd = cmd:gsub("^%s*=", "return ")
 		end
-		cmd, errmsg = loadstring(cmd, "inspection")
+		cmd, errmsg = load(cmd, "inspection", nil, environment)
 		if cmd then
-			setfenv(cmd, environment)
 			results(xpcall(cmd, stacktrace))
 		else
 			output:write(errmsg, "\n")
@@ -704,3 +718,5 @@ function deactivate()
 	breaklevel = nil
 	outoffunc = nil
 end
+
+return _ENV

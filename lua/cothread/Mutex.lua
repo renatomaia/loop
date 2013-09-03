@@ -4,7 +4,8 @@
 
 local _G = require "_G"
 local select = _G.select
-local unpack = _G.unpack
+local array = require "table"
+local unpack = array.unpack or _G.unpack
 
 local coroutine = require "coroutine"                                           --[[VERBOSE]] local Dummy = require("loop.object.Dummy")()
 local running = coroutine.running

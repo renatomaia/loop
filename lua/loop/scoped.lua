@@ -15,13 +15,29 @@ local _G = require "_G"                                                         
 local assert = _G.assert
 local getmetatable = _G.getmetatable
 local ipairs = _G.ipairs
-local load = _G.load
-local loadstring = _G.loadstring
 local pairs = _G.pairs
 local rawget = _G.rawget
 local rawset = _G.rawset
 local setmetatable = _G.setmetatable
 local type = _G.type
+
+if _G._VERSION == "Lua 5.1" then
+	local loadstring = _G.loadstring
+	local setfenv = _G.setfenv
+	local load51 = _G.load
+
+	_G.load = function (ld, source, mode, env)
+		local loadfunc = (type(ld)=="string") and loadstring or load51
+		local chunk, errmsg = loadfunc(ld, source)
+		if chunk == nil then
+			return nil, errmsg
+		else
+			if env ~= nil then setfenv(chunk, env) end
+			return chunk
+		end
+	end
+end
+local load = _G.load
 
 local table = require "table"
 local concat = table.concat
@@ -153,7 +169,7 @@ local IndexerFactory = memoize(function(name)
 			func[#func+1] = strip[1]
 		end
 	end
-	return loadstring(concat(func, "\n"), name)
+	return load(concat(func, "\n"), name)
 end)
 local function wrapindexer(class, scope, action)
 	local meta = class:getmeta(scope)

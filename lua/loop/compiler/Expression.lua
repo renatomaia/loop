@@ -13,29 +13,33 @@
 -- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
 --------------------------------------------------------------------------------
 
-local luaerror = error
-local pairs = pairs
-local ipairs = ipairs
-local unpack = unpack
-local select = select
+local _G = require "_G"
+local luaerror = _G.error
+local pairs = _G.pairs
+local ipairs = _G.ipairs
+local select = _G.select
 
-require "string"
+local array = require "table"
+local unpack = array.unpack or _G.unpack
+
 local oo = require "loop.base"
+local class = oo.class
+local rawnew = oo.rawnew
 
 --[[VERBOSE]] local verbose = require("loop.debug.Verbose"){
 --[[VERBOSE]] 	groups = { expression = {"operator","value","parse"} }
 --[[VERBOSE]] }
 --[[VERBOSE]] verbose:flag("expression", false)
 
-module("loop.compiler.Expression", oo.class)
-
-pos = 1
-count = 0
-precedence = {}
+local module = class{
+	pos = 1,
+	count = 0,
+	precedence = {},
+}
 
 local pattern = "^ *%s"
-function __new(self, object)
-	self = oo.rawnew(self, object)
+function module.__new(self, object)
+	self = rawnew(self, object)
 
 	if not self.operands and self.values then
 		local operands = {}
@@ -70,7 +74,7 @@ function __new(self, object)
 	return self
 end
 
-function push(self, kind, value)
+function module.push(self, kind, value)
 	self[#self+1] = kind
 	if kind == true then
 		self.count = self.count + 1
@@ -78,7 +82,7 @@ function push(self, kind, value)
 	end
 end
 
-function pop(self)
+function module.pop(self)
 	local kind = self[#self]
 	self[#self] = nil
 	local value
@@ -89,7 +93,7 @@ function pop(self)
 	return kind, value
 end
 
-function get(self, count)
+function module.get(self, count)
 	local nvals = 0
 	for _=1, count do
 		if self[#self] == true then
@@ -102,15 +106,15 @@ function get(self, count)
 end
 
 local errmsg = "%s at position %d"
-function error(self, msg)
+function module.error(self, msg)
 	return luaerror(errmsg:format(msg, self.pos))
 end
 
-function done(self)
+function module.done(self)
 	return (self.text:match("^%s*$", self.pos))
 end
 
-function token(self, token)
+function module.token(self, token)
 	local pos = select(2, self.text:find("^%s*[^%s]", self.pos))
 	if pos and (self.text:find(token, pos, true) == pos) then
 		self.pos = pos + #token
@@ -118,7 +122,7 @@ function token(self, token)
 	end
 end
 
-function match(self, pattern)
+function module.match(self, pattern)
 	local first, last, value = self.text:find(pattern, self.pos)
 	if first then
 		self.pos = last + 1
@@ -126,7 +130,7 @@ function match(self, pattern)
 	end
 end
 
-function operator(self, name, level, start)
+function module.operator(self, name, level, start)
 	local format = self.format[name]
 	for index, kind in ipairs(format) do
 		local parsed = self[start + index]
@@ -152,7 +156,7 @@ function operator(self, name, level, start)
 	return true
 end
 
-function value(self)
+function module.value(self)
 	if self:token("(") then                                                       --[[VERBOSE]] verbose:value(true, "'(' found at ",self.pos)
 		local start = #self
 		if not self:parse(1, start) then                                            --[[VERBOSE]] verbose:value(false, "error in enclosed expression")
@@ -175,7 +179,7 @@ function value(self)
 	end
 end
 
-function parse(self, level, start)
+function module.parse(self, level, start)
 	if not self:done() then
 		local ops = self.precedence[level]
 		if ops then                                                                 --[[VERBOSE]] verbose:parse(true, "parsing operators of level ",level)
@@ -199,7 +203,7 @@ function parse(self, level, start)
 	end
 end
 
-function evaluate(self, text, pos)
+function module.evaluate(self, text, pos)
 	if text then
 		self.text = text
 		self.pos = pos
@@ -213,3 +217,5 @@ function evaluate(self, text, pos)
 	end
 	return self:get(1)
 end
+
+return module

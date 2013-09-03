@@ -6,7 +6,7 @@
 
 local _G = require "_G"
 local assert = _G.assert
-local loadstring = _G.loadstring
+local loadstring = _G.loadstring or _G.load
 local pcall = _G.pcall
 local select = _G.select
 local setfenv = _G.setfenv

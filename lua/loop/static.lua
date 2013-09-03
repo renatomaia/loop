@@ -10,11 +10,11 @@ local setfenv = _G.setfenv
 local setmetatable = _G.setmetatable
 local type = _G.type
 
-module "loop.static"
+local module = {}
 
 local BuilderOf = setmetatable({}, { __mode = "k" })
 
-function class(builder)
+function module.class(builder)
 	local function class(...)
 		local object = {}
 		setfenv(builder, object)
@@ -28,22 +28,24 @@ function class(builder)
 	return class
 end
 
-function inherit(class, ...)
+function module.inherit(class, ...)
 	local builder = BuilderOf[class]
 	setfenv(builder, getfenv(2))
 	return builder(...)
 end
 
-function become(object)
+function module.become(object)
 	if object ~= nil then
 		setfenv(2, object)
 	end
 end
 
-function self(level)
+function module.self(level)
 	return getfenv((level or 1) + 1)
 end
 
-function new(class, ...)
-	return class(...)
+function module.new(class, ...)
+	return module.class(...)
 end
+
+return module

@@ -17,18 +17,14 @@ local table = require "loop.table"
 local memoize = table.memoize
 
 local oo = require "loop.simple"
-local class = oo.class
-local rawnew = oo.rawnew
 
 local CyclicSets = require "loop.collection.CyclicSets"
 
-module(...)
-
-class(_M, CyclicSets)
+local module = oo.class({}, CyclicSets)
 
 local reverseof = memoize(function() return {} end, "k")
 
-function reverse(self)
+function module.reverse(self)
 	return reverseof[self]
 end
 
@@ -36,15 +32,15 @@ end
 -- [ ? ]:predecessor(item)            : nil --> [ ? ]
 -- [ item ]:predecessor(item)         : item --> [ item ]
 -- [ pred, item ? ]:predecessor(item) : pred --> [ pred, item ? ]
-function predecessor(self, item)
+function module.predecessor(self, item)
 	return reverseof[self][item]
 end
 
-function backward(self, place)
-	return predecessor, self, place
+function module.backward(self, place)
+	return self.predecessor, self, place
 end
 
-function add(self, item, place)
+function module.add(self, item, place)
 	if self[item] == nil then
 		local succ
 		if place == nil then
@@ -62,7 +58,7 @@ function add(self, item, place)
 	end
 end
 
-function removefrom(self, place)
+function module.removefrom(self, place)
 	local item = self[place]
 	if item ~= nil then
 		local back = reverseof[self]
@@ -73,14 +69,14 @@ function removefrom(self, place)
 	end
 end
 
-function removeset(self, item)
+function module.removeset(self, item)
 	local back = reverseof[self]
 	repeat
 		item, self[item], back[item] = self[item], nil, nil
 	until item == nil
 end
 
-function movefrom(self, oldplace, newplace, lastitem)
+function module.movefrom(self, oldplace, newplace, lastitem)
 	local theitem = self[oldplace]
 	if theitem ~= nil then
 		if lastitem == nil then lastitem = theitem end
@@ -104,15 +100,17 @@ function movefrom(self, oldplace, newplace, lastitem)
 	end
 end
 
-function remove(self, item)
-	return removefrom(self, reverseof[self][item])
+function module.remove(self, item)
+	return module.removefrom(self, reverseof[self][item])
 end
 
-function move(self, item, place, last)
+function module.move(self, item, place, last)
 	local oldplace = reverseof[self][item]
 	if oldplace ~= nil then
-		return movefrom(self, oldplace, place, last)
+		return module.movefrom(self, oldplace, place, last)
 	end
 end
 
-__tostring = CyclicSets.__tostring
+module.__tostring = CyclicSets.__tostring
+
+return module

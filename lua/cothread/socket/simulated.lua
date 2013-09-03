@@ -6,7 +6,6 @@ local getmetatable = _G.getmetatable
 local ipairs = _G.ipairs
 local pairs = _G.pairs
 local type = _G.type
-local unpack = _G.unpack
 
 local math = require "math"
 local inf = math.huge
@@ -14,6 +13,7 @@ local min = math.min
 
 local array = require "table"
 local concat = array.concat
+local unpack = array.unpack or _G.unpack
 
 local table = require "loop.table"
 local memoize = table.memoize

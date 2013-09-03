@@ -21,25 +21,24 @@ local tabop = require "loop.table"
 local copy = tabop.copy
 
 local oo = require "loop.base"
-local class = oo.class
 
-module(..., class)
+local module = oo.class()
 
 -- { ? }     :contains(item) --> { ? }      : false
 -- { item ? }:contains(item) --> { item ? } : true
-function contains(self, item)
+function module.contains(self, item)
 	return self[item] ~= nil
 end
 
 -- { ? }           :successor(item) --> { ? }            : nil 
 -- { item | ? }    :successor(item) --> { item | ? }     : item
 -- { item, succ ? }:successor(item) --> { item, succ ? } : succ
-function successor(self, item)
+function module.successor(self, item)
 	return self[item]
 end
 
-function forward(self, place)
-	return successor, self, place
+function module.forward(self, place)
+	return module.successor, self, place
 end
 
 -- { ? }              :add()            --> { ? }               : error "table index is nil"
@@ -53,7 +52,7 @@ end
 -- { item ? }         :add(item, place) --> { item ? }          :
 -- { place, item ? }  :add(item, place) --> { place, item ? }   :
 -- { place ? item ?? }:add(item, place) --> { place ? item ?? } :
-function add(self, item, place)
+function module.add(self, item, place)
 	if self[item] == nil then
 		local succ
 		if place == nil then
@@ -74,7 +73,7 @@ end
 -- { ? }            :removefrom(place) --> { ? }       :
 -- { place | ? }    :removefrom(place) --> { ? }       : place
 -- { place, item ? }:removefrom(place) --> { place ? } : item
-function removefrom(self, place)
+function module.removefrom(self, place)
 	local item = self[place]
 	if item ~= nil then
 		self[place] = self[item]
@@ -87,7 +86,7 @@ end
 -- { ? }             :removeset(item) --> { ? } :
 -- { item | ? }      :removeset(item) --> { ? } : item
 -- { item..last | ? }:removeset(item) --> { ? } : item
-function removeset(self, item)
+function module.removeset(self, item)
 	local succ = self[item]
 	if succ ~= nil then
 		self[item] = nil
@@ -158,7 +157,7 @@ end
 -- { old, val ? | end..new ?? }     :movefrom(old, new, end) --> UNKNOWN STATE. MAYBE VALID? : val
 -- { old, val ? | end ?? | new ??? }:movefrom(old, new, end) --> UNKNOWN STATE. MAYBE VALID? : val
 --
-function movefrom(self, oldplace, newplace, lastitem)
+function module.movefrom(self, oldplace, newplace, lastitem)
 	local theitem = self[oldplace]
 	if theitem ~= nil then
 		if lastitem == nil then lastitem = theitem end
@@ -181,7 +180,7 @@ function movefrom(self, oldplace, newplace, lastitem)
 	end
 end
 
-function disjoint(self)
+function module.disjoint(self)
 	local result = {}
 	local missing = copy(self)
 	local start = next(missing)
@@ -197,7 +196,7 @@ function disjoint(self)
 	return result
 end
 
-function __tostring(self)
+function module.__tostring(self)
 	local result = {}
 	local missing = copy(self)
 	local start = next(missing)
@@ -222,3 +221,5 @@ function __tostring(self)
 	result[last] = (last == 1) and "{}" or " }"
 	return concat(result)
 end
+
+return module

@@ -14,7 +14,9 @@ do
 		end
 	end
 	crawler:crawl()
-	table.foreach(count, print)
+	for i, v in pairs(count) do
+		print(i,v)
+	end
 end
 
 print "\nfind all references to a value"
@@ -36,6 +38,13 @@ end
 
 print "\nshortest path to a object"
 do
+	local function maxindex(t)
+		local max = 0
+		for i in pairs(t) do
+			if type(i) == "number" and (i > max) then max = i end
+		end
+		return max
+	end
 	local function shortestpath(...)
 		local roots = tabop.memoize(function() return {} end)
 		local to_from = tabop.memoize(function()
@@ -117,11 +126,11 @@ do
 			local distof = { [value] = {weight=0,length=0} }
 			local unvisitedat = tabop.memoize(function() return {} end)
 			unvisitedat[0][value] = true
-		
+
 			while next(dest) ~= nil do
 				-- get node with shortest path at 'unvisitedat'
 				local node
-				for dist = 0, table.maxn(unvisitedat) do
+				for dist = 0, maxindex(unvisitedat) do
 					local list = unvisitedat[dist]
 					node = next(list)
 					if node ~= nil then

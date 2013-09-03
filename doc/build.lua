@@ -88,7 +88,7 @@ if _VERSION == "Lua 5.1" then
 		if chunk == nil then
 			return nil, errmsg
 		end
-		setfenv(chunk, env)
+		if env ~= nil then setfenv(chunk, env) end
 		return chunk
 	end
 	local loadfile51 = loadfile

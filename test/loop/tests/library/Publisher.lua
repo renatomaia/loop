@@ -1,3 +1,12 @@
+local _G = require "_G"
+local ipairs = _G.ipairs
+local select = _G.select
+local assert = _G.assert
+local pcall = _G.pcall
+
+local table = require "table"
+local unpack = table.unpack or _G.unpack
+
 local Publisher = require "loop.object.Publisher"
 
 local function newsub()

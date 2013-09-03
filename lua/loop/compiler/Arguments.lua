@@ -14,27 +14,28 @@
 -- Date   : 2007-07-10                                                        --
 --------------------------------------------------------------------------------
 
-local select   = select
-local tonumber = tonumber
-local type     = type
+local _G = require "_G"
+local select   = _G.select
+local tonumber = _G.tonumber
+local type     = _G.type
 
 local oo = require "loop.base"
 
-module("loop.compiler.Arguments", oo.class)
-
-_badnumber = "invalid value for option '%s', number excepted but got '%s'"
-_missing = "no value defined for option '%s'"
-_unknown = "unknown option '%s'"
-_norepeat = "option '%s' was already defined"
-_optpat = "^%-(%w+)(=?)(.-)$"
-_boolean = {
-	["true"] = true,
-	["false"] = false,
-	yes = true,
-	no = false,
+local module = oo.class{
+	_badnumber = "invalid value for option '%s', number excepted but got '%s'",
+	_missing = "no value defined for option '%s'",
+	_unknown = "unknown option '%s'",
+	_norepeat = "option '%s' was already defined",
+	_optpat = "^%-(%w+)(=?)(.-)$",
+	_boolean = {
+		["true"] = true,
+		["false"] = false,
+		yes = true,
+		no = false,
+	},
 }
 
-function __call(self, ...)
+function module.__call(self, ...)
 	local errmsg
 	local defined = self._norepeat and {} or nil
 	local count = select("#", ...)
@@ -106,3 +107,5 @@ function __call(self, ...)
 	end
 	return pos, errmsg
 end
+
+return module

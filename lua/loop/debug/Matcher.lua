@@ -7,7 +7,7 @@ local _G = require "_G"
 local pairs = _G.pairs
 local type = _G.type
 local select = _G.select
-local getfenv = _G.getfenv
+local getfenv = _G.pcall(_G.getfenv, 2) and _G.getfenv or nil
 local tostring = _G.tostring
 local getmetatable = _G.getmetatable
 local setmetatable = _G.setmetatable
@@ -27,18 +27,17 @@ local copy = tabop.copy
 local oo = require "loop.base"
 local class = oo.class
 
-module(..., class)
+local module = oo.class{
+	__mode = "k",
+	isomorphic = true,
+	environment = getfenv,
+	upvalue = getupvalue,
+	metakey = {},
+	envkey = {},
+}
 
-__mode = "k"
 
-isomorphic = true
-environment = getfenv
-upvalue = getupvalue
-
-metakey = {}
-envkey = {}
-
-function error(self, message)
+function module.error(self, message)
 	local path = { "value" }
 	for i = 2, #self do
 		local key = self[i]
@@ -62,7 +61,7 @@ function error(self, message)
 	return format("%s: %s", concat(path), message)
 end
 
-function matchtable(self, value, other)
+function module.matchtable(self, value, other)
 	local matched, errmsg = true
 	local keysmatched = {}
 	self[value], self[other] = other, value
@@ -114,7 +113,7 @@ function matchtable(self, value, other)
 	return matched, errmsg
 end
 
-function matchfunction(self, func, other)
+function module.matchfunction(self, func, other)
 	local matched, errmsg = (dump(func) == dump(other))
 	if matched then
 		self[func], self[other] = other, func
@@ -148,7 +147,7 @@ function matchfunction(self, func, other)
 	return matched, errmsg
 end
 
-function match(self, value, other)
+function module.match(self, value, other)
 	self[0] = self[0] or other
 	self[1] = self[1] or value
 	local matched, errmsg = false
@@ -185,6 +184,9 @@ function match(self, value, other)
 	return matched, errmsg
 end
 
-_M["table"] = matchtable
-_M["function"] = matchfunction
-_M["metatable"] = match
+-- aliases
+module.table = module.matchtable 
+module.function = module.matchfunction
+module.metatable = module.match
+
+return module

@@ -1,4 +1,6 @@
 local _G = require "_G"
+local setmetatable = _G.setmetatable
+
 local oo = require "loop.static"
 local Suite = require "loop.test.Suite"
 
@@ -83,10 +85,8 @@ function Tests.Mutant(checks)
 end
 
 function Tests.SeeAll(checks)
-	local package = require "package"
-	
 	local HelloWorld = oo.class(function()
-		package.seeall(oo.self())
+		setmetatable(oo.self(), {__index=_G})
 		
 		function getPrintFunc()
 			return print

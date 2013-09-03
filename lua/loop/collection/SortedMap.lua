@@ -6,12 +6,14 @@
 
 local _G = require "_G"
 local tostring = _G.tostring
+local stderr = _G.io.stderr
 
 local math = require "math"
 local random = math.random
 
 local array = require "table"
 local concat = array.concat
+local unpack = array.unpack or _G.unpack
 
 local oo = require "loop.base"
 local class = oo.class
@@ -234,8 +236,8 @@ end
 --   +-+-[25] = <value>
 --       [26] = <value>
 function SortedMap:debug(output)
-	output = output or _G.io.stderr
-	local current = {_G.unpack(self)}
+	output = output or stderr
+	local current = {unpack(self)}
 	while #current > 0 do
 		local node = current[1]
 		for level = #self, 2, -1 do
