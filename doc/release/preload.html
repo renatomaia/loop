@@ -9,13 +9,13 @@ On the other hand, <code>preloader.lua</code> is very general and may be used to
 <dl>
 	<dt><strong>WARNING:</strong></dt>
 	<dd>
-		The current version of <code>preloader.lua</code> require class <%=link"Argument Processor"%> to handle command-line options.
+		The current version of <code>preloader.lua</code> require class Argument Processor to handle command-line options.
 		So it might be necessary to make the LOOP Class Library available in the <code>LUA_PATH</code>.
 		Alternatively, you may simply redefine your command as:
 		<pre>lua -epackage.path=[[&lt;LOOP_HOME&gt;/?.lua]] &lt;LOOP_HOME&gt;/preloader.lua</pre>
 		Anyway, <code>preloader.lua</code> is very easy to read and modify, so feel free to change it in any way to better fit your demands.<br>
 		<br>
-		On the other hand, these concerns are not valid if you installed LOOP's <%=link("Install","rock","#rock")%> through <a href="http://www.luarocks.org/">LuaRocks</a>.
+		On the other hand, these concerns are not valid if you installed LOOP's <%=link("Download.rock","rock")%> through <a href="http://www.luarocks.org/">LuaRocks</a>.
 		In such case, you can use this script simply by command <code>preloader.lua</code>.
 	</dd>
 </dl>
@@ -33,7 +33,7 @@ The <code>[options]</code> accepted are described below:</p>
 	
 	<dt>-b, -bytecodes</dt>
 	<dd>
-		Indicates the provided inputs define files containing compiled bytecodes instead of source code, like the files produces by the <code>luac</code> compiler.
+		Indicates the provided inputs define files containing compiled bytecodes instead of source code, like the files produced by the <code>luac</code> compiler.
 		When this flag is used no compilation is performed by this script.
 	</dd>
 	
@@ -68,7 +68,7 @@ The <code>[options]</code> accepted are described below:</p>
 
 	<dt>-l, -luapath</dt>
 	<dd>
-		Defines a sequence of path templates used to infer module names from script paths and vice versa.
+		Defines a sequence of path templates used to infer module names from script paths or vice versa.
 		These templates follow the same format of the <code>package.path</code> field of Lua.
 		The default value is the current value of <code>package.path</code>.
 	</dd>
@@ -91,7 +91,7 @@ The <code>[options]</code> accepted are described below:</p>
 	
 	<dt>-o, -output</dt>
 	<dd>
-		Defines the name of the output file with all generated generated functions: module functions and the preloader function.
+		Defines the name of the output file with all generated functions: module functions and the preloader function.
 		The default value is <code>preload.c</code>.
 	</dd>
 	
@@ -123,14 +123,14 @@ See below an example of how to use <code>preloader.lua</code> to generate a libr
 $ preloader.lua -output loop.c -luapath "lua/?.lua" \
                 lua/loop/base.lua \
                 lua/loop/cached.lua \
+                lua/loop/classops.lua \
                 lua/loop/hierarchy.lua \
                 lua/loop/multiple.lua \
                 lua/loop/proto.lua \
                 lua/loop/scoped/debug.lua \
                 lua/loop/scoped.lua \
                 lua/loop/simple.lua \
-                lua/loop/table.lua \
-                lua/loop.lua
+                lua/loop/table.lua
 </pre>
 
 <p>The name of the module implemented by each file is inferred by matching the provided path with the path patterns defined with option <code>-luapath</code>.
@@ -228,14 +228,14 @@ For example, to generate a library with all <code>luaopen_*</code> functions nec
 $ preloader.lua -output loop.c -header loop.h -luapath "lua/?.lua" -compileonly \
                 lua/loop/base.lua \
                 lua/loop/cached.lua \
+                lua/loop/classops.lua \
                 lua/loop/hierarchy.lua \
                 lua/loop/multiple.lua \
                 lua/loop/proto.lua \
                 lua/loop/scoped/debug.lua \
                 lua/loop/scoped.lua \
                 lua/loop/simple.lua \
-                lua/loop/table.lua \
-                lua/loop.lua
+                lua/loop/table.lua
 </pre>
 
 <p>As a result of this command, you will get files <code>loop.c</code> and  <code>loop.h</code> that provides no pre-loader function, only the following module loading functions:</p>
@@ -243,6 +243,7 @@ $ preloader.lua -output loop.c -header loop.h -luapath "lua/?.lua" -compileonly 
 <pre>
 int luaopen_loop_base(lua_State*);
 int luaopen_loop_cached(lua_State*);
+int luaopen_loop_classops(lua_State*);
 int luaopen_loop_hierarchy(lua_State*);
 int luaopen_loop_multiple(lua_State*);
 int luaopen_loop_proto(lua_State*);
@@ -250,5 +251,4 @@ int luaopen_loop_scoped_debug(lua_State*);
 int luaopen_loop_scoped(lua_State*);
 int luaopen_loop_simple(lua_State*);
 int luaopen_loop_table(lua_State*);
-int luaopen_loop(lua_State*);
 </pre>

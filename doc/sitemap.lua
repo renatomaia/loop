@@ -1,69 +1,56 @@
-outputdir = "website",
+pages = {
+	{ index="Home"      , href="index.html"            , board="latests.html" },
+	{                     href="news.html"             , title="News" },
+	{ index="Manual"    , href="manual/index.html"     , title="User Manual",
+		{ index="Intro"   , href="manual/intro.html"     , title="Introduction" },
+		{ index="Basics"  , href="manual/basics.html"    , title="Basic Concepts" },
+		{ index="Classes" , href="manual/classops.html"  , title="Class Features" },
+		{ index="Modules" , href="manual/models.html"    , title="Module Reference" },
+	},
+	{ index="Download"  , href="release/index.html"    , title="Download Instruction",
+		{ index="Changes" , href="release/changes.html"  , title="Release Notes" },
+		{ index="Previous", href="release/previous.html" , title="Previous Releases" },
+	},
+	{ index="Contact"   , href="contact.html"          , title="Contact People" },
+}
 
-{ index="Home"   , href="index.html", board="latests.html" },
-{                  href="news.html" , title="News" },
-{ index="Install"   , href="release/index.html"   , title="Installation",
-	{ index="Changes" , href="release/changes.html" , title="Release Notes" },
-	{ index="Previous", href="release/previous.html", title="Previous Releases" },
-	{ index="Preload" , href="release/preload.html" , title="Pre-Loading Script Libraries" },
-},
-{ index="Manual"   , href="manual/index.html"     , title="User Manual",
-	{ index="Intro"  , href="manual/intro.html"     , title="Introduction" },
-	{ index="Basics" , href="manual/basics.html"    , title="Basic Concepts" },
-	{ index="Models" , href="manual/models.html"    , title="Class Models" },
-	{ index="Classes", href="manual/classops.html"  , title="Class Features" },
-	{ index="Comps"  , href="manual/components.html", title="Component Models" },
-},
-{ index="Library", href="library/index.html"    , title="Class Library",
-	{                href="library/overview.html" , title="Overview" },
-	{ index="collection", href="library/overview.html#collection", title="Collections",
-		{                   href="library/collection/ObjectCache.html"        , title="Object Cache" },
-		{                   href="library/collection/UnorderedArray.html"     , title="Unordered Array" },
-		{                   href="library/collection/UnorderedArraySet.html"  , title="Unordered Array Set" },
-		{                   href="library/collection/MapWithArrayOfKeys.html" , title="Map with Array of Keys" },
-		{                   href="library/collection/OrderedSet.html"         , title="Ordered Set" },
-		{                   href="library/collection/PriorityQueue.html"      , title="Priority Queue" },
+refs = {
+	{ index="MitLicense"        , href="http://www.opensource.org/licenses/mit-license.html", title="MIT License"                 },
+	{ index="LuaLicense"        , href="http://www.lua.org/license.html"                    , title="Lua License"                 },
+	{ index="LuaRocks"          , href="http://www.luarocks.org/"                           , title="LuaRocks"                    },
+	{ index="LuaSite"           , href="http://www.lua.org/"                                , title="Lua"                         },
+	{ index="PiLBook"           , href="http://www.lua.org/pil"                             , title="Programming in Lua"          },
+	{ index="PiL1stEd"          , href="http://www.lua.org/pil/contents.html"               , title="Programming in Lua (1st ed.)",
+		{ index="PiL1stEd.Memoize", href="http://www.lua.org/pil/17.1.html"                   , title="Memoize Functions"           },
 	},
-	{ index="compiler", href="library/overview.html#compiler"    , title="Compiling",
-		{                 href="library/compiler/Arguments.html"   , title="Argument Processor" },
-		{                 href="library/compiler/Conditional.html" , title="Conditional Compiler" },
-		{                 href="library/compiler/Expression.html"  , title="Expression Parser" },
+	{ index="LuaWiki"           , href="http://lua-users.org/wiki"                          , title="Lua Wiki"                    ,
+		{ index="LuaWiki.OOP"     , href="http://lua-users.org/wiki/ObjectOrientedProgramming", title="Object Oriented Programming" },
 	},
-	{ index="debug", href="library/overview.html#debug" , title="Debugging",
-		{              href="library/debug/Viewer.html"   , title="Value Viewer" },
-		{              href="library/debug/Matcher.html"  , title="Value Matcher" },
-		{              href="library/debug/Inspector.html", title="Code Inspector" },
-		{              href="library/debug/Verbose.html"  , title="Verbose Manager" },
+	{ index="LuaManual"         , href="http://www.lua.org/manual/5.2/manual.html"          , title="Lua Manual",
+		alias = {
+			["2.4"] = "Metatables",
+			["2.5.2"] = "WeakTables",
+			["6"] = "StdLibs",
+			["6.5"] = "TableLib",
+			["6.10"] = "DebugLib",
+			["pdf-package.path"] = "LuaPath",
+		},
 	},
-	{ index="object", href="library/overview.html#object" , title="Objects",
-		{               href="library/object/Exception.html", title="Exception Object" },
-		{               href="library/object/Wrapper.html"  , title="Object Wrapper" },
-		{               href="library/object/Publisher.html", title="Event Publisher" },
+	{ index="LOOP"           , href="http://www.tecgraf.puc-rio.br/~maia/loop"                               , title="LOOP Portal",
+		{ index="LOOP.v23"     , href="http://www.tecgraf.puc-rio.br/~maia/loop/v23"                           , title="LOOP 2.3" },
+		{ index="LOOP.v22"     , href="http://www.tecgraf.puc-rio.br/~maia/loop/v22"                           , title="LOOP 2.2" },
+		{ index="LOOP.v21"     , href="http://www.tecgraf.puc-rio.br/~maia/loop/v21"                           , title="LOOP 2.1" },
+		{ index="LOOP.v3.tgz"  , href="http://www.tecgraf.puc-rio.br/~maia/loop/download/loop-3.0.tar.gz"      , title="LOOP 3.0 (tar.gz)" },
+		{ index="LOOP.v3.zip"  , href="http://www.tecgraf.puc-rio.br/~maia/loop/download/loop-3.0.zip"         , title="LOOP 3.0 (zip)" },
+		{ index="LOOP.v23.tgz" , href="http://www.tecgraf.puc-rio.br/~maia/loop/download/loop-2.3-alpha.tar.gz", title="LOOP 2.3 (tar.gz)" },
+		{ index="LOOP.v23.zip" , href="http://www.tecgraf.puc-rio.br/~maia/loop/download/loop-2.3-alpha.zip"   , title="LOOP 2.3 (zip)" },
+		{ index="LOOP.v22.tgz" , href="http://www.tecgraf.puc-rio.br/~maia/loop/download/loop-2.2-alpha.tar.gz", title="LOOP 2.2 (tar.gz)" },
+		{ index="LOOP.v22.zip" , href="http://www.tecgraf.puc-rio.br/~maia/loop/download/loop-2.2-alpha.zip"   , title="LOOP 2.2 (zip)" },
+		{ index="LOOP.v21.tgz" , href="http://www.tecgraf.puc-rio.br/~maia/loop/download/loop-2.1-alpha.tar.gz", title="LOOP 2.1 (tar.gz)" },
 	},
-	{ index="serial", href="library/overview.html#serial"    , title="Serialization",
-		{               href="library/serial/Serializer.html"  , title="Value Serializer" },
-		{               href="library/serial/StringStream.html", title="String Stream" },
-		{               href="library/serial/FileStream.html"  , title="File Stream" },
-		{               href="library/serial/SocketStream.html", title="Socket Stream" },
-	},
-	--{ index="test", href="library/overview.html#test", title="Testing",
-	--	{             href="library/test/Fixture.html" , title="Test Fixture" },
-	--	{             href="library/test/Reporter.html", title="Result Reporter" },
-	--	{             href="library/test/Results.html" , title="Result Collector" },
-	--	{             href="library/test/Suite.html"   , title="Test Suite" },
-	--},
-	{ index="thread", href="library/overview.html#thread"       , title="Threading",
-		{               href="library/thread/Scheduler.html"      , title="Thread Scheduler" },
-		{               href="library/thread/IOScheduler.html"    , title="Thread Scheduler with I/O" },
-		{               href="library/thread/CoSocket.html"       , title="Cooperative Sockets" },
-		{               href="library/thread/SocketScheduler.html", title="Thread Scheduler with Sockets" },
-		{               href="library/thread/Timer.html"          , title="Event Timer" },
-	},
-},
-{ index="Contact" , href="contact.html" , title="Contact People" },
-{ index="LuaForge", href="http://luaforge.net/projects/loop/", title="Project at LuaForge" },
+}
 
-[==============================================================================[
+template = [===================================================================[
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -79,7 +66,7 @@ outputdir = "website",
 
 <body>
 
-<div id="Header">Class Models for Lua</div>
+<div id="Header">Object-Oriented Programming Support for Lua</div>
 <div id="Logo"><img alt="small (1K)" src="<%=href("small.gif")%>" height="70"></div>
 
 <div id="Menu">
@@ -88,17 +75,11 @@ outputdir = "website",
 
 <div class="content">
 <% if item.title then return "<h1>"..item.title.."</h1>" end %>
-<%
-local package, class = item.href:match("^library/(%w+)/(%w+).html$")
-if package then
-	return string.format("<h2><code>loop.%s.%s</code></h2><br>", package, class)
-end
-%>
 <%=contents()%>
 </div>
 
 <div class="content">
-<p><small><strong>Copyright (C) 2004-2008 Tecgraf, PUC-Rio</strong></small></p>
+<p><small><strong>Copyright (C) 2004-2013 Tecgraf, PUC-Rio</strong></small></p>
 <small>This project is currently being maintained by <a href="http://www.tecgraf.puc-rio.br">Tecgraf</a> at <a href="http://www.puc-rio.br">PUC-Rio</a>.</small>
 </div>
 
@@ -110,5 +91,4 @@ end
 
 </body>
 
-</html>
-]==============================================================================]
+</html>    ]===================================================================]

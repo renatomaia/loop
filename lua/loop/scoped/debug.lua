@@ -7,15 +7,18 @@
 local debug = require "debug"
 local getupvalue = debug.getupvalue
 
-function methodfunction(method)
-	local name, value = getupvalue(method, 5)
+local module = {}
+
+function module.methodfunction(method)
+	local name, value = getupvalue(method, 4)
 	assert(name == "method", "Oops! Got the wrong upvalue in 'methodfunction'")
 	return value
 end
 
-function methodclass(method)
-	local name, value = getupvalue(method, 3)
+function module.methodclass(method)
+	local name, value = getupvalue(method, 2)
 	assert(name == "class", "Oops! Got the wrong upvalue in 'methodclass'")
 	return value.proxy
 end
 
+return module

@@ -1,33 +1,35 @@
 <%
-local subfmt = "\t<li>%s</li>"
-
 local Details = {
-	Basics = table.concat({
-		subfmt:format(link("Basics", "Declaring Classes"       , "#classes")),
-		subfmt:format(link("Basics", "Creating Objects"        , "#objects")),
-		subfmt:format(link("Basics", "Object Initialization"   , "#__init" )),
-		subfmt:format(link("Basics", "Introspection Mechanisms", "#introsp")),
-	}, "\n"),
-	Models = table.concat({
-		subfmt:format(link("Models", "base"    , "#base"    )),
-		subfmt:format(link("Models", "simple"  , "#simple"  )),
-		subfmt:format(link("Models", "multiple", "#multiple")),
-		subfmt:format(link("Models", "cached"  , "#cached"  )),
-		subfmt:format(link("Models", "scoped"  , "#scoped"  )),
-	}, "\n"),
-	Classes = table.concat({
-		subfmt:format(link("Classes", "Class Changes"     , "#changed"   )),
-		subfmt:format(link("Classes", "Class Invocations" , "#invoking"  )),
-		subfmt:format(link("Classes", "Interoperability"  , "#interop"   )),
-		subfmt:format(link("Classes", "Packaged Classes"  , "#packaged"  )),
-		subfmt:format(link("Classes", "Super-Class Access", "#superclass")),
-	}, "\n"),
-	Components = table.concat({
-		subfmt:format(link("Comps", "General Model"     , "#general"  )),
-		subfmt:format(link("Comps", "Component Packages", "#packages" )),
-		subfmt:format(link("Comps", "Port Interception" , "#intercept")),
-		subfmt:format(link("Comps", "Dynamic Changes"   , "#dynamic"  )),
-	}, "\n"),
+	Basics = {
+		link("Basics.prototyping"),
+		link("Basics.classes"),
+		link("Basics.__new"),
+		link("Basics.library"),
+	},
+	Classes = {
+		link("Classes.classops"),
+		link("Classes.inheritance"),
+		link("Classes.superclass"),
+		link("Classes.__init"),
+	},
+	Modules = {
+		link("Modules.base"),
+		link("Modules.cached"),
+		link("Modules.classops"),
+		link("Modules.hierarchy"),
+		link("Modules.multiple"),
+		link("Modules.proto"),
+		link("Modules.scoped"),
+		link("Modules.scoped.debug"),
+		link("Modules.simple"),
+		link("Modules.table"),
+	},
+	--Components = {
+	--	link("Comps.general"),
+	--	link("Comps.packages"),
+	--	link("Comps.intercept"),
+	--	link("Comps.dynamic"),
+	--},
 }
 
 local result = {}
@@ -36,11 +38,9 @@ for _, item in ipairs(item) do
 	result[#result+1] = itmfmt:format(link(item.index))
 	subitems = Details[item.index]
 	if subitems then
-		result[#result+1] = "<ol>"
-		result[#result+1] = subitems
-		result[#result+1] = "</ol>"
-	else
-		result[#result+1] = "<br>"
+		result[#result+1] = "<ul>"
+		result[#result+1] = "\t<li>"..table.concat(subitems, "</li>\n\t<li>").."</li>"
+		result[#result+1] = "</ul>"
 	end
 	result[#result+1] = ""
 end

@@ -1,3 +1,5 @@
+local http = require "socket.http"
+
 local Class = {}
 function Class:__call(obj)
 	return setmetatable(obj or {}, self)
@@ -7,6 +9,7 @@ Class:__call(Class)
 --------------------------------------------------------------------------------
 
 local function getpath(base, path)
+	if path:match("^http://") then return path end
 	local replaces = 1
 	for dir in base:gmatch("[^/]+/") do
 		if replaces == 1
@@ -15,6 +18,25 @@ local function getpath(base, path)
 		end
 	end
 	return string.rep("../", -1*replaces+1)..path
+end
+
+local ContentsOf = {}
+local function readcontents(path)
+	local contents = ContentsOf[path]
+	if contents == nil then
+		if path:match("^http://") then
+			--local code
+			--contents, code = http.request(path)
+			--if code ~= 200 then
+			--	contents = nil
+			--end
+		else
+			local file = assert(io.open(path))
+			contents = assert(file:read("*a"))
+			file:close()
+		end
+	end
+	return contents
 end
 
 --------------------------------------------------------------------------------
@@ -32,16 +54,12 @@ local function domenu(map, selected, output)
 			output:insert(tab:rep(ident))
 			output:insert('<li>')
 			if item == selected then
-				output:insert(string.format('<strong>%s</strong>', item.index))
+				output:insert('<strong>'..item.index..'</strong>')
 			else
-				local path = item.href
-				if not path:match("^http://") then
-					path = getpath(selected.href, item.href)
-				end
-				output:insert(string.format('<a href="%s", title="%s">%s</a>',
-				                            path, item.title or "", item.index))
+				local path = getpath(selected.href, item.href)
+				output:insert('<a href="'..path..'", title="'..(item.title or "")..'">'
+				              ..item.index..'</a>')
 			end
-			
 			if #item > 0 and selected.href:find(item.href:match("^(.-)[^/]*$")) == 1 then
 				ident = ident+1
 				output:insert("\n")
@@ -65,24 +83,77 @@ end
 
 --------------------------------------------------------------------------------
 
-local map = assert(loadstring(string.format("return {%s}", assert(io.open((...))):read("*a"))))()
-local template = map[#map]
-map[#map] = nil
-if select("#", ...) > 1 then
-	map.outputdir = select(2, ...)
+if _VERSION == "Lua 5.1" then
+	local function loadresults(env, chunk, errmsg)
+		if chunk == nil then
+			return nil, errmsg
+		end
+		setfenv(chunk, env)
+		return chunk
+	end
+	local loadfile51 = loadfile
+	function loadfile(filename, mode, env)
+		return loadresults(env, loadfile51(filename))
+	end
+	local load51 = load
+	function load(ld, source, mode, env)
+		local loadfunc = (type(ld)=="string") and loadstring or lua51
+		return loadresults(env, loadfunc(ld, source))
+	end
 end
 
-local function index(items)
+local site = {}
+assert(loadfile((...), nil, site))()
+
+local outputdir = site.outputdir or "."
+if select("#", ...) > 1 then
+	outputdir = select(2, ...)
+end
+
+local map = {}
+local AnchorPattern = '<%s*a%s+name%s*=%s*"([^"]+)"%s*>(.-)<%s*/%s*a%s*>'
+
+local function addpage(item)
+	local index = item.index
+	if index ~= nil then
+		assert(map[index] == nil, "duplicated page '"..index.."'")
+		map[index] = item
+	end
+	local title = item.title
+	if title ~= nil and map[title] == nil then
+		map[title] = item
+	end
+end
+
+local function addlinks(items)
 	for _, item in ipairs(items) do
-		map[item] = item
-		if item.index then
-			assert(map[item.index] == nil, "duplicated page index '"..item.index.."'")
-			map[item.index] = item
+		addpage(item)
+		local href = item.href
+		local index = item.index
+		local contents = readcontents(href)
+		if contents ~= nil then
+			for anchor, title in contents:gmatch(AnchorPattern) do
+				local id = anchor
+				local alias = item.alias
+				if alias ~= nil then
+					id = alias[anchor] or id
+				end
+				addpage({
+					index = index.."."..id,
+					href = href.."#"..anchor,
+					title = title,
+				})
+			end
+		elseif item.alias ~= nil then
+			for anchor, alias in pairs(item.alias) do
+				addpage({
+					index = index.."."..alias,
+					href = href.."#"..anchor,
+					title = alias,
+				})
+			end
 		end
-		if item.title and map[item.title] == nil then
-			map[item.title] = item
-		end
-		index(item)
+		addlinks(item)
 	end
 end
 
@@ -91,35 +162,33 @@ local function process(items)
 	for _, item in ipairs(items) do
 		if not item.href:match("^http://") and not item.href:match("#") then
 			local environment = Environment{
-				items = map,
 				item = item,
 				menu = function()
-					return domenu(map, item):concat()
+					return domenu(site.pages, item):concat()
 				end,
 				contents = function(field)
-					local file = io.open((map.sourcedir or ".").."/"..item[field or "href"])
-					if file then return file:read("*a"), file:close() end
-					io.stderr:write("unable to read input file 'source/",item[field or "href"],"'\n")
+					return readcontents(item[field or "href"])
 				end,
 				href = function(path)
 					return getpath(item.href, path)
 				end,
-				link = function(index, label, extra)
+				link = function(index, label)
 					index = assert(map[index], item.href..": unknown page tag "..tostring(index))
-					return string.format('<a href="%s%s">%s</a>',
+					return string.format('<a href="%s">%s</a>',
 					                     getpath(item.href, index.href),
-					                     extra or "",
 					                     label or index.title or "")
 				end,
 			}
 			local function dotag(code)
-				return setfenv(assert(loadstring((code:gsub("^=", "return ")), item.href)), environment)() or ""
+				code = code:gsub("^=", "return ")
+				code = assert(load(code, item.href, nil, environment))
+				return code() or ""
 			end
-			local page, replaces = template
+			local page, replaces = site.template
 			repeat
 				page, replaces = page:gsub("<%%(.-)%%>", dotag)
 			until replaces == 0
-			local output = assert(io.open((map.outputdir or ".").."/"..item.href, "w"))
+			local output = assert(io.open(outputdir.."/"..item.href, "w"))
 			output:write(page)
 			output:close()
 		end
@@ -127,5 +196,6 @@ local function process(items)
 	end
 end
 
-index(map)
-process(map)
+addlinks(site.pages)
+addlinks(site.refs)
+process(site.pages)

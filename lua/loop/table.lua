@@ -26,11 +26,9 @@ local table = {}
 -- @usage table.copy(results, copied)
 
 function table.copy(source, destiny)
-	if source ~= nil then
-		if destiny == nil then destiny = {} end
-		for key, value in next, source do
-			rawset(destiny, key, value)
-		end
+	if destiny == nil then destiny = {} end
+	for key, value in next, source do
+		rawset(destiny, key, value)
 	end
 	return destiny
 end
@@ -47,7 +45,7 @@ end
 
 function table.clear(table)
 	for key in next, table do
-		table[key] = nil
+		rawset(table, key, nil)
 	end
 	return table
 end

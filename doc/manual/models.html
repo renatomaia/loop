@@ -1,82 +1,165 @@
-<h2><a name="base">Base Model</a></h2>
+<h2><a name="proto"><code>loop.proto</code></a></h2>
 
-<p>The LOOP models can be ordered in such a way that the next model provides the same features of the previous one. In this order, the first one is the <code>base</code> model that provides exactly the features presented in section <%=link"Basics"%>. The <code>base</code> model is ideal for definition of classes without super-classes.</p>
+<p>This module is intended to support prototype-based programming.
+It is basically provides functions to clone objects and inspect them.
+All members not defined in the cloned objects themselves are inherited dynamically from the respective prototype.
+Therefore, if the prototype changes, these changes are reflected in its clones.</p>
 
 <h3>Functions</h3>
 
 <dl>
-	<dt><code><b>class</b>([table])</code></dt>
-	<dd>Returns the object that represent a class with the features defined by <code>table</code>. Changes on the object returned by this function implies changes reflected on all its instances. This object can also be used as a constructor of instances.</dd>
+	<dt><a name="proto.clone"><code>clone</code></a><code>(proto [, clone])</code></dt>
+	<dd>Returns a clone of object <code>proto</code>.
+		The metatable of the returned object shall not be modified as it is used internally by the module implementation.</dd>
 	
-	<dt><code><b>classof</b>(object)</code></dt>
-	<dd>Returns the class of <code>object</code>. If <code>object</code> is not a LOOP object (<i>i.e.</i> a usual table) then its meta-table is returned. Actually, this function is the <code>getmetatable</code> function of Lua for most of LOOP models.</dd>
+	<dt><a name="proto.getproto"><code>getproto</code></a><code>(object)</code></dt>
+	<dd>Returns the prototype of clone <code>object</code>.
+	If <code>object</code> is not a clone (<i>i.e.</i> a usual table) then <code>nil</code> is returned.</dd>
 	
-	<dt><code><b>initclass</b>(table)</code></dt>
-	<dd>Initialize table <code>table</code> as a class.
-	It basically sets the value <code>__index</code> field of <code>table</code> to refer the table <code>table</code> itself, unless such field provides a value different from <code>nil</code>.</dd>
+	<dt><a name="proto.iscloneof"><code>iscloneof</code></a><code>(clone, proto)</code></dt>
+	<dd>Returns <code>true</code> if <code>clone</code> is a clone of <code>proto</code> or <code>false</code> otherwise.</dd>
+</dl>
+
+<h3>Example</h3>
+
+<pre>
+StackProto = {}
+function StackProto:empty()
+  return #self == 0
+end
+function StackProto:push(item)
+  self[#self+1] = item
+end
+function StackProto:pop()
+  if not self:empty() then
+    local top = #self
+    local item = self[top]
+    self[top] = nil
+    return item
+  end
+end
+
+
+local oo = require "loop.proto"
+s = oo.clone(StackProto)
+s:push("Bottom")
+s:push("Middle")
+s:push("Top")
+print(s:pop())   --> Top
+print(s:pop())   --> Middle
+print(s:pop())   --> Bottom
+print(s:empty()) --> true
+</pre>
+
+<h2><a name="base"><code>loop.base</code></a></h2>
+
+<p>This is the most basic of the class-based LOOP modules.
+The <code>base</code> module is ideal for definition of classes without super-classes.</p>
+
+<h3>Functions</h3>
+
+<dl>
+	<dt><a name="base.class"><code>class</code></a><code>([table])</code></dt>
+	<dd>Returns a class.
+	The optional parameter <code>table</code> defines a table that shall become the class.
+	If this parameter is not provided a new table is created to represent the class.
+	For more information about LOOP classes see <%=link("Basics.classes", "this")%>.</dd>
 	
-	<dt><code><b>instanceof</b>(object, class)</code></dt>
-	<dd>Returns true if <code>object</code> is an instance of <code>class</code> and false otherwise.</dd>
+	<dt><a name="base.getclass"><code>getclass</code></a><code>(object)</code></dt>
+	<dd>Returns the class of <code>object</code>.
+	If <code>object</code> is not a LOOP class instance then its meta-table is returned.</dd>
 	
-	<dt><code><b>isclass</b>(table)</code></dt>
-	<dd>Returns true if <code>table</code> is a class of the LOOP model and false otherwise.</dd>
+<!--
+	<dt><a name="base.initclass"><code>initclass</code></a><code>([table])</code></dt>
+	<dd>Return a table initialized to became a class, just as function <code>class</code> would do.
+	If the parameter <code>table</code> is provided, this is the table returned.
+	This function basically sets the value <code>__index</code> field of the table to refer the table itself, unless such field is different from <code>nil</code>.
+	This function is only exported because it is used by other LOOP modules.</dd>
+-->
 	
-	<dt><code><b>memberof</b>(class, name)</code></dt>
-	<dd>Returns the value of member defined by <code>name</code> if it is defined in class <code>class</code>.
+	<dt><a name="base.isinstanceof"><code>isinstanceof</code></a><code>(object, class)</code></dt>
+	<dd>Returns <code>true</code> if <code>object</code> is an instance of <code>class</code> or <code>false</code> otherwise.</dd>
+	
+	<dt><a name="base.isclass"><code>isclass</code></a><code>(table)</code></dt>
+	<dd>Returns <code>true</code> if <code>table</code> is a class or <code>false</code> otherwise.</dd>
+	
+	<dt><a name="base.getmember"><code>getmember</code></a><code>(class, name)</code></dt>
+	<dd>Returns the value of member indexed by <code>name</code> defined in class <code>class</code>.
 	Inherited members are ignored by this function.</dd>
 	
-	<dt><code><b>members</b>(class)</code></dt>
+	<dt><a name="base.members"><code>members</code></a><code>(class)</code></dt>
 	<dd>Returns an iterator that may be used in a <code>for</code> statement to iterate through all the members defined by the class.
 	The iteration variables hold the field name and value respectively.</dd>
 	
-	<dt><code><b>new</b>(class, ...)</code></dt>
+	<dt><a name="base.new"><code>new</code></a><code>(class, ...)</code></dt>
 	<dd>Returns an instance of class constructed accordingly to the values of the extra arguments.</dd>
 	
-	<dt><code><b>rawnew</b>(class [, object])</code></dt>
-	<dd>Makes <code>object</code> an instance of <code>class</code> without calling the <code>__init</code> function of the class to initialize is state.
-	Actually, this function simply sets the meta-table of <code>object</code> to table <code>class</code>.
+	<dt><a name="base.rawnew"><code>rawnew</code></a><code>(class [, object])</code></dt>
+	<dd>Makes <code>object</code> an instance of <code>class</code> without calling the <%=link("Basics.__new", "<code>__new</code>")%> metamethod of the class.
 	If no <code>object</code> is provided, a new table is created to represent the new instance.</dd>
 </dl>
 
 <h3>Example</h3>
 
 <pre>
-Cache = oo.class{ __mode = "k" }
-function Cache:__index(key)
-  local retrieve = rawget(self, "retrieve")
-  rawset(self, key, retrieve(self, key))
-  return rawget(self, key)
+Queue = oo.class{
+  head = 1,
+  tail = 1,
+}
+function Queue:empty()
+  return self.head >= self.tail
+end
+function Queue:enqueue(item)
+  local tail = self.tail
+  self[tail] = item
+  self.tail = tail+1
+  return item
+end
+function Queue:dequeue()
+  if not self:empty() then
+    local head = self.head
+    local item = self[head]
+    self[head] = nil
+    self.head = head+1
+    return item
+  end
 end
 
-Channels = Cache{}
-function Channels:retrieve(host)
-  return assert(socket.connect(host, 80))
-end
 
-for _, request in ipairs(BatchProcess) do
-  local c = Channels[request.host]
-  assert(c:send(request.data))
-  request.reply = assert(c:receive())
-end
+q = Queue()
+q:enqueue("First")
+q:enqueue("Second")
+q:enqueue("Last")
+print(q:dequeue()) --> First
+print(q:dequeue()) --> Second
+print(q:dequeue()) --> Last
+print(q:empty())   --> true
 </pre>
 
-<h2><a name="simple">Simple Model</a></h2>
+<h2><a name="simple"><code>loop.simple</code></a></h2>
 
-<p>The next one is the <code>simple</code> model that adds the possibility of defining classes with simple inheritance. The <code>class</code> function of the <code>simple</code> model takes an optional second argument that defines the super-class of the class being created. Additionally, the <code>simple</code> model introduce the functions <code>superclass(class)</code> to retrieve the super-class of a given class and <code>subclassof(class, super)</code> to check whether a class is sub-class of other.</p>
+<p>This is another class-based module and it adds the possibility of defining classes with simple inheritance.
+The <code>class</code> function of the <code>simple</code> module takes an optional second argument that defines the super-class of the class being created.
+Additionally, the <code>simple</code> module introduce the functions <code>getsuper(class)</code> to retrieve the super-class of a given class and <code>issubclassof(class, super)</code> to check whether a class is sub-class of other.</p>
 
 <h3>Functions</h3>
 
-<p>All from <code><a href="#base">base</a></code> model and (re)defines:</p>
+<p>All from <%=link("Modules.base")%> module and (re)defines:</p>
 
 <dl>
-	<dt><code><b>class</b>(table [, super])</code></dt>
-	<dd>Returns the object that represent a new class that provides the features defined by <code>table</code> and that inherits from the class <code>super</code>. Changes on the object returned by this function implies changes reflected on all its instances. This object can also be used as a constructor of instances.</dd>
-	
-	<dt><code><b>subclassof</b>(class, super)</code></dt>
-	<dd>Returns true if <code>class</code> is a sub-class of <code>super</code> and false otherwise.</dd>
+	<dt><a name="simple.class"><code>class</code></a><code>([table [, super]])</code></dt>
+	<dd>Returns a class.
+	The optional parameter <code>table</code> defines a table that shall become the class.
+	If this parameter is not provided a new table is created to represent the class.
+	The optional parameter <code>super</code> defines the superclass of the returned class.
+	If this second parameter is not provided this function behaves as the <code>class</code> function from the <%=link("Modules.base")%> module.</dd>
 
-	<dt><code><b>superclass</b>(class)</code></dt>
-	<dd>Returns the super-class of <code>class</code>. If <code>class</code> is not a class of the model or does not define a super class, then it returns <code>nil</code>.</dd>
+	<dt><a name="simple.getsuper"><code>getsuper</code></a><code>(class)</code></dt>
+	<dd>Returns the super-class of <code>class</code>.
+	If <code>class</code> is not a class of the module or does not define a super class then it returns <code>nil</code>.</dd>
+	
+	<dt><a name="simple.issubclassof"><code>issubclassof</code></a><code>(class, super)</code></dt>
+	<dd>Returns <code>true</code> if <code>class</code> is a sub-class of <code>super</code> or <code>false</code> otherwise.</dd>
 </dl>
 
 <h3>Example</h3>
@@ -107,7 +190,7 @@ function show(shape)
   print("  Diameter:     ", shape:diameter())
   print("  Circumference:", shape:circumference())
   print("  Area:         ", shape:area())
-  if oo.instanceof(shape, Sphere) then
+  if shape.volume ~= nil then
     print("  Volume:        ", shape:volume())
   end
 end
@@ -119,22 +202,31 @@ show(c)
 show(s)
 </pre>
 
-<h2><a name="multiple">Multiple Model</a></h2>
+<h2><a name="multiple"><code>loop.multiple</code></a></h2>
 
-<p>The third is the <code>multiple</code> model that enables the definition of classes with multiple inheritance. The <code>class</code> function of the <code>multiple</code> model takes a sequence of optional arguments that defines the set of super-classes of the class being created. The order of the super-classes provided defines the priority of field inheritance therefore the value of a inherited field is defined by the leftmost class that provides such field. The <code>multiple</code> model introduce the new function <code>supers(class)</code> that returns an iterator used to iterate through the list of direct super-classes of a class. Additionally, the <code>superclass(class)</code> function is changed so it returns the sequence of super-classes of a given class.</p>
+<p>This module enables the definition of classes with multiple inheritance.
+The <code>class</code> function of the <code>multiple</code> module takes a sequence of optional arguments that defines the set of super-classes of the class being defined.
+The order of the super-classes provided defines the priority of field inheritance therefore the value of a inherited field is defined by the leftmost class that provides such field.
+The <code>multiple</code> module introduce the new function <code>supers(class)</code> that returns an iterator used to iterate through the list of direct super-classes of a class.
+Additionally, the <code>getsuper(class)</code> function is changed so it returns all the super-classes of a given class.</p>
 
 <h3>Functions</h3>
 
-<p>All from <code><a href="#simple">simple</a></code> model and (re)defines:</p>
+<p>All from <%=link("Modules.simple")%> module and (re)defines:</p>
 
 <dl>
-	<dt><code><b>class</b>(table, ...)</code></dt>
-	<dd>Returns the object that represent a new class that provides the features defined by <code>table</code> and that inherits from all classes provides as additional arguments. Changes on the object returned by this function implies changes reflected on all its instances. This object can also be used as a constructor of instances.</dd>
+	<dt><a name="multiple.class"><code>class</code></a><code>(table, ...)</code></dt>
+	<dd>Returns a class.
+	The optional parameter <code>table</code> defines a table that shall become the class.
+	If this parameter is not provided a new table is created to represent the class.
+	The additional parameters <code>...</code> defines all the superclasses of the returned class.
+	If less than two superclasses are provided this function behaves as the <code>class</code> function from the <%=link("Modules.simple")%> module.</dd>
 
-	<dt><code><b>superclass</b>(class)</code></dt>
-	<dd>Returns all the super-classes of <code>class</code>. If <code>class</code> does not define a super-class, then it returns <code>nil</code>.</dd>
+	<dt><a name="multiple.getsuper"><code>getsuper</code></a><code>(class)</code></dt>
+	<dd>Returns all the super-classes of <code>class</code>.
+	If <code>class</code> does not define a super-class it returns <code>nil</code>.</dd>
 
-	<dt><code><b>supers</b>(class)</code></dt>
+	<dt><a name="multiple.supers"><code>supers</code></a><code>(class)</code></dt>
 	<dd>Returns an iterator that may be used in a <code>for</code> statement to interate over all super-classes of the class <code>class</code>.</dd>
 </dl>
 
@@ -142,7 +234,7 @@ show(s)
 
 <pre>
 Contained = oo.class{}
-function Contained:__init(object)
+function Contained:__new(object)
   assert(object, "no object supplied")
   assert(object.name, "no name for object")
   assert(object.container, "no container for object")
@@ -152,7 +244,7 @@ end
 
 
 Container = oo.class{}
-function Container:__init(object)
+function Container:__new(object)
   object = object or {}
   object.members = object.members or {}
   return oo.rawnew(self, object)
@@ -174,10 +266,10 @@ end
 
 
 ContainedContainer = oo.class({}, Contained, Container)
-function ContainedContainer:__init(object)
-  Contained:__init(object)
-  Container:__init(object)
-  return oo.rawnew(self, object)
+function ContainedContainer:__new(object)
+  object = Contained.__new(self, object)
+  object = Container.__new(self, object)
+  return object
 end
 
 
@@ -191,41 +283,44 @@ File = Contained{
   name = "my_file.txt",
   data = "Hello, I'm a file"
 }
-print(Root:search("my_folder/my_file.txt").data)
+print(Root:search("my_folder/my_file.txt").data) --> Hello, I'm a file
 </pre>
 
-<h2><a name="cached">Cached Model</a></h2>
+<h2><a name="cached"><code>loop.cached</code></a></h2>
 
-<p>In order to avoid the search through the complete hierarchy of classes every time a class field is indexed, LOOP provides the <code>cached</code> model.
-In this model, classes copy the fields defined by their super-classes to themselves (<i>i.e.</i> meta-table).
-This cache of inherited fields makes instances of classes with simple or multiple inheritance as efficient as classes of the <code>base</code> model.
-Other advantage of the cache model is that meta-methods like the <code>__index</code> can be shared across the hierarchy of classes because they are copied to each class (<i>i.e.</i> meta-table).
-Currently, Lua ignores the <code>__index</code> when accessging the fields of meta-tables (see the <a href="http://www.lua.org/manual/5.1/manual.html#2.8">Lua manual</a>).</p>
+<p>Classes created with modules <%=link("Modules.simple")%> and <%=link("Modules.multiple")%> behave like clones of their superclasses in the sense they always consult the superclasses to retrieve fields they don't have.
+In order to avoid the search through the complete hierarchy of classes every time a class field is indexed, LOOP provides the <code>cached</code> module.
+In this module, classes copy the fields defined by their super-classes to themselves (<i>i.e.</i> meta-table).
+This cache of inherited fields makes instances of classes with simple or multiple inheritance as efficient as classes of the <%=link("Modules.base")%> module.
+Other advantage of the cache module is that meta-methods like the <code>__index</code> can be shared across the hierarchy of classes because they are copied to each class (<i>i.e.</i> meta-table).
+Currently, Lua ignores the <code>__index</code> when accessging the fields of meta-tables (see the <a href="http://www.lua.org/manual/5.2/manual.html#2.4">Lua manual</a>).</p>
 
-<p>On the other hand, to properly update the cache of inherited fields whenever a class is changed, the classes of this model are manipulated through proxies that intercept any changes and update all caches of inherited field through out the entire class hierarchy.
-This indirection makes class operation more expensive than in other models where classes are simple meta-tables.
-All functions of the <code>cached</code> model manipulates proxies of actual classes.
-The <code>cached</code> model introduces the new function <code>allmembers</code> that return an iterator for all members provided by a class, including the inherited ones.</p>
+<p>On the other hand, to properly update the cache of inherited fields whenever a class is changed, the classes of this module are manipulated through proxies.
+These proxies intercept any changes and update all caches of inherited field through out the entire class hierarchy.
+This indirection makes class operation more expensive than in other modules where classes are simple meta-tables.
+All functions of the <code>cached</code> module manipulates proxies of actual classes.
+The <code>cached</code> module introduces the new function <code>allmembers</code> that return an iterator for all members provided by a class, including the inherited ones.</p>
 
 <h3>Functions</h3>
 
-<p>All from <code><a href="#multiple">multiple</a></code> model and (re)defines:</p>
+<p>All from <%=link("Modules.multiple")%> module and (re)defines:</p>
 
 <dl>
-	<dt><code><b>allmembers</b>(class)</code></dt>
+	<dt><a name="cached.allmembers"><code>allmembers</code></a><code>(class)</code></dt>
 	<dd>Returns an iterator that may be used in a <code>for</code> statement to interate over all members provided by the class <code>class</code>, including the inherited ones.
 	The iteration variables hold the field name and value respectively.</dd>
-	
-	<dt><code><b>getclass</b>(class)</code></dt>
+<!--
+	<dt><a name="cached.getcached"><code>getcached</code></a><code>(class)</code></dt>
 	<dd>Returns the actual internal object that represents the cached class represented by proxy <code>class</code>.
-	This method is used only by other class models that extend this one, <i>e.g.</i> the <code>scoped</code> model.</dd>
+	This method is used only by other class modules that extend this one, <i>e.g.</i> the <%=link("Modules.scoped")%> module.</dd>
 	
-	<dt><code><b>subs</b>(class)</code></dt>
+	<dt><a name="cached.subs"><code>subs</code></a><code>(class)</code></dt>
 	<dd>Returns an iterator that may be used in a <code>for</code> statement to iterate through all the sub-classes of <code>class</code>.
 	The <code>class</code> parameter must be the internal object that represents the actual class.
 	The iteration variables hold only the internal object that represent each sub-class of <code>class</code>.
 	Each sub-class is iterared only once.
-	This method is used only by other class models that extend this one, <i>e.g.</i> the <code>scoped</code> model.</dd>
+	This method is used only by other class modules that extend this one, <i>e.g.</i> the <code>scoped</code> module.</dd>
+-->
 </dl>
 
 <h3>Example</h3>
@@ -250,28 +345,39 @@ for field, value in pairs(s) do
 end
 </pre>
 
-<h2><a name="scoped">Scoped Model</a></h2>
+<h2><a name="scoped"><code>loop.scoped</code></a></h2>
 
-<p>The last LOOP model provides features to define classes with private and protected access scopes. Each class of <code>scoped</code> model can provide a definition of a private behavior that will be perceived only by methods defined in that class and a protected behavior that will be perceived only by the methods of the object, <i>i.e.</i> will not be seen by functions not defined by some class inherited by the object. The private and protected behaviors are defined by fields <code>private</code> and <code>protected</code> that must contain tables defining the fields presented by the private or protected scope of the instances of that class. All the other fields are publicly available.</p>
+<p>This module provides features to define classes with private and protected access scopes.
+Each class of <code>scoped</code> module can provide a definition of a private behavior that will be perceived only by methods defined in that class and a protected behavior that will be perceived only by the methods of the object, <i>i.e.</i> will not be seen by functions not defined by some class inherited by the object.
+The private and protected behaviors are defined by fields <code>private</code> and <code>protected</code> that must contain tables defining the fields presented by the private or protected scope of the instances of that class.
+All the other fields are publicly available.</p>
 
-<p>The fields publicly available are also available in the private and the protected scopes. Similarly, the fields available in the protected scope are also visible in the private scope. The scope management is done by replacing the self reference in the calls of instance methods. Therefore, in every call of a method the self is replaced by the proper scoped state object. The mapping of the private and protected scoped state of each object instance is automatically made by the <code>scoped</code> model. Additionally, the creation of the scoped states is done on demand, so such states are only created at invocation of methods defined in classes that defines private or protected states.</p>
+<p>The fields publicly available are also available in the private and the protected scopes.
+Similarly, the fields available in the protected scope are also visible in the private scope.
+The scope management is done by replacing the self reference in the calls of instance methods.
+Therefore, in every call of a method the self is replaced by the proper scoped state object.
+The mapping of the private and protected scoped state of each object instance is automatically made by the <code>scoped</code> module.
+Additionally, the creation of the scoped states is done on demand, so such states are only created at invocation of methods defined in classes that defines private or protected states.</p>
 
-<p>The <code>scoped</code> model was mainly devised for applications with objects written in Lua that must protect some internal state from unexpected accesses, like bad user script code or third-party interacting components that may not know or care about the internal object implementation. Unfortunately, the management of such scoped states is extremely expensive both in terms of memory and processing time when compared to other models. Therefore, the <code>scoped</code> model should only be used in applications that actually need such infrastructure.</p>
+<p>The <code>scoped</code> module was mainly devised for applications with objects written in Lua that must protect some internal state from unexpected accesses, like bad user script code or third-party interacting components that may not know or care about the internal object implementation.
+Unfortunately, the management of such scoped states is extremely expensive both in terms of memory and processing time when compared to other modules.
+Therefore, the <code>scoped</code> module should only be used in applications that actually need such infrastructure.</p>
 
-<p>Even though it is a hard task to provide arbitrary private and protected state in a programming model similar to the one used when applying an object-oriented style to Lua, there are many alternatives to implement objects with private state in Lua. Such alternatives include the use of function closures as objects with private state stored in upvalues. On the other hand, the <code>scoped</code> model may be used for prototyping and experimental applications used as proof of concept.</p>
+<p>Even though it is a hard task to provide arbitrary private and protected state in a programming model similar to the one used when applying an object-oriented style to Lua, there are many alternatives to implement objects with private state in Lua.
+Such alternatives include the use of function closures as objects with private state stored in upvalues. On the other hand, the <code>scoped</code> module may be used for prototyping and experimental applications used as proof of concept.</p>
 
 <h3>Functions</h3>
 
-<p>All from <code><a href="#cached">cached</a></code> model and (re)defines:</p>
+<p>All from <%=link("Modules.cached")%> module and (re)defines:</p>
 
 <dl>
-	<dt><code><b>priv</b>(object [, class])</code></dt>
+	<dt><a name="scoped.priv"><code>priv</code></a><code>(object [, class])</code></dt>
 	<dd>Returns the private state of <code>object</code> relative to class <code>class</code>. This <code>object</code> can be any <code>self</code> of a scoped object, <i>i.e.</i> the private, procetected or even public state. If no <code>class</code> is provided then the actual object class is used.</dd>
 
-	<dt><code><b>prot</b>(object)</code></dt>
+	<dt><a name="scoped.prot"><code>prot</code></a><code>(object)</code></dt>
 	<dd>Returns the protected state of <code>object</code>. This <code>object</code> can be any <code>self</code> of a scoped object, <i>i.e.</i> the private, procetected or even public state.</dd>
 
-	<dt><code><b>this</b>(object)</code></dt>
+	<dt><a name="scoped.this"><code>this</code></a><code>(object)</code></dt>
 	<dd>Returns the public referece of <code>object</code>. This <code>object</code> can be any <code>self</code> of a scoped object, <i>i.e.</i> the private, procetected or even public state.</dd>
 </dl>
 
@@ -287,7 +393,7 @@ SQLTable = oo.class{
     ]],
   },
 }
-function SQLTable:__init(database, tablename, keyfield)
+function SQLTable:__new(database, tablename, keyfield)
   self = oo.rawnew(self)
   rawset(oo.priv(self), "db", database)
   rawset(oo.priv(self), "table", tablename)
@@ -302,4 +408,128 @@ end
 People = SQLTable(MySQLDB, "People", "Name")
 
 print(People["John Doe"].Age)
+</pre>
+
+<h2><a name="classops"><code>loop.classops</code></a></h2>
+
+<p>This module provides generic functions for manipulation of classes that follow a basic model adopted by all LOOP modules as described <%=link("Classes.classops", "here")%>.
+This module is only required when you manipulate classes created wiht different LOOP modules in a single application.
+This module does not provide a <code>class</code> function to create classes.
+Use other modules to create classes.</p>
+
+<h3>Functions</h3>
+
+<p>All from <%=link("Modules.multiple")%> module, except function <%=link("Modules.base.class")%>.</p>
+
+<h3>Example</h3>
+
+<pre>
+base = require "loop.base"
+simple = require "loop.simple"
+multiple = require "loop.multiple"
+cached = require "loop.cached"
+
+A = base.class()
+B = simple.class()
+C = multiple.class()
+D = cached.class()
+
+oo = require "loop"
+
+print(oo.isclass(A)) --> true
+print(oo.isclass(B)) --> true
+print(oo.isclass(C)) --> true
+print(oo.isclass(D)) --> true
+</pre>
+
+<h2><a name="hierarchy"><code>loop.hierarchy</code></a></h2>
+
+<p>This module provides functions to implement initialization mechanisms of instances of complex class hierarchies (like Java or C++ constructors) using the infrastructure provided by the <%=link("Basics.__new", "<code>__new</code>")%> metamethod.
+For more information on different initialization approaches see section <%=link("Classes.__init")%>.</p>
+
+<h3>Functions</h3>
+
+<dl>
+	<dt><a name="hierarchy.creator"><code>creator</code></a><code>(class [, ...])</code></dt>
+	<dd>Creates an empty instance of class <code>class</code> and calls method <code>__init</code> of this instance with the given arguments and return this new instance.</dd>
+	
+	<dt><a name="hierarchy.mutator"><code>mutator</code></a><code>(class [, object [, ...]])</code></dt>
+	<dd>Turns the given table <code>object</code> into an instance of class <code>class</code> and returns it.
+	It also calls method <code>__init</code> defined in each of the classes of the returned object.</dd>
+
+	<dt><a name="hierarchy.topdown"><code>topdown</code></a><code>(class)</code></dt>
+	<dd>Returns an iterator function to be used in a <code>for</code> to iterate over all the class hierarchy of <code>class</code> in top-down order.</dd>
+</dl>
+
+<h3>Example</h3>
+
+<pre>
+</pre>
+
+<h2><a name="scoped.debug"><code>loop.scoped.debug</code></a></h2>
+
+<p>This module provides functions to inspect methods of classes created with the <%=link("Modules.scoped")%> module.
+The methods of such classes has references to the class they are defined that can be inspected using the <%=link("LuaManual.DebugLib")%>.</p>
+
+<h3>Functions</h3>
+
+<dl>
+	<dt><a name="scoped.debug.methodfunction"><code>methodfunction</code></a><code>(method)</code></dt>
+	<dd>Returns the function that implements the method <code>method</code>.</dd>
+	
+	<dt><a name="scoped.debug.methodclass"><code>methodclass</code></a><code>(method)</code></dt>
+	<dd>Return the class where method <code>method</code> was defined.</dd>
+</dl>
+
+<h3>Example</h3>
+
+<pre>
+table = require "table"
+oo = require "loop.scoped"
+ood = require "loop.scoped.debug"
+
+Array = oo.class{
+  insert = table.insert,
+  remove = table.remove,
+}
+
+a = Array{ 1,2,3 }
+assert(a.insert ~= table.insert)
+assert(ood.methodfunction(a.insert) == table.insert)
+assert(ood.methodclass(a.insert) == Array)
+</pre>
+
+<h2><a name="table"><code>loop.table</code></a></h2>
+
+<p>This module provides functions to copy table fields, clear table fields and also a function to create memoize tables.</p>
+
+<h3>Functions</h3>
+
+<dl>
+	<dt><a name="table.copy"><code>copy</code></a><code>(source [, destiny])</code></dt>
+	<dd>Copies all pairs stored in table <code>source</code> to table <code>destiny</code> and returns the later.
+	If <code>destiny</code> is <code>nil</code> a new empty table is used instead.</dd>
+	
+	<dt><a name="table.clear"><code>clear</code></a><code>(table)</code></dt>
+	<dd>Removes all pairs stored in table <code>table</code> and returns this table.</dd>
+	
+	<dt><a name="table.memoize"><code>memoize</code></a><code>(func [, weak])</code></dt>
+	<dd>Returns a <%=link("PiL1stEd.Memoize", "memoize")%> table for function <code>func</code>.
+	Every time a new value is used to index the memoize table the function <code>func</code> is invoked with the indexed value as parameter.
+	If the result of the invocation produces a value different from <code>nil</code> this value is stored in the memoize table, so the next time the same value is indexed the stored value is produced without calling function <code>func</code> again.
+	Parameter <code>mode</code> indicates the weakness of the memoize table, as defined for field <%=link("LuaManual.WeakTables", "<code>__mode</code>")%> of metatables.</dd>
+	<!--
+	<dd>Returns a table that whenever indexed returns the first result of invocation of function <code>func</code> passing the indexed key as parameter.</dd>
+	-->
+</dl>
+
+<h3>Example</h3>
+
+<pre>
+table = require "loop.table"
+
+chunkOf = table.memoize(loadstring, "v")
+
+f = chunkOf[ 'print "Hello, World!"' ]
+f() --> Hello, World!
 </pre>

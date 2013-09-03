@@ -11,8 +11,6 @@ local getmember = oo.getmember
 local rawnew = oo.rawnew
 local supers = oo.supers
 
-module(...)
-
 local function yieldsupers(history, class)
 	for _, super in supers(class) do
 		yieldsupers(history, super)
@@ -23,24 +21,28 @@ local function yieldsupers(history, class)
 	end
 end
 
-function topdown(class)
+local function topdown(class)
 	return wrap(yieldsupers), {}, class
 end
 
-function creator(class, ...)
+local module = {
+	topdown = topdown,
+}
+
+function module.creator(class, ...)
 	local obj = rawnew(class)
+	local init = obj.__init
+	if init ~= nil then init(obj, ...) end
+	return obj
+end
+
+function module.mutator(class, obj, ...)
+	obj = rawnew(class, obj)
 	for class in topdown(class) do
 		local init = getmember(class, "__init")
-		if init then init(obj, ...) end
+		if init ~= nil then init(obj, ...) end
 	end
 	return obj
 end
 
-function mutator(class, obj, ...)
-	obj = rawnew(class, obj)
-	for class in topdown(class) do
-		local init = getmember(class, "__init")
-		if init then init(obj, ...) end
-	end
-	return obj
-end
+return module
