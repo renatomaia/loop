@@ -4,9 +4,9 @@ local pairs = pairs
 
 local oo = require "loop.cached"
 
-module("loop.test.Suite", oo.class)
+local module = oo.class()
 
-function __call(self, results)
+function module.__call(self, results)
 	local failed
 	for name, test in pairs(self) do
 		if not results:test(name, test, results) then
@@ -15,3 +15,5 @@ function __call(self, results)
 	end
 	if failed then error("FAILED", 2) end
 end
+
+return module

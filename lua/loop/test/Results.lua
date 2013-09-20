@@ -2,36 +2,32 @@
 local _G = require "_G"
 local error = _G.error
 local select = _G.select
-local unpack = _G.unpack
 local xpcall = _G.xpcall
 
 local table = require "table"
 local concat = table.concat
+local unpack = table.unpack or _G.unpack
 
 local debug = require "debug"
 local traceback = debug.traceback
 
 local oo = require "loop.simple"
-local class = oo.class
-
 local checks = require "loop.test.checks"
 
-module "loop.test.Results"
+local module = oo.class()
 
-class(_M)
+module.is = checks.is
+module.equals = checks.equal
+module.similar = checks.like
+module.match = checks.match
+module.typeis = checks.type
 
-is = checks.is
-equals = checks.equal
-similar = checks.like
-match = checks.match
-typeis = checks.type
-
-function isnot(...)
-	return checks.NOT(is(...))
+function module.isnot(...)
+	return checks.NOT(module.is(...))
 end
 
 local checks_assert = checks.assert
-function assert(self, value, ...)
+function module.assert(self, value, ...)
 	if _G.type(...) ~= "string" then
 		checks_assert(value, ...)
 	elseif not value then
@@ -41,7 +37,7 @@ function assert(self, value, ...)
 	return value, ...
 end
 
-function process(self, label, name, success, ...)
+function module.process(self, label, name, success, ...)
 	if self.reporter then
 		self.reporter:ended(name, success, ...)
 	end
@@ -49,7 +45,7 @@ function process(self, label, name, success, ...)
 	return success, ...
 end
 
-function test(self, label, func, ...)
+function module.test(self, label, func, ...)
 	self[#self+1] = label
 	local name = concat(self, ".")
 	if self.reporter then
@@ -61,3 +57,6 @@ function test(self, label, func, ...)
 		return func(unpack(arg, 1, count))
 	end, traceback))
 end
+
+return module
+

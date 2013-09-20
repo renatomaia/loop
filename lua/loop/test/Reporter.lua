@@ -9,14 +9,14 @@ local table  = require "table"
 
 local oo = require "loop.base"
 
-module("loop.test.Reporter", oo.class)
+local module = oo.class()
 
-output = io.stdout
-time = os.time
-count = 0
-success = 0
+module.output = io.stdout
+module.time = os.time
+module.count = 0
+module.success = 0
 
-function started(self, test)
+function module.started(self, test)
 	if self.breakline then
 		self.output:write("\n")
 	else
@@ -30,7 +30,7 @@ end
 
 local LineEnd = "%s (%.2f sec.)\n"
 local Summary = "Success Rate: %d%% (%d of %d executions)\n"
-function ended(self, test, success, message)
+function module.ended(self, test, success, message)
 	local timestamp = self[#self]
 	self[#self] = nil
 	if self.breakline then
@@ -55,3 +55,6 @@ function ended(self, test, success, message)
 	end
 	self.output:flush()
 end
+
+return module
+

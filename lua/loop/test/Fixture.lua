@@ -4,9 +4,9 @@ local ipairs = ipairs
 
 local oo = require "loop.cached"
 
-module("loop.test.Fixture", oo.class)
+local module = oo.class()
 
-function __call(self, results)
+function module.__call(self, results)
 	local failed
 	if self.setup ~= nil and not results:test("setup", self.setup, self, results) then
 		failed = true
@@ -25,3 +25,5 @@ function __call(self, results)
 	end
 	if failed then error("FAILED", 2) end
 end
+
+return module

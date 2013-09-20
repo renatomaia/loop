@@ -5,6 +5,8 @@ local select = select
 local type   = type
 
 local table = require "table"
+local table.unpack = table.unpack or _G.unpack
+
 local tabop = require "loop.table"
 local oo    = require "loop.base"
 
@@ -13,11 +15,11 @@ local Exception = require "loop.object.Exception"
 
 local checks = require "loop.test.checks"
 
-module("loop.test.Assert", oo.class)
+local module = oo.class()
 
-tabop.copy(checks, _M)
+tabop.copy(checks, module)
 
-viewer = Viewer{ maxdepth = 2 }
+module.viewer = Viewer{ maxdepth = 2 }
 
 local function format(viewer, pattern, ...)
 	local result = {}
@@ -27,7 +29,7 @@ local function format(viewer, pattern, ...)
 	return pattern:format(table.unpack(result))
 end
 
-function results(self, success, message, ...)
+function module.results(self, success, message, ...)
 	if not success then
 		local viewer = self.viewer
 		if type(message) == "string" then
@@ -44,7 +46,7 @@ function results(self, success, message, ...)
 	return success, message, ...
 end
 
-function assert(self, value, ...)
+function module.assert(self, value, ...)
 	if type(...) ~= "string" then
 		self:results(both(...)(value))
 	elseif not value then
@@ -54,12 +56,14 @@ function assert(self, value, ...)
 	return value, ...
 end
 
-AssertionFailure = "[Assertion Failure] $message"
+module.AssertionFailure = "[Assertion Failure] $message"
 
-function fail(self, message, level)
-	error(Exception{AssertionFailure, message = message}, (level or 1) + 1)
+function module.fail(self, message, level)
+	error(Exception{self.AssertionFailure, message = message}, (level or 1) + 1)
 end
 
-function isfailure(self, error)
+function module.isfailure(self, error)
 	return oo.isinstanceof(error, Exception) and error[1] == self.AssertionFailure
 end
+
+return module
