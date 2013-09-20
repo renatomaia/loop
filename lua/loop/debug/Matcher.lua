@@ -186,7 +186,7 @@ end
 
 -- aliases
 module.table = module.matchtable 
-module.function = module.matchfunction
+module["function"] = module.matchfunction
 module.metatable = module.match
 
 return module

@@ -583,14 +583,14 @@ for name, func in pairs{loc=loc,upv=upv,env=env,gbl=gbl} do
 		__call = func,
 	})
 	commands[name] = cmd
-	_M[name] = cmd
+	_ENV[name] = cmd
 end
 
 --------------------------------------------------------------------------------
 
 local envmeta = {}
 
-local IndexScopes = { commands, _M, loc, upv, env, gbl }
+local IndexScopes = { commands, _ENV, loc, upv, env, gbl }
 function envmeta:__index(field)
 	local value
 	if currentlevel then currentlevel = currentlevel+1 end
@@ -644,7 +644,7 @@ end
 
 local function newcrawler()
 	local visited = {
-		[_M] = true,
+		[_ENV] = true,
 		[hookedcoro] = true, -- it is found when two functions share the same
 		                     -- upvalue with 'coroutine.create', then during
 		                     -- 'activate' when the first function is found its
@@ -652,7 +652,7 @@ local function newcrawler()
 		                     -- the crawler reaches the second function it will
 		                     -- find 'hookedcoro' in the upvalue.
 	}
-	for name, value in pairs(_M) do
+	for name, value in pairs(_ENV) do
 		visited[value] = true
 	end
 	return Crawler{ visited = visited }
