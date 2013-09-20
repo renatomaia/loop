@@ -1,1 +1,0 @@
-/Users/maia/Work/lua/src/luasocket-2.0.2/src/socket.lua
