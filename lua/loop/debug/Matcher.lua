@@ -41,10 +41,10 @@ function module.error(self, message)
 	local path = { "value" }
 	for i = 2, #self do
 		local key = self[i]
-		if key == metakey then
+		if key == self.metakey then
 			insert(path, 1, "getmetatable(")
 			key = ")"
-		elseif key == envkey then
+		elseif key == self.envkey then
 			insert(path, 1, "getfenv(")
 			key = ")"
 		elseif type(key) == "string" then
@@ -137,7 +137,7 @@ function module.matchfunction(self, func, other)
 		end
 		local environment = self.environment
 		if matched and environment then
-			self[#self+1] = envkey
+			self[#self+1] = self.envkey
 			matched, errmsg = self:match(environment(func), environment(other))
 			self[#self] = nil
 		end
@@ -165,7 +165,7 @@ function module.match(self, value, other)
 					matched, errmsg = matcher(self, value, other)
 					matcher = self.metatable
 					if matched and matcher then
-						self[#self+1] = metakey
+						self[#self+1] = self.metakey
 						matched, errmsg = matcher(self, getmetatable(value), getmetatable(other))
 						self[#self] = nil
 					end
