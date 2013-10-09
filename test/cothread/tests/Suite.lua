@@ -20,6 +20,8 @@ local tests = {
 		"defer",
 	},
 	socket = {
+		"socket",
+		"EventPoll",
 		"luasocket",
 		"socket_memleak",
 	},

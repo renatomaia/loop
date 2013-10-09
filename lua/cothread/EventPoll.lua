@@ -8,6 +8,9 @@ local coroutine = require "coroutine"
 local newcoroutine = coroutine.create
 local yield = coroutine.yield
 
+local table = require "loop.table"
+local memoize = table.memoize
+
 local oo = require "loop.base"
 local class = oo.class
 local rawnew = oo.rawnew
@@ -33,60 +36,49 @@ local EventPoll = class()
 
 function EventPoll:__new(object)
 	self = rawnew(self, object)
-	if self.thread == nil then
-		self.thread = newcoroutine(function(socket, event)
-			repeat
-				local thread = popfront(self)
-				if thread ~= nil then
-					socket, event = yield("yield", thread, socket, event)
-				else
-					yield("removewait", socket, event, self.thread)
-					enqueue(self, {socket, event})
-					socket, event = yield("yield")
-				end
-			until false
-		end)                                                                        --[[VERBOSE]] yield("verbose").viewer.labels[self.thread] = "EventPoll (".._G.tostring(self)..")"
-	end
+	self:clear()
 	return self
 end
 
 function EventPoll:add(socket, event)
-	return yield("addwait", socket, event, self.thread)
+	self.registry[socket][event] = true
 end
 
 function EventPoll:remove(socket, event)
-	if yield("removewait", socket, event, self.thread) then
-		notifyempty(self)
-		return true
+	local sockets = self.registry
+	local events = sockets[socket]
+	local result = events[event]
+	events[socket] = nil
+	if next(events) == nil then
+		sockets[event] = nil
 	end
+	return result
 end
 
 function EventPoll:clear()
-	local result = yield("getwaitof", self.thread)
-	yield("unschedule", self.thread)
-	notifyempty(self)
+	local result = self.registry
+	self.registry = memoize(function () return {} end)
 	return result
 end
 
 function EventPoll:getready(timeout)
-	if not yield("iswaiting", self.thread) then
-		return nil, "empty"
-	end
-	local event
-	if length(self) == 0 then
-		local thread = yield("running")
-		pushback(self, thread)
-		if timeout == nil then
-			return yield("suspend")
+	local thread = yield("running")
+	local events = {}
+	for socket, evtids in pairs(self.registry) do
+		for event in pairs(evtids) do
+			events[#events+1] = {socket=socket, event=event}
 		end
-		local socket, event = yield("defer", timeout)
-		yield("unschedule", thread)
-		if socket == nil then return nil, "timeout" end
-		return socket, event
 	end
-	local queued = dequeue(self)
-	local socket, event = queued[1], queued[2]
-	yield("addwait", socket, event, self.thread)
+	for _, event in ipairs(events) do
+		yield("addwait", event.socket, event.event, thread)
+	end
+	local operation = (timeout==nil) and "suspend" or "defer"
+	local socket, event = yield(operation, timeout)
+	for _, event in ipairs(events) do
+		yield("removewait", event.socket, event.event, thread)
+	end
+	if socket == nil then return nil, "timeout" end
+	if timeout ~= nil then yield("unschedule", thread) end
 	return socket, event
 end
 
