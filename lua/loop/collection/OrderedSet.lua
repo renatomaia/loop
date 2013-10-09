@@ -23,80 +23,85 @@ local CyclicSets = require "loop.collection.CyclicSets"
 local addto = CyclicSets.add
 local removeat = CyclicSets.removefrom
 
-module(..., class)
+local LastTag = {"OrderedSet.LastTag"}
 
-contains = CyclicSets.contains
+local OrderedSet = class{
+	contains = CyclicSets.contains,
+}
 
-function empty(self)
-	return self[self] == nil
+function OrderedSet:empty()
+	return self[LastTag] == nil
 end
 
-function first(self)
-	return self[ self[self] ]
+function OrderedSet:first()
+	return self[ self[LastTag] ]
 end
 
-function last(self)
-	return self[self]
+function OrderedSet:last()
+	return self[LastTag]
 end
 
-function successor(self, item)
-	local last = self[self]
+function OrderedSet:successor(item)
+	local last = self[LastTag]
 	if item ~= last then
 		if item == nil then item = last end
 		return self[item]
 	end
 end
 
-function sequence(self, place)
+local successor = OrderedSet.successor
+function OrderedSet:sequence(place)
 	return successor, self, place
 end
 
-function insert(self, item, place)
-	local last = self[self]
+function OrderedSet:insert(item, place)
+	local last = self[LastTag]
 	if place == nil then place = last end
 	if self[place] ~= nil and addto(self, item, place) == item then
-		if place == last then self[self] = item end
+		if place == last then self[LastTag] = item end
 		return item
 	end
 end
 
-function removefrom(self, place)
-	local last = self[self]
+function OrderedSet:removefrom(place)
+	local last = self[LastTag]
 	if place ~= last then
 		if place == nil then place = last end
 		local item = removeat(self, place)
 		if item ~= nil then
-			if item == last then self[self] = place end
+			if item == last then self[LastTag] = place end
 			return item
 		end
 	end
 end
 
-function pushfront(self, item)
-	local last = self[self]
+function OrderedSet:pushfront(item)
+	local last = self[LastTag]
 	if addto(self, item, last) == item then
-		if last == nil then self[self] = item end
+		if last == nil then self[LastTag] = item end
 		return item
 	end
 end
 
-function popfront(self)
-	local last = self[self]
+local removefrom = OrderedSet.removefrom
+function OrderedSet:popfront()
+	local last = self[LastTag]
 	if self[last] == last then
-		self[self] = nil
+		self[LastTag] = nil
 	end
 	return removefrom(self, last)
 end
 
-function pushback(self, item)
-	local last = self[self]
+function OrderedSet:pushback(item)
+	local last = self[LastTag]
 	if addto(self, item, last) == item then
-		self[self] = item
+		self[LastTag] = item
 		return item
 	end
 end
 
-function __tostring(self)
+local sequence = OrderedSet.sequence
+function OrderedSet:__tostring()
 	local result = { "[ " }
 	for item in sequence(self) do
 		result[#result+1] = tostring(item)
@@ -108,14 +113,16 @@ function __tostring(self)
 end
 
 -- set aliases
-add = pushback
+OrderedSet.add = OrderedSet.pushback
 
 -- stack aliases
-push = pushfront
-pop = popfront
-top = first
+OrderedSet.push = OrderedSet.pushfront
+OrderedSet.pop = OrderedSet.popfront
+OrderedSet.top = OrderedSet.first
 
 -- queue aliases
-enqueue = pushback
-dequeue = popfront
-head = first
+OrderedSet.enqueue = OrderedSet.pushback
+OrderedSet.dequeue = OrderedSet.popfront
+OrderedSet.head = OrderedSet.first
+
+return OrderedSet
