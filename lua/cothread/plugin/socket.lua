@@ -80,7 +80,7 @@ return function(_ENV, cothread)
 		end
 	end
 	
-	watcher = {"fake thread"}                                                     -- [[VERBOSE]] verbose.viewer.labels[watcher] = "SocketWatcher"
+	watcher = {"fake thread"}                                                     --[[VERBOSE]] verbose.viewer.labels[watcher] = "SocketWatcher"
 	
 	local function checkwatching()
 		if #reading == 0 and #writing == 0 then

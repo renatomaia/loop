@@ -57,11 +57,12 @@ return function(_ENV, cothread)
 					scheduled:move(first, lastready, last)                                --[[VERBOSE]] verbose:threads("delayed ",first," to ",last," are ready for execution");verbose:state()
 				end
 			end
-			if time == nil then
+			if time == nil then                                                       --[[VERBOSE]] verbose:scheduler("no threads to be waken")
 				yield("suspend")
-			elseif scheduled[waker] ~= waker then
+			elseif scheduled[waker] ~= waker then                                     --[[VERBOSE]] verbose:scheduler("other threads are ready to be resumed")
+				idle(now())
 				yield("yield")
-			else
+			else                                                                      --[[VERBOSE]] verbose:scheduler("nothing to be done until ",time)
 				idle(time)
 			end
 		end
