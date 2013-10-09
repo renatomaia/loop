@@ -32,7 +32,7 @@ function FileStream:read()
 	local lines = {}
 	for line in self.file:lines() do
 		lines[#lines+1] = line
-		if line:find("return") == 1 then return concat(lines) end
+		if line:find("return") == 1 then return concat(lines, "\n") end
 	end
 	error("incomplete stream")
 end
