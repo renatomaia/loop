@@ -25,6 +25,7 @@ equals = checks.equal
 similar = checks.like
 match = checks.match
 typeis = checks.type
+viewer = checks.viewer
 
 function isnot(...)
 	return checks.NOT(is(...))
