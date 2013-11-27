@@ -69,6 +69,7 @@ local alias = {
 for name in pairs(_ENV) do alias[substring(name, 1, 1)] = name end
 _ENV._alias = alias -- set parameter aliases
 _ENV._optpat = "^%-(%-?%w+)(=?)(.-)$" -- set parameter pattern
+_ENV.def = "" -- declare aditional parameter 'def' without alias
 _ENV.help = false -- declare aditional parameter 'help' without alias
 
 
@@ -100,6 +101,9 @@ Options:
   
   -c, -compileonly  Disables the generation of a preloader function. This flag
                     implicitly forces the use of flag -modfuncs.
+  
+  -def              Defines the name of the file to be generated containing the
+                    names of the functions that shall be exported.
   
   -d, -directory    Defines the directory where the output files should be
                     generated. The default value is the current directory.
@@ -322,6 +326,7 @@ end
 
 local outc = assert(open(adjustpath(directory)..output, "w"))
 local outh = { write = function() end, close = function() end }
+local outd = outh
 
 local guard = replace(upper(output), "[^%w]", "_")
 
@@ -336,6 +341,14 @@ if header ~= "" then
 	outc:write([[
 #include "]],header,[["
 
+]])
+end
+
+if def ~= "" then
+	outd = assert(open(adjustpath(directory)..def, "w"))
+	outd:write([[
+LIBRARY ]]..output:match("%w+")..[[ 
+EXPORTS
 ]])
 end
 
@@ -372,6 +385,7 @@ if not compileonly then
 		local header = headers[module]
 		if header == nil then
 			if modfuncs then
+				outd:write('  luaopen_',cname,'\n')
 				outh:write(prefix,' int luaopen_',cname,'(lua_State*);\n')
 			else
 				outc:write('int luaopen_',cname,'(lua_State*);\n')
@@ -396,6 +410,7 @@ end
 
 if modfuncs then
 	for module, cname in pairs(scripts) do
+		outd:write('  luaopen_',cname,'\n')
 		outh:write(prefix,' int luaopen_',cname,'(lua_State*);\n')
 		outc:write(prefix,[[ int luaopen_]],cname,[[(lua_State *L) {
 	int arg = lua_gettop(L);
@@ -412,6 +427,7 @@ if modfuncs then
 end
 
 if not compileonly then
+	outd:write('  ',funcload,'\n')
 	outh:write(prefix,' int ',funcload,'(lua_State*);\n')
 	outc:write(
 prefix,[[ int ]],funcload,[[(lua_State *L) {
