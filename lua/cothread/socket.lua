@@ -142,7 +142,7 @@ function CoSocket:send(data, i, j)                                              
 	return result, errmsg, lastbyte, elapsed
 end
 
-function CoSocket:receive(pattern, ...)                                              --[[VERBOSE]] verbose:socket(true, "receiving byte stream")
+function CoSocket:receive(pattern, ...)                                         --[[VERBOSE]] verbose:socket(true, "receiving byte stream")
 	-- get data already avaliable in the socket
 	local socket = self.__object
 	local result, errmsg, partial, elapsed = socket:receive(pattern, ...)
@@ -187,13 +187,20 @@ function CoSocket:receive(pattern, ...)                                         
 				result = concat(buffer)
 			else
 				partial = concat(buffer)
-			end
+			end                                                                       --[[VERBOSE]] verbose:socket(false)
 		
 			yield("unschedule", thread)
 		end
 	end                                                                           --[[VERBOSE]] verbose:socket(false, "data reading ",result and "completed: "..verbose.viewer:tostring(result) or "failed")
 	
 	return result, errmsg, partial, elapsed
+end
+
+function CoSocket:close()                                                       --[[VERBOSE]] verbose:socket(true, "closing socket")
+	local socket = self.__object
+	local result, errmsg = socket:close()
+	yield("notifyclose", socket)                                                  --[[VERBOSE]] verbose:socket(false)
+	return result, errmsg
 end
 
 --------------------------------------------------------------------------------

@@ -36,6 +36,7 @@ local function trappedfunc(func, traps)
 	return function(key, ...)
 		local trap = traps[key]
 		if trap ~= nil then
+			traps[key] = nil
 			trap(key, ...)
 		end
 		return func(key, ...)

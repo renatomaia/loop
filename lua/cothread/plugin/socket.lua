@@ -2,6 +2,7 @@ local _G = require "_G"
 local ipairs = _G.ipairs
 local next = _G.next
 local pairs = _G.pairs
+local rawget = _G.rawget
 local require = _G.require
 
 local coroutine = require "coroutine"
@@ -102,6 +103,14 @@ return function(_ENV, cothread)
 		checkwatching()                                                             --[[VERBOSE]] verbose:threads(thread," unscheduled and it not waiting sockets anymore");verbose:state()
 	end
 	
+	local function cancelthreadwait(thread, socket, opset)
+		local sockets = socketof[opset][thread]
+		sockets[socket] = nil
+		if next(sockets) == nil then
+			onunschedule(thread, nil)
+		end
+	end
+
 	moduleop("addwait", function(socket, event, thread)
 		local opset = event2opset[event]
 		if opset ~= nil then
@@ -123,13 +132,30 @@ return function(_ENV, cothread)
 			if next(threads) == nil then
 				opset:remove(socket)
 			end
-			local sockets = socketof[opset][thread]
-			sockets[socket] = nil
-			if next(sockets) == nil then
-				onunschedule(thread, nil)
-			end
+			cancelthreadwait(thread, socket, opset)
 			checkwatching()                                                           --[[VERBOSE]] verbose:threads(thread," not waiting for socket ",socket," anymore");verbose:state()
 		end
+	end, "yieldable")
+	
+	moduleop("notifyclose", function(socket)
+		local tonotify = {}
+		for event, opset in pairs(event2opset) do
+			local threads = threadof[opset][socket]
+			if next(threads) ~= nil then
+				threadof[opset][socket] = nil
+				opset:remove(socket)
+				for thread in pairs(threads) do
+					cancelthreadwait(thread, socket, opset)
+				end
+				local notifier = newcoroutine(function()                                --[[VERBOSE]] verbose:threads("about to resume threads waiting for socket ",socket," that were closed")
+					for thread in pairs(threads) do
+						yield("yield", thread, socket, event)
+					end
+				end)                                                                    --[[VERBOSE]] verbose.viewer.labels[notifier] = "SocketCloseNotifier("..verbose.viewer:tostring(socket)..")"
+				schedule(notifier, "last")
+			end
+		end
+		checkwatching()                                                             --[[VERBOSE]] verbose:threads("threads not waiting for socket ",socket," anymore, because it was closed");verbose:state()
 	end, "yieldable")
 	
 	moduleop("iswaiting", function(thread)

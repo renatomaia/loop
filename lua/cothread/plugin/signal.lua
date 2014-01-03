@@ -10,7 +10,6 @@ return function(_ENV, cothread)
 	local function freesignal(signal, thread)
 		lastwait[signal] = nil
 		signalof[thread] = nil
-		onreschedule(thread, nil)
 	end
 	local function unscheduled(thread, previous)
 		local signal = signalof[thread]
@@ -21,7 +20,6 @@ return function(_ENV, cothread)
 			signalof[previous] = signal
 			onreschedule(previous, unscheduled)
 			signalof[thread] = nil
-			onreschedule(thread, nil)
 		end
 	end
 	local function newsignal(signal, thread)
@@ -78,6 +76,7 @@ return function(_ENV, cothread)
 		local last = lastwait[signal]
 		if last ~= nil then
 			freesignal(signal, last)
+			onreschedule(last, nil)
 			scheduled:movefrom(last, lastready, last)
 			lastready = last
 			return true
