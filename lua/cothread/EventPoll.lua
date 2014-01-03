@@ -3,6 +3,7 @@
 -- Author : Renato Maia <maia@inf.puc-rio.br>
 
 local _G = require "_G"
+local rawget = _G.rawget
 
 local coroutine = require "coroutine"
 local newcoroutine = coroutine.create
@@ -24,14 +25,6 @@ local OrderedSet = require "loop.collection.OrderedSet"
 local pushback = OrderedSet.pushback
 local popfront = OrderedSet.popfront
 
-local function notifyempty(self)
-	local thread = popfront(self)
-	while thread ~= nil and not yield("iswaiting", self.thread) do
-		yield("next", thread, nil, "empty")
-		thread = popfront(self)
-	end
-end
-
 local EventPoll = class()
 
 function EventPoll:__new(object)
@@ -41,18 +34,33 @@ function EventPoll:__new(object)
 end
 
 function EventPoll:add(socket, event)
-	self.registry[socket][event] = true
+	local events = self.registry[socket]
+	if events[event] == nil then
+		events[event] = true
+		local thread = self.thread
+		if thread ~= nil then
+			yield("addwait", socket, event, thread)
+		end
+		return true
+	end
 end
 
 function EventPoll:remove(socket, event)
 	local sockets = self.registry
-	local events = sockets[socket]
-	local result = events[event]
-	events[socket] = nil
-	if next(events) == nil then
-		sockets[event] = nil
+	local events = rawget(sockets, socket)
+	if events ~= nil then
+		if events[event] ~= nil then
+			events[event] = nil
+			if next(events) == nil then
+				sockets[socket] = nil
+			end
+			local thread = self.thread
+			if thread ~= nil then
+				yield("removewait", socket, event, thread)
+			end
+			return true
+		end
 	end
-	return result
 end
 
 function EventPoll:clear()
@@ -63,19 +71,24 @@ end
 
 function EventPoll:getready(timeout)
 	local thread = yield("running")
-	local events = {}
-	for socket, evtids in pairs(self.registry) do
-		for event in pairs(evtids) do
-			events[#events+1] = {socket=socket, event=event}
+	if timeout == nil then
+		yield("unschedule", thread)
+	else
+		yield("schedule", thread, self.timeoutkind, timeout)
+	end
+	local registry = self.registry
+	for socket, events in pairs(registry) do
+		for event in pairs(events) do
+			yield("addwait", socket, event, thread)
 		end
 	end
-	for _, event in ipairs(events) do
-		yield("addwait", event.socket, event.event, thread)
-	end
-	local operation = (timeout==nil) and "suspend" or "defer"
-	local socket, event = yield(operation, timeout)
-	for _, event in ipairs(events) do
-		yield("removewait", event.socket, event.event, thread)
+	self.thread = thread
+	local socket, event = yield("yield")
+	self.thread = nil
+	for socket, events in pairs(registry) do
+		for event in pairs(events) do
+			yield("removewait", socket, event, thread)
+		end
 	end
 	if socket == nil then return nil, "timeout" end
 	if timeout ~= nil then yield("unschedule", thread) end
