@@ -5,6 +5,7 @@
 
 local _G = require "_G"
 local assert = _G.assert
+local error = _G.error
 
 local array = require "table"
 local concat = array.concat

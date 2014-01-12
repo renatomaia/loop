@@ -16,7 +16,6 @@ local assert = _G.assert
 local getmetatable = _G.getmetatable
 local ipairs = _G.ipairs
 local load = _G.load
-local loadstring = _G.loadstring
 local pairs = _G.pairs
 local rawget = _G.rawget
 local rawset = _G.rawset
@@ -79,7 +78,7 @@ local function PrivatePool(members)                                             
 				Object[private] = outter                                                -- [[VERBOSE]] verbose:scoped("'public' ",outter," registered for the new 'private' ",private)
 			else
 				Object[private] = object                                                -- [[VERBOSE]] verbose:scoped("'public' ",object," registered for the new 'private' ",private)
-				self[object] = private                                                  -- [[VERBOSE]] verbose:scoped("new 'private' ",private," stored at the pool for 'public' ",object)
+				pool[object] = private                                                  -- [[VERBOSE]] verbose:scoped("new 'private' ",private," stored at the pool for 'public' ",object)
 			end                                                                       -- [[VERBOSE]] else verbose:scoped("reusing 'private' ",private," associated to 'public'")
 		end                                                                         -- [[VERBOSE]] verbose:scoped(false, "returning 'private' ",private," for reference ",outter)
 		return private
@@ -153,7 +152,7 @@ local IndexerFactory = memoize(function(name)
 			func[#func+1] = strip[1]
 		end
 	end
-	return loadstring(concat(func, "\n"), name)
+	return load(concat(func, "\n"), name)
 end)
 local function wrapindexer(class, scope, action)
 	local meta = class:getmeta(scope)
@@ -185,7 +184,32 @@ local function hierarchyof(class)
 	local stack = OrderedSet{ class }
 	return supersiterator, stack, 1
 end
+--------------------------------------------------------------------------------
+local function this(object)
+	return Object[object] or object
+end
 
+local function priv(object, class)
+	if class == nil then class = getclass(object) end
+	class = getclass(class)
+	if class and class.private then
+		if getclass(object) == class.private.class
+			then return object                 -- private object
+			else return class.private[object]  -- protected or public object
+		end
+	end
+end
+
+local function prot(object)
+	local class = getclass(getclass(object))
+	if class and class.protected then
+		if getclass(object) == class.protected.class
+			then return object                         -- protected object
+			else return class.protected[this(object)]  -- private or public object
+		end
+	end
+end
+--------------------------------------------------------------------------------
 local function publicproxy_call(_, object)
 	return this(object)
 end
@@ -527,38 +551,17 @@ end
 
 --------------------------------------------------------------------------------
 
-local oo = clone(cached)
+local oo = clone(cached, {
+	this = this,
+	prot = prot,
+	priv = priv,
+})
 
 function oo.class(class, ...)
 	class = getclass(class) or ScopedClass(class)
 	class:updatehierarchy(...)
 	class:updateinheritance()
 	return class.proxy
-end
-
-function oo.this(object)
-	return Object[object] or object
-end
-
-function oo.priv(object, class)
-	if class == nil then class = getclass(object) end
-	class = getclass(class)
-	if class and class.private then
-		if getclass(object) == class.private.class
-			then return object                 -- private object
-			else return class.private[object]  -- protected or public object
-		end
-	end
-end
-
-function oo.prot(object)
-	local class = getclass(getclass(object))
-	if class and class.protected then
-		if getclass(object) == class.protected.class
-			then return object                         -- protected object
-			else return class.protected[this(object)]  -- private or public object
-		end
-	end
 end
 
 

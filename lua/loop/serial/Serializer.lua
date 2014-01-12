@@ -5,7 +5,6 @@
 
 local _G = require "_G"
 local error = _G.error
-local getfenv = _G.pcall(_G.getfenv, 2) and _G.getfenv or nil
 local getmetatable = _G.getmetatable
 local pairs = _G.pairs
 local tostring = _G.tostring
@@ -19,7 +18,8 @@ local gsub = string.gsub
 local math = require "math"
 local inf = math.huge
 
-local debug = _G.debug -- only if available
+local package = require "package"
+local debug = package.loaded.debug -- only if available
 local getupvalue = debug and debug.getupvalue
 local upvalueid = debug and debug.upvalueid
 
@@ -43,24 +43,16 @@ local function escapechar(char)
 	return "\\"..char
 end
 
-local function newlabel(self)
-	local count = (self.lastlabel or 0) + 1
-	self.lastlabel = count
-	return "v"..count
-end
-
-
-
-local Serializer = class{
-	ignoredenv = _G,
-	varprefix = "",
-	getfenv = getfenv,
-	getmetatable = getmetatable,
-	getupvalue = getupvalue,
-	upvalueid = upvalueid,
+local boolean = {
+	[true] = "true",
+	[false] = "false",
 }
 
-function Serializer:number(value)
+local function boolean2lua(value)
+	return boolean[value]
+end
+
+local function number2lua(value)
 	if value ~= value then
 		return "0/0"
 	elseif value == inf then
@@ -71,10 +63,61 @@ function Serializer:number(value)
 	return tostring(value)
 end
 
-function Serializer:string(value)
+local function string2lua(value)
 	value = gsub(value, '[\\"]', escapechar)
 	value = gsub(value, '[^%p%w ]', escapecode)
 	return '"'..value..'"'
+end
+
+
+
+
+local Serializer = class{
+	varprefix = "",
+	getmetatable = getmetatable,
+	getupvalue = getupvalue,
+	upvalueid = upvalueid,
+}
+
+if _G._VERSION=="Lua 5.1" then Serializer.getfenv = _G.getfenv end
+
+local converter2lua = {
+	boolean = boolean2lua,
+	number = number2lua,
+	string = string2lua,
+}
+function Serializer:register(loaded)
+	for name, module in pairs(loaded) do
+		self[module] = "require('"..name.."')"
+		if type(module) == "table" then
+			for field, value in pairs(module) do
+				local converter = converter2lua[type(field)]
+				if converter ~= nil and converter2lua[type(value)] == nil then
+					self[value] = "require('"..name.."')["..converter(field).."]"
+				end
+			end
+		end
+	end
+end
+
+function Serializer:newlabel()
+	local count = (self.lastlabel or 0) + 1
+	self.lastlabel = count
+	return "v"..count
+end
+
+function Serializer:number(value)
+	return number2lua(value)
+end
+
+function Serializer:string(value)
+	return string2lua(value)
+end
+
+function Serializer:newlabel()
+	local count = (self.lastlabel or 0) + 1
+	self.lastlabel = count
+	return "v"..count
 end
 
 function Serializer:table(value, partial)
@@ -99,7 +142,7 @@ function Serializer:table(value, partial)
 	end
 	-- write serialized contents (part or all content)
 	if partial ~= nil then
-		label = newlabel(self)
+		label = self:newlabel()
 		self[value] = label
 		self:write(self.varprefix,label," = {\n")
 		for key, value in pairs(partial) do
@@ -123,9 +166,9 @@ end
 Serializer["function"] = function(self, value)
 	
 	-- serialize the function
-	local label = newlabel(self)
+	local label = self:newlabel()
 	local opcodes = self:string(dump(value))
-	self:write(self.varprefix,label," = loadstring(",opcodes,")\n")
+	self:write(self.varprefix,label," = load(",opcodes,")\n")
 	self[value] = label
 
 	-- serialize upvalues
@@ -161,20 +204,12 @@ Serializer["function"] = function(self, value)
 	-- serialize environment
 	local getfenv = self.getfenv
 	if getfenv then
-		local env = getfenv(value)
-		if env ~= self.ignoredenv then
-			env = self:serialize(env)
-			self:write("setfenv(",label,", ",env,")\n")
-		end
+		local env = self:serialize(getfenv(value))
+		self:write("setfenv(",label,", ",env,")\n")
 	end
 	
 	return label
 end
-
-local boolean = {
-	[true] = "true",
-	[false] = "false",
-}
 
 function Serializer:serialize(value)
 	local result

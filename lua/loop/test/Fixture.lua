@@ -1,27 +1,35 @@
-
-local error = error
-local ipairs = ipairs
+local _G = require "_G"
+local error = _G.error
+local ipairs = _G.ipairs
 
 local oo = require "loop.cached"
+local class = oo.class
 
-module("loop.test.Fixture", oo.class)
+local Fixture = class()
 
-function __call(self, results)
+function Fixture:__call(runner, ...)
 	local failed
-	if self.setup ~= nil and not results:test("setup", self.setup, self, results) then
+	local setup = self.setup
+	if setup ~= nil and not runner("setup", setup, self, runner, ...) then
 		failed = true
 	elseif #self > 0 then
 		for index, test in ipairs(self) do
-			if not results:test(nil, test, results) then
+			if not runner(nil, test, runner, ...) then
 				failed = true
 				break
 			end
 		end
-	elseif self.test and not results:test(nil, self.test, self, results) then
-		failed = true
+	else
+		local test = self.test
+		if test ~= nil and not runner(nil, test, self, runner, ...) then
+			failed = true
+		end
 	end
-	if self.teardown ~= nil and not results:test("teardown", self.teardown, self, results) then
+	local teardown = self.teardown
+	if teardown ~= nil and not runner("teardown", teardown, self, runner, ...) then
 		failed = true
 	end
 	if failed then error("FAILED", 2) end
 end
+
+return Fixture

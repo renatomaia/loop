@@ -3,6 +3,8 @@
 -- Author : Renato Maia <maia@inf.puc-rio.br>
 
 local _G = require "_G"
+local next = _G.next
+local pairs = _G.pairs
 local rawget = _G.rawget
 
 local coroutine = require "coroutine"
@@ -74,7 +76,7 @@ function EventPoll:getready(timeout)
 	if timeout == nil then
 		yield("unschedule", thread)
 	else
-		yield("schedule", thread, self.timeoutkind, timeout)
+		yield("schedule", thread, "defer", timeout)
 	end
 	local registry = self.registry
 	for socket, events in pairs(registry) do

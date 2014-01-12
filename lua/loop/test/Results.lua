@@ -1,64 +1,41 @@
-
 local _G = require "_G"
-local error = _G.error
-local select = _G.select
-local unpack = _G.unpack
 local xpcall = _G.xpcall
 
-local table = require "table"
-local concat = table.concat
+local array = require "table"
+local concat = array.concat
 
-local debug = require "debug"
-local traceback = debug.traceback
+local package = require "package"
+local debug = package.loaded.debug
+local traceback = debug and debug.traceback or function (msg) return msg end
 
-local oo = require "loop.simple"
+local oo = require "loop.cached"
 local class = oo.class
 
-local checks = require "loop.test.checks"
 
-module "loop.test.Results"
-
-class(_M)
-
-is = checks.is
-equals = checks.equal
-similar = checks.like
-match = checks.match
-typeis = checks.type
-viewer = checks.viewer
-
-function isnot(...)
-	return checks.NOT(is(...))
-end
-
-local checks_assert = checks.assert
-function assert(self, value, ...)
-	if _G.type(...) ~= "string" then
-		checks_assert(value, ...)
-	elseif not value then
-		local message, level = ...
-		error(message, (level or 1) + 1)
+local function process(self, index, name, success, ...)
+	local reporter = self.reporter
+	if reporter ~= nil then
+		reporter:ended(name, success, ...)
 	end
-	return value, ...
-end
-
-function process(self, label, name, success, ...)
-	if self.reporter then
-		self.reporter:ended(name, success, ...)
-	end
-	if label ~= nil then self[#self] = nil end
+	if index ~= nil then self[index] = nil end
 	return success, ...
 end
 
-function test(self, label, func, ...)
-	self[#self+1] = label
-	local name = concat(self, ".")
-	if self.reporter then
-		self.reporter:started(name)
+
+local Runner = class()
+
+function Runner:__call(label, func, ...)
+	local index
+	if label ~= nil then
+		index = #self+1
+		self[index] = label
 	end
-	local count = select("#", ...)
-	local arg = {...}
-	return self:process(label, name, xpcall(function()
-		return func(unpack(arg, 1, count))
-	end, traceback))
+	local name = concat(self, ".")
+	local reporter = self.reporter
+	if reporter ~= nil then
+		reporter:started(name)
+	end
+	return process(self, index, name, xpcall(func, traceback, ...))
 end
+
+return Runner

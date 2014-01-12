@@ -27,18 +27,23 @@ local copy = tabop.copy
 local oo = require "loop.base"
 local class = oo.class
 
-module(..., class)
 
-__mode = "k"
+local metakey = {}
+local envkey = {}
 
-isomorphic = true
-environment = getfenv
-upvalue = getupvalue
 
-metakey = {}
-envkey = {}
+local Matcher = class{
+	__mode = "k",
 
-function error(self, message)
+	isomorphic = true,
+	environment = getfenv,
+	upvalue = getupvalue,
+
+	metakey = metakey,
+	envkey = envkey,
+}
+
+function Matcher:error(message)
 	local path = { "value" }
 	for i = 2, #self do
 		local key = self[i]
@@ -62,7 +67,7 @@ function error(self, message)
 	return format("%s: %s", concat(path), message)
 end
 
-function matchtable(self, value, other)
+function Matcher:matchtable(value, other)
 	local matched, errmsg = true
 	local keysmatched = {}
 	self[value], self[other] = other, value
@@ -114,7 +119,7 @@ function matchtable(self, value, other)
 	return matched, errmsg
 end
 
-function matchfunction(self, func, other)
+function Matcher:matchfunction(func, other)
 	local matched, errmsg = (dump(func) == dump(other))
 	if matched then
 		self[func], self[other] = other, func
@@ -148,7 +153,7 @@ function matchfunction(self, func, other)
 	return matched, errmsg
 end
 
-function match(self, value, other)
+function Matcher:match(value, other)
 	self[0] = self[0] or other
 	self[1] = self[1] or value
 	local matched, errmsg = false
@@ -185,6 +190,8 @@ function match(self, value, other)
 	return matched, errmsg
 end
 
-_M["table"] = matchtable
-_M["function"] = matchfunction
-_M["metatable"] = match
+Matcher["table"] = Matcher.matchtable
+Matcher["function"] = Matcher.matchfunction
+Matcher["metatable"] = Matcher.match
+
+return Matcher

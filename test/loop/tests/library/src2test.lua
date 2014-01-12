@@ -1,3 +1,25 @@
+local _G = require "_G"
+local error = _G.error
+local ipairs = _G.ipairs
+local pcall = _G.pcall
+local require = _G.require
+local select = _G.select
+local tonumber = _G.tonumber
+local tostring = _G.tostring
+
+local io = require "io"
+local open = io.open
+
+local package = require "package"
+
+local string = require "string"
+local format = string.format
+local match = string.match
+
+local array = require "table"
+local concat = array.concat
+local unpack = array.unpack
+
 local checks = require "loop.test.checks"
 local assert = checks.assert
 local like = checks.like
@@ -35,7 +57,7 @@ end
 
 local function packres(success, ...)
 	if not success then
-		return { string.format(" error %q", string.match(..., ":%d+: (.+)")) }
+		return { format(" error %q", match(..., ":%d+: (.+)")) }
 	end
 	return { n = select("#", ...), ... }
 end
@@ -46,7 +68,7 @@ local function showvalues(values)
 		for i = 1, values.n do
 			result[i] = tostring(values[i])
 		end
-		return table.concat(result, ", ")
+		return concat(result, ", ")
 	end
 	return values[1]
 end
@@ -63,7 +85,7 @@ return function(name, create, autocases, blackbox)
 	local source
 	for path in package.path:gmatch("[^;]+") do
 		path = path:gsub("%?", "loop/collection/"..name)
-		source = io.open(path)
+		source = open(path)
 		if source then break end
 	end
 	if source == nil then error("unable to locate '"..name.."' source file") end
@@ -71,8 +93,8 @@ return function(name, create, autocases, blackbox)
 	for line in source:lines() do
 		local pre, method, par, pos, res = line:match(pattern)
 		if pre then
-			params = values(par)
-			results = values(res)
+			local params = values(par)
+			local results = values(res)
 			local function runtest(pre, pos)
 				local actual = create(pre)
 				local expected = create(pos)

@@ -47,12 +47,26 @@ return function(cothread)
 				local pair = newsockpair()
 				poll:add(pair.socket, "r")
 				pair:notify()
-				poll:getready(.1)
-				yield("yield")
+				local socket, event = poll:getready()
+				assert(socket == pair.socket)
+				assert(event == "r")
 			end,
 		},
 	}
+	testCase{S="none"  ,[[ S ... ... ]]}
+	testCase{S="ready" ,[[ S ... ... ]]}
 
+	newTest{ "S",
+		tasks = {
+			S = function(_ENV)
+				local poll = EventPoll()
+				poll:add(socket.tcp(), "r")
+				local res, err = poll:getready(.1)
+				assert(res == nil)
+				assert(err == "timeout")
+			end,
+		},
+	}
 	testCase{S="none"  ,[[ S ...+ ]]}
 	testCase{S="ready" ,[[ S ...+ ]]}
 
@@ -60,14 +74,17 @@ return function(cothread)
 		tasks = {
 			S = function(_ENV)
 				local poll = EventPoll()
-				poll:add(socket.tcp(), "r")
-				poll:getready(.1)
-				yield("yield")
+				local pair = newsockpair()
+				poll:add(pair.socket, "r")
+				pair:notify()
+				local socket, event = poll:getready(1)
+				assert(socket == pair.socket)
+				assert(event == "r")
 			end,
 		},
 	}
-	testCase{S="none"  ,[[ S ...+ S ... ]]}
-	testCase{S="ready" ,[[ S ...+ S ... ]]}
+	testCase{S="none"  ,[[ S ...+ ]]}
+	testCase{S="ready" ,[[ S ...+ ]]}
 
 	newTest{ "S",
 		tasks = {
@@ -75,9 +92,13 @@ return function(cothread)
 				local poll = EventPoll()
 				local pair = newsockpair()
 				poll:add(pair.socket, "r")
-				poll:getready(.1)
+				local res, err = poll:getready(.1)
+				assert(res == nil)
+				assert(err == "timeout")
 				yield("yield")
-				poll:getready(.1)
+				res, err = poll:getready(.1)
+				assert(res == nil)
+				assert(err == "timeout")
 				yield("yield")
 				pair:notify()
 			end,

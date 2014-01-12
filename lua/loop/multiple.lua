@@ -5,6 +5,7 @@
 
 local _G = require "_G"
 local ipairs = _G.ipairs
+local getmetatable = _G.getmetatable
 local select = _G.select
 local setmetatable = _G.setmetatable
 

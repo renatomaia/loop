@@ -5,8 +5,12 @@
 -- Notes  :
 --   Can be used as a module that provides functions instead of methods.
 
-local table = require "table"
-local concat = table.concat
+local _G = require "_G"
+local setmetatable = _G.setmetatable
+local tostring = _G.tostring
+
+local array = require "table"
+local concat = array.concat
 
 local oo = require "loop.base"
 local class = oo.class
@@ -21,6 +25,7 @@ local OneAsDefaultValue = {
 }
 local headOf = setmetatable({}, OneAsDefaultValue)
 local tailOf = setmetatable({}, OneAsDefaultValue)
+
 
 local Queue = class()
 

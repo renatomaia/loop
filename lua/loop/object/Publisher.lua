@@ -5,30 +5,33 @@
 local _G = require "_G"
 local pairs = _G.pairs
 
-local tabop = require "loop.table"
-local memoize = tabop.memoize
+local table = require "loop.table"
+local memoize = table.memoize
 
 local oo = require "loop.base"
 local class = oo.class
 
-module(..., class)
 
-__index = memoize(function(method)
-	return function(self, ...)
-		for _, object in pairs(self) do
-			object[method](object, ...)
+local Publisher = class{
+	__index = memoize(function(method)
+		return function(self, ...)
+			for _, object in pairs(self) do
+				object[method](object, ...)
+			end
 		end
-	end
-end, "k")
+	end, "k"),
+}
 
-function __newindex(self, key, value)
+function Publisher:__newindex(key, value)
 	for _, object in pairs(self) do
 		object[key] = value
 	end
 end
 
-function __call(self, ...)
+function Publisher:__call(...)
 	for _, object in pairs(self) do
 		object(...)
 	end
 end
+
+return Publisher

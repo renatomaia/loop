@@ -1,8 +1,10 @@
 local _G = require "_G"
 local ipairs = _G.ipairs
+local pairs = _G.pairs
 local rawequal = _G.rawequal
 local select = _G.select
 local type = _G.type
+local tostring = _G.tostring
 
 local string = require "string"
 local find = string.find

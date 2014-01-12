@@ -10,7 +10,9 @@ local getmetatable = _G.getmetatable
 local pairs = _G.pairs
 local select = _G.select
 local type = _G.type
-local debug = _G.debug -- only if available
+
+local package = require "package"
+local debug = package.loaded.debug -- only if available
 
 local coroutine = require "coroutine"
 local running = coroutine.running

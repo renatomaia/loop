@@ -11,7 +11,6 @@ local error = _G.error
 local ipairs = _G.ipairs
 local loadfile = _G.loadfile
 local pairs = _G.pairs
-local pcall = _G.pcall
 local select = _G.select
 local setfenv = _G.setfenv
 local unpack = _G.unpack
@@ -59,7 +58,7 @@ local _ENV = Arguments{
 	signatures  = false,
 	warnings    = false,
 }
-pcall(setfenv, 2, _ENV) -- compatibility with Lua 5.1
+if _G._VERSION=="Lua 5.1" then _G.setfenv(1,_ENV) end -- Lua 5.1 compatibility
 
 -- parameter aliases
 local alias = {

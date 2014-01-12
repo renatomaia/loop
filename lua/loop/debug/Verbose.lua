@@ -37,9 +37,6 @@ local rawnew = oo.rawnew
 
 local Viewer = require "loop.debug.Viewer"
 
-module(..., class)
-
---------------------------------------------------------------------------------
 
 local function write(self, newthread, flag, ...)
 	local count = select("#", ...)
@@ -133,18 +130,19 @@ local function maketag(tag)
 	end
 end
 
---------------------------------------------------------------------------------
 
-taglength = 9
-timestamp = false
-timeformat = false
-timelength = 0 -- internal: should only be accessed by this class
-lastthread = false -- internal: should only be accessed by this class
-threadruler = strrep("-", 80).."> "
-viewer = Viewer{ maxdepth = 2 }
+local Verbose = class{
+	taglength = 9,
+	timestamp = false,
+	timeformat = false,
+	timelength = 0, -- internal: should only be accessed by this class
+	lastthread = false, -- internal: should only be accessed by this class
+	threadruler = strrep("-", 80).."> ",
+	viewer = Viewer{ maxdepth = 2 },
+}
 
-function __new(class, verbose)
-	verbose = rawnew(class, verbose)
+function Verbose:__new(verbose)
+	verbose = rawnew(self, verbose)
 	verbose.flags = {}
 	verbose.groups = rawget(verbose, "groups") or {}
 	verbose.custom = rawget(verbose, "custom") or {}
@@ -156,20 +154,17 @@ function __new(class, verbose)
 end
 
 local function dummy() end
-
-function __index(self, field)
-	local value = _M[field]
+function Verbose:__index(field)
+	local value = Verbose[field]
 	if value ~= nil then return value end
 	return field and self.flags[field] or dummy
 end
 
---------------------------------------------------------------------------------
-
-function setgroup(self, name, group)
+function Verbose:setgroup(name, group)
 	self.groups[name] = group
 end
 
-function newlevel(self, level, group)
+function Verbose:newlevel(level, group)
 	local groups = self.groups
 	local count = #groups
 	if not group then
@@ -181,7 +176,7 @@ function newlevel(self, level, group)
 	end
 end
 
-function setlevel(self, level, group)
+function Verbose:setlevel(level, group)
 	for i = 1, level - 1 do
 		if not self.groups[i] then
 			self.groups[i] = {}
@@ -190,14 +185,12 @@ function setlevel(self, level, group)
 	self.groups[level] = group
 end
 
---------------------------------------------------------------------------------
-
-function settimeformat(self, format)
+function Verbose:settimeformat(format)
 	self.timeformat = format
 	self.timelength = #date(format)
 end
 
-function flag(self, name, ...)
+function Verbose:flag(name, ...)
 	local group = self.groups[name]
 	if group then
 		for _, name in ipairs(group) do
@@ -211,7 +204,7 @@ function flag(self, name, ...)
 	return true
 end
 
-function level(self, ...)
+function Verbose:level(...)
 	if select("#", ...) == 0 then
 		for level = 1, #self.groups do
 			if not self:flag(level) then return level - 1 end
@@ -224,6 +217,7 @@ function level(self, ...)
 	end
 end
 
+return Verbose
 
 --[[----------------------------------------------------------------------------
 LOG = loop.debug.Verbose{

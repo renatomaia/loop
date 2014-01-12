@@ -1,40 +1,33 @@
---------------------------------------------------------------------------------
----------------------- ##       #####    #####   ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##   ## -----------------------
----------------------- ##      ##   ##  ##   ##  ######  -----------------------
----------------------- ##      ##   ##  ##   ##  ##      -----------------------
----------------------- ######   #####    #####   ##      -----------------------
-----------------------                                   -----------------------
------------------------ Lua Object-Oriented Programming ------------------------
---------------------------------------------------------------------------------
--- Project: LOOP Class Library                                                --
--- Release: 2.3 beta                                                          --
--- Title  : Command-line Argument Processor                                   --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
--- Date   : 2007-07-10                                                        --
---------------------------------------------------------------------------------
+-- Project: LOOP Class Library
+-- Release: 2.3 beta
+-- Title  : Command-line Argument Processor
+-- Author : Renato Maia <maia@inf.puc-rio.br>
+-- Date   : 2007-07-10
 
-local select   = select
-local tonumber = tonumber
-local type     = type
+local _G = require "_G"
+local select = _G.select
+local tonumber = _G.tonumber
+local type = _G.type
 
 local oo = require "loop.base"
+local class = oo.class
 
-module("loop.compiler.Arguments", oo.class)
 
-_badnumber = "invalid value for option '%s', number excepted but got '%s'"
-_missing = "no value defined for option '%s'"
-_unknown = "unknown option '%s'"
-_norepeat = "option '%s' was already defined"
-_optpat = "^%-(%w+)(=?)(.-)$"
-_boolean = {
-	["true"] = true,
-	["false"] = false,
-	yes = true,
-	no = false,
+local Arguments = class{
+	_badnumber = "invalid value for option '%s', number excepted but got '%s'",
+	_missing = "no value defined for option '%s'",
+	_unknown = "unknown option '%s'",
+	_norepeat = "option '%s' was already defined",
+	_optpat = "^%-(%w+)(=?)(.-)$",
+	_boolean = {
+		["true"] = true,
+		["false"] = false,
+		yes = true,
+		no = false,
+	},
 }
 
-function __call(self, ...)
+function Arguments:__call(...)
 	local errmsg
 	local defined = self._norepeat and {} or nil
 	local count = select("#", ...)
@@ -106,3 +99,5 @@ function __call(self, ...)
 	end
 	return pos, errmsg
 end
+
+return Arguments

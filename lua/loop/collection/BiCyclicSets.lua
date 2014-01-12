@@ -22,13 +22,15 @@ local rawnew = oo.rawnew
 
 local CyclicSets = require "loop.collection.CyclicSets"
 
-module(...)
-
-class(_M, CyclicSets)
 
 local reverseof = memoize(function() return {} end, "k")
 
-function reverse(self)
+
+local BiCyclicSets = class({
+	__tostring = CyclicSets.__tostring,
+}, CyclicSets)
+
+function BiCyclicSets:reverse()
 	return reverseof[self]
 end
 
@@ -36,15 +38,16 @@ end
 -- [ ? ]:predecessor(item)            : nil --> [ ? ]
 -- [ item ]:predecessor(item)         : item --> [ item ]
 -- [ pred, item ? ]:predecessor(item) : pred --> [ pred, item ? ]
-function predecessor(self, item)
+function BiCyclicSets:predecessor(item)
 	return reverseof[self][item]
 end
 
-function backward(self, place)
+local predecessor = BiCyclicSets.predecessor
+function BiCyclicSets:backward(place)
 	return predecessor, self, place
 end
 
-function add(self, item, place)
+function BiCyclicSets:add(item, place)
 	if self[item] == nil then
 		local succ
 		if place == nil then
@@ -62,7 +65,7 @@ function add(self, item, place)
 	end
 end
 
-function removefrom(self, place)
+function BiCyclicSets:removefrom(place)
 	local item = self[place]
 	if item ~= nil then
 		local back = reverseof[self]
@@ -73,14 +76,14 @@ function removefrom(self, place)
 	end
 end
 
-function removeset(self, item)
+function BiCyclicSets:removeset(item)
 	local back = reverseof[self]
 	repeat
 		item, self[item], back[item] = self[item], nil, nil
 	until item == nil
 end
 
-function movefrom(self, oldplace, newplace, lastitem)
+function BiCyclicSets:movefrom(oldplace, newplace, lastitem)
 	local theitem = self[oldplace]
 	if theitem ~= nil then
 		if lastitem == nil then lastitem = theitem end
@@ -104,15 +107,17 @@ function movefrom(self, oldplace, newplace, lastitem)
 	end
 end
 
-function remove(self, item)
+local removefrom = BiCyclicSets.removefrom
+function BiCyclicSets:remove(item)
 	return removefrom(self, reverseof[self][item])
 end
 
-function move(self, item, place, last)
+local movefrom = BiCyclicSets.movefrom
+function BiCyclicSets:move(item, place, last)
 	local oldplace = reverseof[self][item]
 	if oldplace ~= nil then
 		return movefrom(self, oldplace, place, last)
 	end
 end
 
-__tostring = CyclicSets.__tostring
+return BiCyclicSets

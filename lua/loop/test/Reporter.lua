@@ -1,36 +1,38 @@
+local _G = require "_G"
+local tostring = _G.tostring
 
-local print    = print
-local tostring = tostring
-
-local io     = require "io"
-local os     = require "os"
 local string = require "string"
-local table  = require "table"
+local strrep = string.rep
+
+local io = require "io"
+local os = require "os"
 
 local oo = require "loop.base"
+local class = oo.class
 
-module("loop.test.Reporter", oo.class)
 
-output = io.stdout
-time = os.time
-count = 0
-success = 0
+local Reporter = class{
+	output = io.stdout,
+	time = os.time,
+	count = 0,
+	success = 0,
+}
 
-function started(self, test)
+function Reporter:started(test)
 	if self.breakline then
 		self.output:write("\n")
 	else
 		self.breakline = true
 	end
 	if self.name then self.output:write("[", self.name, "]\t") end
-	self.output:write(string.rep("  ", #self), test, " ... ")
+	self.output:write(strrep("  ", #self), test, " ... ")
 	self.output:flush()
 	self[#self+1] = self.time()
 end
 
 local LineEnd = "%s (%.2f sec.)\n"
 local Summary = "Success Rate: %d%% (%d of %d executions)\n"
-function ended(self, test, success, message)
+function Reporter:ended(test, success, message)
 	local timestamp = self[#self]
 	self[#self] = nil
 	if self.breakline then
@@ -55,3 +57,5 @@ function ended(self, test, success, message)
 	end
 	self.output:flush()
 end
+
+return Reporter

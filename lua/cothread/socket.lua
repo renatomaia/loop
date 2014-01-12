@@ -38,14 +38,11 @@ local function wrap(socket)
 end
 
 
-function CoSocket:settimeout(timeout, mode)                                     --[[VERBOSE]] verbose:socket("setting timeout of ",self,timestamp and " to moment " or " to ",timeout)
+function CoSocket:settimeout(timeout, timestamp)                                --[[VERBOSE]] verbose:socket("setting timeout of ",self,timestamp and " to moment " or " for ",timeout)
 	if not timeout or timeout < 0 then
 		self.timeout = nil
 		self.timeoutkind = nil
 	else
-		if type(mode) == "string" and mode:find("t", 1, true) == 1 then
-			mode = "delay"
-		end
 		self.timeout = timeout
 		self.timeoutkind = timestamp and "defer" or "delay"
 	end
@@ -191,7 +188,7 @@ function CoSocket:receive(pattern, ...)                                         
 		
 			yield("unschedule", thread)
 		end
-	end                                                                           --[[VERBOSE]] verbose:socket(false, "data reading ",result and "completed: "..verbose.viewer:tostring(result) or "failed")
+	end                                                                           --[[VERBOSE]] verbose:socket(false, "data reading ",result and "completed: "..verbose.viewer:tostring(result) or "failed: ".._G.tostring(errmsg))
 	
 	return result, errmsg, partial, elapsed
 end

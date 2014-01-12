@@ -194,9 +194,4 @@ function module.SetReceptacle:__bind(port)
 end
 
 
---for name, value in pairs(module) do
---	module[value] = name
---end
-
-
 return module

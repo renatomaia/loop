@@ -1,8 +1,9 @@
---------------------------------------------------------------------------------
--- Project: LOOP - Lua Object-Oriented Programming                            --
--- Title  : Scoped Class Model Debugging Utilities                            --
--- Author : Renato Maia <maia@inf.puc-rio.br>                                 --
---------------------------------------------------------------------------------
+-- Project: LOOP - Lua Object-Oriented Programming
+-- Title  : Scoped Class Model Debugging Utilities
+-- Author : Renato Maia <maia@inf.puc-rio.br>
+
+local _G = require "_G"
+local assert = _G.assert
 
 local debug = require "debug"
 local getupvalue = debug.getupvalue

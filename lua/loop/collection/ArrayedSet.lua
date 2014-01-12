@@ -13,26 +13,25 @@ local _G = require "_G"
 local rawget = _G.rawget
 local tostring = _G.tostring
 
-local table = require "table"
-local concat = table.concat
+local array = require "table"
+local concat = array.concat
 
 local oo = require "loop.base"
 local class = oo.class
 
 
-module(..., class)
+local ArrayedSet = class{ valueat = rawget }
 
-valueat = rawget
-
-function indexof(self, value)
+function ArrayedSet:indexof(value)
 	return self[value]
 end
 
-function contains(self, value)
+local indexof = ArrayedSet.indexof
+function ArrayedSet:contains(value)
 	return indexof(self) ~= nil
 end
 
-function add(self, value)
+function ArrayedSet:add(value)
 	if self[value] == nil then
 		self[#self+1] = value
 		self[value] = #self
@@ -40,7 +39,7 @@ function add(self, value)
 	end
 end
 
-function remove(self, value)
+function ArrayedSet:remove(value)
 	local index = self[value]
 	if index ~= nil then
 		local size = #self
@@ -55,11 +54,12 @@ function remove(self, value)
 	end
 end
 
-function removeat(self, index)
+local remove = ArrayedSet.remove
+function ArrayedSet:removeat(index)
 	return remove(self, self[index])
 end
 
-function __tostring(self)
+function ArrayedSet:__tostring()
 	local result = { "{ " }
 	for i = 1, #self do
 		result[#result+1] = tostring(self[i])
@@ -69,3 +69,5 @@ function __tostring(self)
 	result[last] = (last == 1) and "{}" or " }"
 	return concat(result)
 end
+
+return ArrayedSet

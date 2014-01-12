@@ -20,7 +20,7 @@ local getclass = oo.getclass
 local isinstanceof = oo.isinstanceof
 local rawnew = oo.rawnew
 
-local base  = require "loop.component.base"
+local base = require "loop.component.base"
 
 
 local function doafter(iceptor, request, method, ...)
@@ -124,7 +124,7 @@ function Wrapper:__newindex(field, value)
 			field = field,
 			event = "newindex",
 		}
-		dobefore(iceptor, request, setfield, object, field, value)
+		dobefore(interceptor, request, setfield, object, field, value)
 	else
 		object[field] = value
 	end

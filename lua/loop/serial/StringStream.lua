@@ -4,6 +4,7 @@
 -- Author : Renato Maia <maia@inf.puc-rio.br>
 
 local _G = require "_G"
+local error = _G.error
 local select = _G.select
 
 local array = require "table"
@@ -41,7 +42,9 @@ function StringStream:read()
 	local code = self.data or self:__tostring()
 	local pos = self.pos
 	local zero = code:find("%z", pos)
-	if zero == nil then error("incomplete stream") end
+	if zero == nil then
+		error("incomplete stream")
+	end
 	self.pos = zero+1
 	return code:sub(pos, zero-1)
 end

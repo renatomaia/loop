@@ -160,7 +160,7 @@ line3]]]=]]==],
 local function teststring(value, expected, viewer)
 	local actual = viewer:tostring(value)
 	assert(actual == expected, "'"..tostring(actual).."' was not '"..expected.."'")
-	local builder = assert(loadstring("return "..actual))
+	local builder = assert(load("return "..actual))
 	assert(builder() == value)
 end
 

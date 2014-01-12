@@ -14,36 +14,37 @@ local ipairs = _G.ipairs
 local rawget = _G.rawget
 local tostring = _G.tostring
 
-local table = require "table"
-local concat = table.concat
-local insert = table.insert
+local array = require "table"
+local concat = array.concat
+local insert = array.insert
 
 local oo = require "loop.base"
 local class = oo.class
 
-module(..., class)
 
-keys = ipairs
-keyat = rawget
+local ArrayedMap = class{
+	keys = ipairs,
+	keyat = rawget,
+}
 
-function value(self, key, value)
+function ArrayedMap:value(key, value)
 	if value == nil
 		then return self[key]
 		else self[key] = value
 	end
 end
 
-function add(self, key, value)
+function ArrayedMap:add(key, value)
 	self[#self + 1] = key
 	self[key] = value
 end
 
-function addat(self, index, key, value)
+function ArrayedMap:addat(index, key, value)
 	insert(self, index, key)
 	self[key] = value
 end
 
-function removeat(self, index)
+function ArrayedMap:removeat(index)
 	local key = self[index]
 	if key ~= nil then
 		local size = #self
@@ -56,14 +57,14 @@ function removeat(self, index)
 	end
 end
 
-function valueat(self, index, value)
+function ArrayedMap:valueat(index, value)
 	if value == nil
 		then return self[ self[index] ]
 		else self[ self[index] ] = value
 	end
 end
 
-function __tostring(self)
+function ArrayedMap:__tostring()
 	local result = { "{ " }
 	for i = 1, #self do
 		local key = self[i]
@@ -77,3 +78,5 @@ function __tostring(self)
 	result[last] = (last == 1) and "{}" or " }"
 	return concat(result)
 end
+
+return ArrayedMap

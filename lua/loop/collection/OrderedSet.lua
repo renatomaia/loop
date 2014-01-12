@@ -13,8 +13,8 @@
 local _G = require "_G"
 local tostring = _G.tostring
 
-local table = require "table"
-local concat = table.concat
+local array = require "table"
+local concat = array.concat
 
 local oo = require "loop.base"
 local class = oo.class
@@ -23,7 +23,9 @@ local CyclicSets = require "loop.collection.CyclicSets"
 local addto = CyclicSets.add
 local removeat = CyclicSets.removefrom
 
+
 local LastTag = {"OrderedSet.LastTag"}
+
 
 local OrderedSet = class{
 	contains = CyclicSets.contains,

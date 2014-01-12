@@ -26,7 +26,7 @@ function Mutex:isfree()
 	return self.inside == nil
 end
 
-function Mutex:try(timeout)                                                     --[[VERBOSE]] local verbose = running() == nil and Dummy or yield("verbose")
+function Mutex:try(timeout)                                                     --[[VERBOSE]] local curr_thread, main_thread = running(); local verbose = (curr_thread == nil or main_thread) and Dummy or yield("verbose")
 	local inside = self.inside                                                    --[[VERBOSE]] verbose:mutex(true, "attempt to get access")
 	local thread = running()
 	if inside == nil then                                                         --[[VERBOSE]] verbose:mutex("resource is free")
@@ -44,7 +44,7 @@ function Mutex:try(timeout)                                                     
 	return thread == self.inside, timeout
 end
 
-function Mutex:free()                                                           --[[VERBOSE]] local verbose = running() == nil and Dummy or yield("verbose")
+function Mutex:free()                                                           --[[VERBOSE]] local curr_thread, main_thread = running(); local verbose = (curr_thread == nil or main_thread) and Dummy or yield("verbose")
 	if self.inside == running() then
 		local thread = self[false]
 		if thread then
@@ -57,14 +57,14 @@ function Mutex:free()                                                           
 	end                                                                           --[[VERBOSE]] verbose:mutex("attempt to release resource not owned")
 end
 
-function Mutex:deny(thread)                                                     --[[VERBOSE]] local verbose = running() == nil and Dummy or yield("verbose")
+function Mutex:deny(thread)                                                     --[[VERBOSE]] local curr_thread, main_thread = running(); local verbose = (curr_thread == nil or main_thread) and Dummy or yield("verbose")
 	if self[thread] ~= nil then                                                   --[[VERBOSE]] verbose:mutex("deny access for ",thread)
 		yield("next", thread, Token)
 		return true
 	end                                                                           --[[VERBOSE]] verbose:mutex("attempt to deny access for a thread not interested")
 end
 
-function Mutex:grant(thread)                                                    --[[VERBOSE]] local verbose = running() == nil and Dummy or yield("verbose")
+function Mutex:grant(thread)                                                    --[[VERBOSE]] local curr_thread, main_thread = running(); local verbose = (curr_thread == nil or main_thread) and Dummy or yield("verbose")
 	if self.inside == running()
 	and self[thread] ~= nil
 	then
@@ -74,7 +74,7 @@ function Mutex:grant(thread)                                                    
 	end
 end
 
-function Mutex.select(timeout, ...)                                             --[[VERBOSE]] local verbose = running() == nil and Dummy or yield("verbose")
+function Mutex.select(timeout, ...)                                             --[[VERBOSE]] local curr_thread, main_thread = running(); local verbose = (curr_thread == nil or main_thread) and Dummy or yield("verbose")
 	local count = select("#", ...)                                                --[[VERBOSE]] verbose:mutex(true, "attempt to get access to any of ",count," resources")
 	local thread = running()
 	local results = 0

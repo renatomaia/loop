@@ -63,15 +63,16 @@ end
 --[[VERBOSE]] end
 --[[VERBOSE]] 
 --[[VERBOSE]] local tostring = _G.tostring
+--[[VERBOSE]] local type = _G.type
 --[[VERBOSE]] local lastused = {thread="",userdata=""}
 --[[VERBOSE]] local DefaultLabels = setmetatable({}, {
 --[[VERBOSE]] 	__mode = "k",
 --[[VERBOSE]] 	__index = function(self, value)
---[[VERBOSE]] 		local type = type(value)
---[[VERBOSE]] 		local last = lastused[type]
+--[[VERBOSE]] 		local luatype = type(value)
+--[[VERBOSE]] 		local last = lastused[luatype]
 --[[VERBOSE]] 		if last ~= nil then
 --[[VERBOSE]] 			last = nextstr(last)
---[[VERBOSE]] 			lastused[type] = last
+--[[VERBOSE]] 			lastused[luatype] = last
 --[[VERBOSE]] 			self[value] = last
 --[[VERBOSE]] 			return last
 --[[VERBOSE]] 		end
@@ -417,7 +418,6 @@ end, "yieldable")
 --------------------------------------------------------------------------------
 
 --[[VERBOSE]] local pairs = _G.pairs
---[[VERBOSE]] local type = _G.type
 --[[VERBOSE]] local Viewer = _G.require "loop.debug.Viewer"
 --[[VERBOSE]] local Verbose = _G.require "loop.debug.Verbose"
 --[[VERBOSE]] verbose = Verbose{
@@ -478,15 +478,6 @@ end, "yieldable")
 --[[VERBOSE]] end
 --[[VERBOSE]] verbose:flag("print", true)
 --[[VERBOSE]] cothread.verbose = verbose
-
---------------------------------------------------------------------------------
--- Inspection Support ----------------------------------------------------------
---------------------------------------------------------------------------------
-
---[[DEBUG]] local inspector = _G.require "inspector"
---[[DEBUG]] yieldop("inspect", function(current)
---[[DEBUG]] 	return current, inspector.activate(2)
---[[DEBUG]] end)
 
 --------------------------------------------------------------------------------
 -- End of Instantiation Code -------------------------------------------------

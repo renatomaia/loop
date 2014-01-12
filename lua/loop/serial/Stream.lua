@@ -6,18 +6,15 @@
 
 local _G = require "_G"
 local assert = _G.assert
-local loadstring = _G.loadstring
+local load = _G.load
 local pcall = _G.pcall
 local select = _G.select
-local setfenv = _G.setfenv
-local setmetatable = _G.setmetatable
 
 local array = require "table"
 local concat = array.concat
 
-local debug = _G.debug -- only if available
-local setupvalue = debug and debug.setupvalue
-local upvaluejoin = debug and debug.upvaluejoin
+local package = require "package"
+local debug = package.loaded.debug -- only if available
 
 local oo = require "loop.simple"
 local class = oo.class
@@ -25,17 +22,17 @@ local class = oo.class
 local Serializer = require "loop.serial.Serializer"
 
 
-
 local Stream = class({
-	loadstring = loadstring,
-	setfenv = setfenv,
-	setmetatable = setmetatable,
-	setupvalue = setupvalue,
-	upvaluejoin = upvaluejoin,
+	load = load,
+	require = _G.require,
+	setmetatable = _G.setmetatable,
+	setupvalue = debug and debug.setupvalue,
+	upvaluejoin = debug and debug.upvaluejoin,
 }, Serializer)
 
+if _G._VERSION=="Lua 5.1" then Stream.setfenv = _G.setfenv end
+
 function Stream:put(...)
-	self:write("local _ENV = ...\n")
 	local values = {...}
 	for i=1, select("#", ...) do
 		values[i] = self:serialize(values[i])
@@ -44,10 +41,8 @@ function Stream:put(...)
 end
 
 function Stream:get()
-	local loader = assert(loadstring(self:read()))
 	local env = self.environment or self
-	pcall(setfenv, loader, env) -- Lua 5.1 compatibility
-	return loader(env)
+	return assert(load(self:read(), "serialization", "t", env))()
 end
 
 return Stream

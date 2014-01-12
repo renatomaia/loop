@@ -10,11 +10,11 @@ local next = _G.next
 local pairs = _G.pairs
 local rawget = _G.rawget
 local rawset = _G.rawset
-local getmetatable = _G.debug and _G.debug.getmetatable -- only if available
-                  or _G.getmetatable
 local setmetatable = _G.setmetatable
 local luatostring = _G.tostring
-local loaded = _G.package and _G.package.loaded -- only if available
+
+local package = require "package"
+local loaded = package.loaded
 
 local math = require "math"
 local huge = math.huge
@@ -34,6 +34,10 @@ local defaultoutput = io.output
 
 local oo = require "loop.base"
 local class = oo.class
+
+local debug = loaded.debug
+local getmetatable = debug and debug.getmetatable or _G.getmetatable
+
 
 local idpat = "^[%a_][%w_]*$"
 local keywords = {
