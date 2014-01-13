@@ -17,7 +17,6 @@ LUASRC= \
 	$(LUADIR)/loop/collection/SortedMap.lua \
 	$(LUADIR)/loop/collection/UnorderedArray.lua \
 	$(LUADIR)/loop/compiler/Arguments.lua \
-	$(LUADIR)/loop/compiler/Expression.lua \
 	$(LUADIR)/loop/component/base.lua \
 	$(LUADIR)/loop/component/contained.lua \
 	$(LUADIR)/loop/component/dynamic.lua \

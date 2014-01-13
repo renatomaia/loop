@@ -5,8 +5,6 @@ SRC= $(PRELOAD_DIR)/$(LIBNAME).c
 
 LUADIR= ../lua
 LUASRC= \
-	$(LUADIR)/cothread/copas.lua \
-	$(LUADIR)/cothread/EventGroup.lua \
 	$(LUADIR)/cothread/EventPoll.lua \
 	$(LUADIR)/cothread/Mutex.lua \
 	$(LUADIR)/cothread/plugin/signal.lua \
