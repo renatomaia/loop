@@ -402,7 +402,7 @@ if not compileonly then
 	outh:write(prefix,' int ',funcload,'(lua_State*);\n')
 	outc:write(
 prefix,[[ int ]],funcload,[[(lua_State *L) {
-	luaL_findtable(L, LUA_GLOBALSINDEX, "package.preload", ]],#inputs,[[);
+	luaL_getsubtable(L, LUA_REGISTRYINDEX, "_PRELOAD");
 	
 ]])
 	-- preload C modules
