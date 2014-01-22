@@ -23,6 +23,23 @@ local Matcher = require "loop.debug.Matcher"
 local Viewer = require "loop.debug.Viewer"
 local Exception = require "loop.object.Exception"
 
+local function compare(actual, expected, criteria)
+	if criteria == nil then
+		criteria = {}
+	else
+		criteria = copy(criteria)
+	end
+	if criteria.isomorphic == nil then 
+		criteria.isomorphic = false
+	end
+	if criteria.metatable == nil then 
+		criteria.metatable = false
+	elseif criteria.metatable == true then 
+		criteria.metatable = nil
+	end
+	return Matcher(criteria):match(expected, actual)
+end
+
 local checks = {
 	is = {
 		op = rawequal,
@@ -36,22 +53,35 @@ local checks = {
 		[true] = "$actual was equal to $expected",
 		[false] = "$actual was not equal to $expected",
 	},
+	greater = {
+		op = function(actual, expected) return actual>expected end,
+		title = "equal values",
+		[true] = "$actual was greater than $expected",
+		[false] = "$actual was not greater than $expected",
+	},
+	less = {
+		op = function(actual, expected) return actual<expected end,
+		title = "equal values",
+		[true] = "$actual was less than $expected",
+		[false] = "$actual was not less than $expected",
+	},
+	contains = {
+		op = function(actual, expected, criteria)
+			for index, value in ipairs(actual) do
+				if compare(value, expected, criteria) then
+					return true, index
+				end
+			end
+			return false
+		end,
+		title = "containing value",
+		[true] = "$actual contains $expected at index $index",
+		[false] = "$actual does not contain a value like $expected",
+		results = {"index"},
+	},
 	like = {
 		op = function(actual, expected, criteria)
-			if criteria == nil then
-				criteria = {}
-			else
-				criteria = copy(criteria)
-			end
-			if criteria.isomorphic == nil then 
-				criteria.isomorphic = false
-			end
-			if criteria.metatable == nil then 
-				criteria.metatable = false
-			elseif criteria.metatable == true then 
-				criteria.metatable = nil
-			end
-			return Matcher(criteria):match(expected, actual)
+			return compare(actual, expected, criteria)
 		end,
 		title = "values alike",
 		[true] = "$actual was like $expected",
@@ -153,7 +183,7 @@ end
 
 
 function checks.NOT(cond)
-	return function(value) return cond(value, "negated") end
+	return function(value, invert) return cond(value, not invert) end
 end
 
 function checks.AND(...)
@@ -177,7 +207,7 @@ function checks.OR(...)
 end
 
 
-checks.viewer = Viewer
+checks.viewer = Viewer{maxdepth=5}
 checks.error = _G.error
 
 function checks.fail(message)
