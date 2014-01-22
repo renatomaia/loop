@@ -7,27 +7,40 @@ local class = oo.class
 
 local Fixture = class()
 
-function Fixture:__call(runner, ...)
-	local failed
+function Fixture:__call(...)
+	local runner = self.runner
+	self.runner = nil
 	local setup = self.setup
-	if setup ~= nil and not runner("setup", setup, self, runner, ...) then
-		failed = true
-	elseif #self > 0 then
-		for index, test in ipairs(self) do
-			if not runner(nil, test, runner, ...) then
-				failed = true
-				break
-			end
-		end
+	local teardown = self.teardown
+	local failed = false
+	local iterfunc, state, initvar
+	local tests = self.tests
+	if tests == nil then
+		iterfunc, state, initvar = ipairs(self)
 	else
-		local test = self.test
-		if test ~= nil and not runner(nil, test, self, runner, ...) then
+		iterfunc, state, initvar = pairs(tests)
+	end
+	for name, test in iterfunc, state, initvar do
+		local setupname = "setup"
+		local teardownname = "teardown"
+		if tests == nil and #self == 1 then
+			name = nil
+		else
+			setupname = name.."."..setupname
+			teardownname = name.."."..teardownname
+		end
+		if setup ~= nil and not runner(setupname, setup, self, ...) then
+			failed = true
+		elseif not runner(name, test, self, ...) then
 			failed = true
 		end
-	end
-	local teardown = self.teardown
-	if teardown ~= nil and not runner("teardown", teardown, self, runner, ...) then
-		failed = true
+		if teardown ~= nil and not runner(teardownname, teardown, self, ...) then
+			failed = true
+			break
+		end
+
+--_G.io.write("Press any key to continue ... "); _G.io.flush(); _G.io.read()
+
 	end
 	if failed then error("FAILED", 2) end
 end

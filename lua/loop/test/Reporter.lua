@@ -1,6 +1,9 @@
 local _G = require "_G"
 local tostring = _G.tostring
 
+local array = require "table"
+local concat = array.concat
+
 local string = require "string"
 local strrep = string.rep
 
@@ -18,21 +21,21 @@ local Reporter = class{
 	success = 0,
 }
 
-function Reporter:started(test)
+function Reporter:started(names)
 	if self.breakline then
 		self.output:write("\n")
 	else
 		self.breakline = true
 	end
 	if self.name then self.output:write("[", self.name, "]\t") end
-	self.output:write(strrep("  ", #self), test, " ... ")
+	self.output:write(strrep("  ", #self), concat(names, "."), " ... ")
 	self.output:flush()
 	self[#self+1] = self.time()
 end
 
 local LineEnd = "%s (%.2f sec.)\n"
 local Summary = "Success Rate: %d%% (%d of %d executions)\n"
-function Reporter:ended(test, success, message)
+function Reporter:ended(names, success, message)
 	local timestamp = self[#self]
 	self[#self] = nil
 	if self.breakline then

@@ -7,10 +7,12 @@ local class = oo.class
 
 local Suite = class()
 
-function Suite:__call(runner, ...)
-	local failed
+function Suite:__call(...)
+	local runner = self.runner
+	self.runner = nil
+	local failed = false
 	for name, test in pairs(self) do
-		if not runner(name, test, runner, ...) then
+		if not runner(name, test, ...) then
 			failed = true
 		end
 	end
