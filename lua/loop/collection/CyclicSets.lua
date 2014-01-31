@@ -46,6 +46,7 @@ end
 
 -- { ? }              :add()            --> { ? }               : error "table index is nil"
 -- { ? }              :add(nil, place)  --> { ? }               : error "table index is nil"
+-- { place ? }        :add(nil, place)  --> { place ? }         : error "table index is nil"
 -- { ? }              :add(item)        --> { item | ? }        : item
 -- { item ? }         :add(item)        --> { item ? }          :
 -- { ? }              :add(item, item)  --> { item | ? }        : item
