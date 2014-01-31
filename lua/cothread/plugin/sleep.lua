@@ -1,4 +1,4 @@
-local _G = require "_G"
+local _G = require "_G"                                                         --[[VERBOSE]] local strformat = require("string").format
 local setmetatable = _G.setmetatable
 
 local coroutine = require "coroutine"
@@ -156,7 +156,7 @@ return function(_ENV, cothread)
 			wakeindex:addto(entry, entry)
 			waketime[thread] = time
 			onreschedule(thread, unscheduled)
-		end                                                                         --[[VERBOSE]] verbose:threads(thread," was deferred until ",("%.2f"):format(time-begin)); verbose:state()
+		end                                                                         --[[VERBOSE]] verbose:threads(thread," was deferred until ",strformat("%.2f", time-begin)); verbose:state()
 		return thread, ...
 	end)
 

@@ -69,13 +69,13 @@ return function(_ENV, cothread)
 		local recvok, sendok = selectsockets(reading, writing, timeout)
 		local sock2thread = threadof[reading]
 		for _, socket in ipairs(recvok) do
-			for thread in pairs(copy(sock2thread[socket])) do
+			for thread in pairs(copy(sock2thread[socket])) do                         --[[VERBOSE]] verbose:threads("resuming ",thread," waiting to read socket ",socket)
 				yield("yield", thread, socket, "r")
 			end
 		end
 		sock2thread = threadof[writing]
 		for _, socket in ipairs(sendok) do
-			for thread in pairs(copy(sock2thread[socket])) do
+			for thread in pairs(copy(sock2thread[socket])) do                         --[[VERBOSE]] verbose:threads("resuming ",thread," waiting to write socket ",socket)
 				yield("yield", thread, socket, "w")
 			end
 		end
@@ -177,7 +177,6 @@ return function(_ENV, cothread)
 
 	--[[VERBOSE]] begin = now()
 	--[[VERBOSE]] verbose:setlevel(1, {"threads","socket"})
-	--[[VERBOSE]] local old = verbose.custom.state
 	--[[VERBOSE]] statelogger("Reading", function(self, missing, newline)
 	--[[VERBOSE]] 	local output = self.viewer.output
 	--[[VERBOSE]] 	local labels = self.viewer.labels
