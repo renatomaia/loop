@@ -39,6 +39,11 @@ LUASRC= \
 	$(LUADIR)/loop/serial/Serializer.lua \
 	$(LUADIR)/loop/serial/Stream.lua \
 	$(LUADIR)/loop/serial/StringStream.lua \
+	$(LUADIR)/loop/test/checks.lua \
+	$(LUADIR)/loop/test/Fixture.lua \
+	$(LUADIR)/loop/test/Reporter.lua \
+	$(LUADIR)/loop/test/Results.lua \
+	$(LUADIR)/loop/test/Suite.lua \
 	$(LUADIR)/loop/simple.lua \
 	$(LUADIR)/loop/table.lua \
 	$(LUADIR)/loop.lua
