@@ -39,6 +39,7 @@ end
 
 
 function CoSocket:settimeout(timeout, timestamp)                                --[[VERBOSE]] verbose:socket("setting timeout of ",self,timestamp and " to moment " or " for ",timeout)
+	local oldtm, oldkd = self.timeout, self.timeoutkind
 	if not timeout or timeout < 0 then
 		self.timeout = nil
 		self.timeoutkind = nil
@@ -46,6 +47,7 @@ function CoSocket:settimeout(timeout, timestamp)                                
 		self.timeout = timeout
 		self.timeoutkind = timestamp and "defer" or "delay"
 	end
+	return 1, oldtm, (oldkd == "defer") or nil
 end
 
 function CoSocket:connect(...)                                                  --[[VERBOSE]] verbose:socket(true, "connecting to ",...)
