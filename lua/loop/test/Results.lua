@@ -15,13 +15,6 @@ local function settable(table, key, value)
 	table[key] = value
 end
 
-local function errorhandler(message)
-	if traceback ~= nil and message ~= "FAILED" then
-		message = traceback(tostring(message), 2)
-	end
-	return message
-end
-
 local function process(self, index, success, ...)
 	local reporter = self.reporter
 	if reporter ~= nil then
@@ -33,6 +26,10 @@ end
 
 
 local Runner = class()
+
+function Runner.pcall(func, ...)
+	return xpcall(func, traceback or tostring, ...)
+end
 
 function Runner:__call(label, func, ...)
 	local index
@@ -52,7 +49,7 @@ function Runner:__call(label, func, ...)
 		reporter:started(self)
 	end
 	pcall(settable, func, "runner", self)
-	return process(self, index, xpcall(func, errorhandler, ...))
+	return process(self, index, self.pcall(func, ...))
 end
 
 return Runner
