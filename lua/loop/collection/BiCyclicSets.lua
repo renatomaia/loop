@@ -59,8 +59,10 @@ function BiCyclicSets:add(item, place)
 			end
 		end
 		local back = reverseof[self]
-		self[item] , back[succ] = succ, item
-		self[place], back[item] = item, place
+		self[item] = succ
+		back[succ] = item
+		self[place] = item
+		back[item] = place
 		return item
 	end
 end
