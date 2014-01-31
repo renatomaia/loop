@@ -5,8 +5,10 @@
 
 local _G = require "_G"
 local error = _G.error
-local traceback = _G.debug
-              and _G.debug.traceback -- only if available
+
+local package = require "package"
+local debug = package.loaded.debug
+local traceback = debug and debug.traceback
                or function(thread, err) return err end
 
 local coroutine = require "coroutine.replace"

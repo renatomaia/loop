@@ -14,10 +14,12 @@ Class:__call(Class)
 
 local Environment = Class{ __index = _G }
 
+local LinkPat = "^https?://"
+
 --------------------------------------------------------------------------------
 
 local function getpath(base, path)
-	if path:match("^http://") then return path end
+	if path:match(LinkPat) then return path end
 	local replaces = 1
 	for dir in base:gmatch("[^/]+/") do
 		if replaces == 1
@@ -32,7 +34,7 @@ local ContentsOf = {}
 local function readcontents(path)
 	local contents = ContentsOf[path]
 	if contents == nil then
-		if path:match("^http://") then
+		if path:match(LinkPat) then
 			--local code
 			--contents, code = http.request(path)
 			--if code ~= 200 then
@@ -48,25 +50,6 @@ local function readcontents(path)
 end
 
 --------------------------------------------------------------------------------
-
-if _VERSION == "Lua 5.1" then
-	local function loadresults(env, chunk, errmsg)
-		if chunk == nil then
-			return nil, errmsg
-		end
-		setfenv(chunk, env)
-		return chunk
-	end
-	local loadfile51 = loadfile
-	function loadfile(filename, mode, env)
-		return loadresults(env, loadfile51(filename))
-	end
-	local load51 = load
-	function load(ld, source, mode, env)
-		local loadfunc = (type(ld)=="string") and loadstring or lua51
-		return loadresults(env, loadfunc(ld, source))
-	end
-end
 
 local site = {}
 assert(loadfile((...), nil, site))()
@@ -481,7 +464,7 @@ end
 
 local function process(items)
 	for _, item in ipairs(items) do
-		if not item.href:match("^http://") and not item.href:match("#") then
+		if not item.href:match(LinkPat) and not item.href:match("#") then
 			local environment = Environment{
 				item = item,
 				menu = function()

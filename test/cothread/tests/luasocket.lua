@@ -15,13 +15,7 @@ local host, port
 
 local function testsrvr()
 	local _ENV = setmetatable({print=print}, {__index=_G})
-	if _VERSION == "Lua 5.1" then
-		setfenv(1, _ENV)
-		function load(code, source , mode , env)
-			local chunk = loadstring(code, source)
-			setfenv(chunk, env)
-		end
-	end
+	if _G._VERSION=="Lua 5.1" then _G.setfenv(1,_ENV) end -- Lua 5.1 compatibility
 	server = assert(socket.bind("localhost", 0));
 	host, port = assert(server:getsockname())
 	ack = "\n";

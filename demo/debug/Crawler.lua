@@ -121,7 +121,13 @@ do
 			while next(dest) ~= nil do
 				-- get node with shortest path at 'unvisitedat'
 				local node
-				for dist = 0, table.maxn(unvisitedat) do
+				local maxn
+				for key in pairs(unvisitedat) do
+					if type(key) == "number" and key > maxn then
+						maxn = key
+					end
+				end
+				for dist = 0, maxn do
 					local list = unvisitedat[dist]
 					node = next(list)
 					if node ~= nil then
