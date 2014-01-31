@@ -104,12 +104,14 @@ return function()
 	for class, info in pairs(streams) do
 		for value, checker in pairs(tests) do
 			local stream = class(info.args())
+			stream:register(package.loaded)
 			stream:put(value)
 			info.reset(stream)
 			checker(stream:get())
 		end
 
 		local stream = class(info.args())
+		stream:register(package.loaded)
 		for value, checker in pairs(tests) do
 			stream:put(value)
 		end
