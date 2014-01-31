@@ -22,6 +22,7 @@ local huge = math.huge
 local string = require "string"
 local byte = string.byte
 local find = string.find
+local format = string.format
 local gmatch = string.gmatch
 local gsub = string.gsub
 local strrep = string.rep
@@ -74,7 +75,7 @@ local codefmt = "\\%.3d"
 
 
 local function escapecode(char)
-	return escapecodes[char] or codefmt:format(byte(char))
+	return escapecodes[char] or format(codefmt, byte(char))
 end
 
 local function escapechar(char)
