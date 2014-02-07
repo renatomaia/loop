@@ -430,7 +430,11 @@ if not compileonly then
 	outh:write(prefix,' int ',funcload,'(lua_State*);\n')
 	outc:write(
 prefix,[[ int ]],funcload,[[(lua_State *L) {
+#if defined(LUA_VERSION_NUM) && LUA_VERSION_NUM > 501
 	luaL_getsubtable(L, LUA_REGISTRYINDEX, "_PRELOAD");
+#else
+	luaL_findtable(L, LUA_GLOBALSINDEX, "package.preload", ]],#inputs,[[);
+#endif
 	
 ]])
 	-- preload C modules
