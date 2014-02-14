@@ -35,11 +35,11 @@ local function readcontents(path)
 	local contents = ContentsOf[path]
 	if contents == nil then
 		if path:match(LinkPat) then
-			--local code
-			--contents, code = http.request(path)
-			--if code ~= 200 then
-			--	contents = nil
-			--end
+			local code
+			contents, code = http.request(path)
+			if code ~= 200 then
+				contents = nil
+			end
 		else
 			local file = assert(io.open(path))
 			contents = assert(file:read("*a"))
@@ -154,7 +154,7 @@ local domenu do
 					output:insert('<strong>'..item.index..'</strong>')
 				else
 					local path = getpath(selected.href, item.href)
-					output:insert('<a href="'..path..'", title="'..(item.title or "")..'">'
+					output:insert('<a href="'..path..'", title="'..(item.title or item.index)..'">'
 					              ..item.index..'</a>')
 				end
 				if #item > 0 and selected.href:find(item.href:match("^(.-)[^/]*$")) == 1 then
@@ -359,7 +359,7 @@ local dorefman do
 			if text ~= nil then
 				text = text:gsub("<#([^>]+)>", function (tag, label)
 					index = assert(map[item.index.."."..tag], item.href..": unknown local tag "..tostring(tag))
-					return string.format('<a href="#%s">%s</a>', tag, label or index.title)
+					return string.format('<a href="#%s">%s</a>', tag, label or index.title or index.index)
 				end)
 				texts[#texts+1] = removeExtraTabs(text)
 					:gsub("\n\n", "</p>\n<p>")
@@ -484,7 +484,7 @@ local function process(items)
 					index = assert(map[index], item.href..": unknown page tag "..tostring(index))
 					return string.format('<a href="%s">%s</a>',
 					                     getpath(item.href, index.href),
-					                     label or index.title or "")
+					                     label or index.title or index.index)
 				end,
 			}
 			local function dotag(code)

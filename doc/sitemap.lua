@@ -1,30 +1,29 @@
 pages = {
-	{ index="Home"      , href="index.html"            , board="latests.html" },
-	{                     href="news.html"             , title="News" },
-	{ index="Manual"    , href="manual/index.html"     , title="User Manual",
-		{ index="Intro"   , href="manual/intro.html"     , title="Introduction" },
-		{ index="Basics"  , href="manual/basics.html"    , title="Basic Concepts" },
-		{ index="Classes" , href="manual/classops.html"  , title="Class Features" },
-		{ index="Modules" , href="manual/models.html"    , title="Module Reference" },
+	{ index="Home"      , href="index.html"           , board="latests.html" },
+	{                     href="news.html"            , title="News" },
+	{ index="Download"  , href="release/index.html",
+		{ index="Previous", href="release/previous.html", title="Previous Releases" },
 	},
-	{ index="Download"  , href="release/index.html"    , title="Download Instruction",
-		{ index="Changes" , href="release/changes.html"  , title="Release Notes" },
-		{ index="Previous", href="release/previous.html" , title="Previous Releases" },
+	{ index="Manual"    , href="manual/index.html"    , title="User Manual",
+		{ index="Intro"   , href="manual/intro.html"    , title="Introduction" },
+		{ index="Basics"  , href="manual/basics.html"   , title="Basic Concepts" },
+		{ index="Classes" , href="manual/classops.html" , title="Class Features" },
+		{ index="Modules" , href="manual/models.html"   , title="Module Reference" },
+		{ index="Changes" , href="manual/changes.html"  , title="Release Notes" },
 	},
-	{ index="Contact"   , href="contact.html"          , title="Contact People" },
+	{ index="Contact"   , href="contact.html"         , title="Contact People" },
 }
 
 refs = {
-	{ index="MitLicense"        , href="http://www.opensource.org/licenses/mit-license.html", title="MIT License"                 },
-	{ index="LuaLicense"        , href="http://www.lua.org/license.html"                    , title="Lua License"                 },
-	{ index="LuaRocks"          , href="http://www.luarocks.org/"                           , title="LuaRocks"                    },
-	{ index="LuaSite"           , href="http://www.lua.org/"                                , title="Lua"                         },
+	{ index="maia"              , href="http://www.inf.puc-rio.br/~maia"                    , title="Renato Maia"                 },
+	{ index="Tecgraf"           , href="http://www.tecgraf.puc-rio.br"                      , },
+	{ index="PUC-Rio"           , href="http://www.puc-rio.br"                              , },
+	{ index="MitLicense"        , href="http://www.opensource.org/licenses/mit-license.html", title="MIT License" },
+	{ index="LuaLicense"        , href="http://www.lua.org/license.html"                    , title="Lua License" },
+	{ index="LuaSite"           , href="http://www.lua.org/"                                , title="Lua" },
 	{ index="PiLBook"           , href="http://www.lua.org/pil"                             , title="Programming in Lua"          },
 	{ index="PiL1stEd"          , href="http://www.lua.org/pil/contents.html"               , title="Programming in Lua (1st ed.)",
 		{ index="PiL1stEd.Memoize", href="http://www.lua.org/pil/17.1.html"                   , title="Memoize Functions"           },
-	},
-	{ index="LuaWiki"           , href="http://lua-users.org/wiki"                          , title="Lua Wiki"                    ,
-		{ index="LuaWiki.OOP"     , href="http://lua-users.org/wiki/ObjectOrientedProgramming", title="Object Oriented Programming" },
 	},
 	{ index="LuaManual"         , href="http://www.lua.org/manual/5.2/manual.html"          , title="Lua Manual",
 		alias = {
@@ -36,17 +35,26 @@ refs = {
 			["pdf-package.path"] = "LuaPath",
 		},
 	},
-	{ index="LOOP"           , href="http://www.tecgraf.puc-rio.br/~maia/loop"                               , title="LOOP Portal",
-		{ index="LOOP.v23"     , href="http://www.tecgraf.puc-rio.br/~maia/loop/v23"                           , title="LOOP 2.3" },
-		{ index="LOOP.v22"     , href="http://www.tecgraf.puc-rio.br/~maia/loop/v22"                           , title="LOOP 2.2" },
-		{ index="LOOP.v21"     , href="http://www.tecgraf.puc-rio.br/~maia/loop/v21"                           , title="LOOP 2.1" },
-		{ index="LOOP.v3.tgz"  , href="http://www.tecgraf.puc-rio.br/~maia/loop/download/loop-3.0.tar.gz"      , title="LOOP 3.0 (tar.gz)" },
-		{ index="LOOP.v3.zip"  , href="http://www.tecgraf.puc-rio.br/~maia/loop/download/loop-3.0.zip"         , title="LOOP 3.0 (zip)" },
-		{ index="LOOP.v23.tgz" , href="http://www.tecgraf.puc-rio.br/~maia/loop/download/loop-2.3-alpha.tar.gz", title="LOOP 2.3 (tar.gz)" },
-		{ index="LOOP.v23.zip" , href="http://www.tecgraf.puc-rio.br/~maia/loop/download/loop-2.3-alpha.zip"   , title="LOOP 2.3 (zip)" },
-		{ index="LOOP.v22.tgz" , href="http://www.tecgraf.puc-rio.br/~maia/loop/download/loop-2.2-alpha.tar.gz", title="LOOP 2.2 (tar.gz)" },
-		{ index="LOOP.v22.zip" , href="http://www.tecgraf.puc-rio.br/~maia/loop/download/loop-2.2-alpha.zip"   , title="LOOP 2.2 (zip)" },
-		{ index="LOOP.v21.tgz" , href="http://www.tecgraf.puc-rio.br/~maia/loop/download/loop-2.1-alpha.tar.gz", title="LOOP 2.1 (tar.gz)" },
+	{ index="LuaWiki"           , href="http://lua-users.org/wiki"                          , title="Lua Wiki"                    ,
+		{ index="LuaWiki.OOP"     , href="http://lua-users.org/wiki/ObjectOrientedProgramming", title="Object Oriented Programming" },
+	},
+	{ index="LuaRocks"          , href="http://www.luarocks.org/"                                           , title="LuaRocks" },
+	{ index="LuaPreloader"      , href="http://www.tecgraf.puc-rio.br/~maia/lua/preloader"                  , title="Lua Preloader" },
+	{ index="LuaCCM"            , href="http://www.tecgraf.puc-rio.br/~maia/lua/luaccm"                     , },
+	{ index="OiL"               , href="http://www.tecgraf.puc-rio.br/~maia/lua/oil"                        , },
+	{ index="LOOP"              , href="http://www.tecgraf.puc-rio.br/~maia/lua/loop"                       ,
+		{ index="LOOP.ClassLib"   , href="http://www.tecgraf.puc-rio.br/~maia/lua/loop/classlib"              , title="LOOP Class Library" },
+		{ index="LOOP.Component"  , href="http://www.tecgraf.puc-rio.br/~maia/lua/loop/component"             , title="LOOP Component Models" },
+		{ index="LOOP.v23"        , href="http://www.tecgraf.puc-rio.br/~maia/lua/loop/v23"                   , title="LOOP 2.3" },
+		{ index="LOOP.v22"        , href="http://www.tecgraf.puc-rio.br/~maia/lua/loop/v22"                   , title="LOOP 2.2" },
+		{ index="LOOP.v21"        , href="http://www.tecgraf.puc-rio.br/~maia/lua/loop/v21"                   , title="LOOP 2.1" },
+		{ index="LOOP.v3.tgz"     , href="http://www.tecgraf.puc-rio.br/~maia/lua/packs/loop-3.0.tar.gz"      , title="LOOP 3.0 (tar.gz)" },
+		{ index="LOOP.v3.zip"     , href="http://www.tecgraf.puc-rio.br/~maia/lua/packs/loop-3.0.zip"         , title="LOOP 3.0 (zip)" },
+		{ index="LOOP.v23.tgz"    , href="http://www.tecgraf.puc-rio.br/~maia/lua/packs/loop-2.3-alpha.tar.gz", title="LOOP 2.3 (tar.gz)" },
+		{ index="LOOP.v23.zip"    , href="http://www.tecgraf.puc-rio.br/~maia/lua/packs/loop-2.3-alpha.zip"   , title="LOOP 2.3 (zip)" },
+		{ index="LOOP.v22.tgz"    , href="http://www.tecgraf.puc-rio.br/~maia/lua/packs/loop-2.2-alpha.tar.gz", title="LOOP 2.2 (tar.gz)" },
+		{ index="LOOP.v22.zip"    , href="http://www.tecgraf.puc-rio.br/~maia/lua/packs/loop-2.2-alpha.zip"   , title="LOOP 2.2 (zip)" },
+		{ index="LOOP.v21.tgz"    , href="http://www.tecgraf.puc-rio.br/~maia/lua/packs/loop-2.1-alpha.tar.gz", title="LOOP 2.1 (tar.gz)" },
 	},
 }
 
@@ -79,8 +87,8 @@ template = [===================================================================[
 </div>
 
 <div class="content">
-<p><small><strong>Copyright (C) 2004-2013 Tecgraf, PUC-Rio</strong></small></p>
-<small>This project is currently being maintained by <a href="http://www.tecgraf.puc-rio.br">Tecgraf</a> at <a href="http://www.puc-rio.br">PUC-Rio</a>.</small>
+<p><small><strong>Copyright (C) 2004-2014 Tecgraf, PUC-Rio</strong></small></p>
+<small>This project is currently being maintained by <%=link("Tecgraf")%> at <%=link("PUC-Rio")%>.</small>
 </div>
 
 <%
