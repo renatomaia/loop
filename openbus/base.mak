@@ -30,7 +30,7 @@ INCLUDES+= . $(PRELOAD_DIR)
 DEF_FILE= $(PRELOAD_DIR)/$(LIBNAME).def
 
 ifdef USE_LUA51
-  LOOPBIN= export LD_LIBRARY_PATH="${LUACOMPAT52_HOME}/lib/${TEC_UNAME}:${LD_LIBRARY_PATH}"; export DYLD_LIBRARY_PATH="${LUACOMPAT52_HOME}/lib/${TEC_UNAME}:${DYLD_LIBRARY_PATH}"; $(LUABIN) -e "package.path=[[${LUACOMPAT52_HOME}/?.lua;${LOOP_HOME}/lua/?.lua]]package.cpath=[[${LUACOMPAT52_HOME}/lib/${TEC_UNAME}/liblua?.so]]" -lcompat52
+  LOOPBIN= export LD_LIBRARY_PATH="${LUACOMPAT52_HOME}/lib/${TEC_UNAME}:${LD_LIBRARY_PATH}"; export DYLD_LIBRARY_PATH="${LUACOMPAT52_HOME}/lib/${TEC_UNAME}:${DYLD_LIBRARY_PATH}"; $(LUABIN) -e "package.path=[[${LUACOMPAT52_HOME}/?.lua;${LOOP_HOME}/lua/?.lua]]package.loaded.bit32={}" -lcompat52
 else
   LOOPBIN= $(LUABIN) -e "package.path=[[${LOOP_HOME}/lua/?.lua]]"
 endif
