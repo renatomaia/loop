@@ -26,7 +26,7 @@ else
   endif
 endif
 
-INCLUDES= . $(PRELOAD_DIR)
+INCLUDES+= . $(PRELOAD_DIR)
 DEF_FILE= $(PRELOAD_DIR)/$(LIBNAME).def
 
 ifdef USE_LUA51
