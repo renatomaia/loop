@@ -176,7 +176,7 @@ function SortedMap:remove(key, orGreater)
 	local path = {}
 	local node = self:findnode(key, path)
 	if node and (orGreater or node.key == key) then
-		self:removefrom(node, path)
+		self:removefrom(path, node)
 		self:freenode(node)
 		return node.value, node.key
 	end
@@ -235,7 +235,7 @@ end
 --       [26] = <value>
 function SortedMap:debug(output)
 	output = output or _G.io.stderr
-	local current = {_G.unpack(self)}
+	local current = {array.unpack(self)}
 	while #current > 0 do
 		local node = current[1]
 		for level = #self, 2, -1 do
