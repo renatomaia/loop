@@ -2,18 +2,19 @@
 -- Adapted from LuaSocket library tests originally written by Diego Nehab.
 -----------------------------------------------------------------------------
 
-local cosocket = require "cothread.socket"
-package.loaded["socket.core"] = cosocket
-package.loaded["socket"] = nil
-_G.socket = cosocket
-local socket = require "socket"
+local verbose = require("cothread").verbose
+--verbose:level(2)
+--verbose:flag("threads", true)
+--verbose:flag("state", true)
+--verbose:flag("socket", true)
+--verbose:flag("ssl", true)
 
 local function print() end
 local io = {stderr={write=print}}
 
 local host, port
 
-local function testsrvr()
+local function testsrvr(socket)
 	local _ENV = setmetatable({print=print}, {__index=_G})
 	if _G._VERSION=="Lua 5.1" then _G.setfenv(1,_ENV) end -- Lua 5.1 compatibility
 	server = assert(socket.bind("localhost", 0));
@@ -31,7 +32,7 @@ local function testsrvr()
 	end
 end
 
-local function testclnt()
+local function testclnt(socket)
 	local accept_errors
 	local accept_timeout
 	local active_close
@@ -78,7 +79,7 @@ local function testclnt()
 	end
 
 	function fail(...)
-	    local s = string.format(...)
+	    local s = debug.traceback(string.format(...))
 	    io.stderr:write("ERROR: ", s, "!\n")
 	socket.sleep(3)
 	    os.exit()
@@ -273,7 +274,7 @@ local function testclnt()
 	        print('server: woke up')
 	        data:send(str)
 	    ]], 2*tm, len, sl, sl))
-	    data:settimeout(tm, "total")
+	    data:settimeout(tm)
 	local t = socket.gettime()
 	    str, err, partial, elapsed = data:receive(2*len)
 	    check_timeout(tm, sl, elapsed, err, "receive", "total", 
@@ -293,7 +294,7 @@ local function testclnt()
 	        print('server: woke up')
 	        str = data:receive(%d)
 	    ]], 2*tm, len, sl, sl, len))
-	    data:settimeout(tm, "total")
+	    data:settimeout(tm)
 	    str = string.rep("a", 2*len)
 	    total, err, partial, elapsed = data:send(str)
 	    check_timeout(tm, sl, elapsed, err, "send", "total", 
@@ -452,7 +453,6 @@ local function testclnt()
 	    c:settimeout(0.1)
 	    local t = socket.gettime()
 	    local r, e = c:connect("10.0.0.1", 81)
-	print(r, e)
 	    assert(not r, "should not connect")
 	    assert(socket.gettime() - t < 2, "took too long to give up.") 
 	    c:close()
@@ -546,6 +546,7 @@ local function testclnt()
 	        if err ~= "timeout" then break end
 	        socket.sleep(0.1)
 	    end
+	    assert(str, err)
 	    assert(str == (string.rep("a", size) .. string.rep("b", size)))
 	    reconnect()
 	remote(string.format([[
@@ -561,8 +562,9 @@ local function testclnt()
 	        if err ~= "timeout" then break end
 	        socket.sleep(0.1)
 	    end
-	    data:send("\n")
-	    data:settimeout(-1)
+	    assert(ret, err)
+	    assert(data:send("\n"))
+	    assert(data:settimeout(-1))
 	    local back = data:receive(2*size)
 	    assert(back == str, "'" .. back .. "' vs '" .. str .. "'")
 	    print("ok")
@@ -791,6 +793,59 @@ local function testclnt()
 end
 
 return function(cothread)
-	cothread.schedule(coroutine.create(testclnt))
-	cothread.run(cothread.step(coroutine.create(testsrvr)))
+	--local modname = "cothread.socket"
+	for _, modname in ipairs{"cothread.socket", "cothread.socket.ssl"} do
+		local cosocket = require(modname)
+		package.loaded["socket.core"] = cosocket
+		package.loaded["socket"] = nil
+		_G.socket = cosocket
+		local socket = require "socket"
+
+		local client = coroutine.create(function () testclnt(socket) end)
+		local server = coroutine.create(function () testsrvr(socket) end)
+
+		local tcp = socket.tcp
+		if modname == "cothread.socket.ssl" then
+			local sslcfgOf = {
+				[client] = {
+					mode = "client",
+					protocol = "sslv3",
+					key = "certs/clientAkey.pem",
+					certificate = "certs/clientA.pem",
+					cafile = "certs/rootA.pem",
+					verify = {"peer", "fail_if_no_peer_cert"},
+					options = {"all", "no_sslv2"},
+				},
+				[server] = {
+					mode = "server",
+					protocol = "sslv3",
+					key = "certs/serverAkey.pem",
+					certificate = "certs/serverA.pem",
+					cafile = "certs/rootA.pem",
+					verify = {"peer", "fail_if_no_peer_cert"},
+					options = {"all", "no_sslv2"},
+				},
+			}
+			function socket.tcp()
+				local c = sslcfgOf[coroutine.running()] or error("no SSL context!")
+				local s = socket.ssl(tcp(), c)
+				do
+					local bak = s.accept
+					function s:accept(...)
+						local result, errmsg = bak(self, ...)
+						if result then
+							result = socket.ssl(result, c)
+						end
+						return result, errmsg
+					end
+				end
+				return s
+			end
+		end
+
+		cothread.schedule(client)
+		cothread.run(cothread.step(server))
+
+		socket.tcp = tcp
+	end
 end
