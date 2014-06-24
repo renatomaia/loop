@@ -31,11 +31,15 @@ local ssl = require "ssl"
 local newctxt = ssl.newcontext
 local sslwrap = ssl.wrap
 
-local function dohandshake(self)
+local SSLSocket = {}
+
+function SSLSocket:dohandshake()
 	local result, errmsg
 	local socket = self.__object
 	local sslcontext = self.sslcontext
 	if sslcontext ~= nil then                                                     --[[VERBOSE]] verbose:ssl("initialize SSL handshake")
+		self.peerhost, self.peerport = socket:getpeername()
+		if self.peerhost == nil then return nil, self.peerport end
 		result, errmsg = sslwrap(socket, sslcontext)
 		if not result then return nil, errmsg end
 		socket:close()
@@ -76,7 +80,11 @@ local function dohandshake(self)
 	return result, errmsg
 end
 
-local SSLSocket = {}
+function SSLSocket:getpeername()
+	local host = self.peerhost
+	if host == nil then return self.__object:getpeername() end
+	return host, self.peerport
+end
 
 do
 	local err2op = {
@@ -86,7 +94,7 @@ do
 	}
 	function SSLSocket:send(data, i, j)                                            --[[VERBOSE]] verbose:socket(true, "sending byte stream: ",verbose.viewer:tostring(data:sub(i or 1, j)))
 		if self.sslhandshake == nil then
-			local result, errmsg = dohandshake(self)
+			local result, errmsg = self:dohandshake()
 			if not result then
 				return nil, errmsg, i==nil and 0 or i-1, 0
 			end
@@ -138,7 +146,7 @@ do
 	}
 	function SSLSocket:receive(pattern, ...)
 		if self.sslhandshake == nil then
-			local result, errmsg = dohandshake(self)
+			local result, errmsg = self:dohandshake()
 			if not result then
 				return nil, errmsg, "", 0
 			end
@@ -204,6 +212,10 @@ end
 --------------------------------------------------------------------------------
 
 local sockets = setmetatable({}, {__index = cosocket})
+
+function sockets.sslcontext(...)
+	return newctxt(...)
+end
 
 function sockets.ssl(socket, context)
 	copy(SSLSocket, socket)
