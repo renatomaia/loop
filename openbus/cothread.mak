@@ -12,6 +12,7 @@ LUASRC= \
 	$(LUADIR)/cothread/plugin/socket.lua \
 	$(LUADIR)/cothread/Queue.lua \
 	$(LUADIR)/cothread/socket.lua \
+	$(LUADIR)/cothread/socket/ssl.lua \
 	$(LUADIR)/cothread/Timer.lua \
 	$(LUADIR)/cothread.lua
 
