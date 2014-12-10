@@ -56,6 +56,7 @@ function SSLSocket:dohandshake()
 		elseif errmsg == "wantwrite" then
 			op = "w"
 		else                                                                        --[[VERBOSE]] verbose:ssl("unable to complete handshake: ",errmsg)
+			socket:close()
 			break
 		end
 		local thread = trywait(self, socket, op)
