@@ -5,11 +5,15 @@ local xpcall = _G.xpcall
 
 local package = require "package"
 local debug = package.loaded.debug
-local traceback = debug and debug.traceback
+local traceback = debug and debug.traceback or tostring
 
 local oo = require "loop.cached"
 local class = oo.class
 
+
+local function stacktrace(errmsg)
+	return traceback(tostring(errmsg))
+end
 
 local function settable(table, key, value)
 	table[key] = value
@@ -28,7 +32,7 @@ end
 local Runner = class()
 
 function Runner.pcall(func, ...)
-	return xpcall(func, traceback or tostring, ...)
+	return xpcall(func, stacktrace, ...)
 end
 
 function Runner:__call(label, func, ...)
