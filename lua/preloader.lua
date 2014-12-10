@@ -76,7 +76,8 @@ local FILE_SEP = "/"
 local FUNC_SEP = "_"
 local PATH_SEP = ";"
 local PATH_MARK = "?"
-local OPEN_PAT = "int%s+luaopen_([%w_]+)%s*%(%s*lua_State%s*%*[%w_]*%)%s*;"
+local OPEN_PAT = "int%s+luaopen_([%w_]+)%s*%(%s*lua_State%s*%*[%w_]*%)%s*"
+local PRELOAD_PAT = "luapreload_"
 
 
 local start, errmsg = _ENV(...)
@@ -109,7 +110,7 @@ Options:
   
   -f, -funcload     Defines the name of the preloader function, a function
                     that pre-loads all modules in a Lua state. The default
-                    value is 'luapreload_' plus the name defined by option
+                    value is ']]..PRELOAD_PAT..[[' plus the name defined by option
                     -output.
   
   -h, -header       Defines the name of the header file to be generated with
@@ -217,7 +218,7 @@ if compileonly then
 		warn("ignoring 'funcload' parameter: ",funcload)
 	end
 elseif funcload == "" then
-	funcload = "luapreload_"..match(output, "[_%a][_%w]*")
+	funcload = PRELOAD_PAT..match(output, "[_%a][_%w]*")
 end
 
 --------------------------------------------------------------------------------
@@ -376,8 +377,11 @@ outh:write([[
 ]])
 
 if not compileonly then
+	local included = {}
 	for _, header in pairs(headers) do
-		outc:write('#include "'..header..'"\n')
+		if included[header] == nil then
+			included[header] = outc:write('#include "'..header..'"\n')
+		end
 	end
 	outc:write('\n')
 	for module, cname in pairs(cmodules) do
