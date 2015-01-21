@@ -37,7 +37,8 @@ endif
 LUAPRELOADER= ${LOOP_HOME}/lua/preloader.lua
 
 $(PRELOAD_DIR)/$(LIBNAME).c: $(LUAPRELOADER) $(LUASRC)
-	$(LOOPBIN) $(LUAPRELOADER) -m \
+	$(LOOPBIN) $(LUAPRELOADER) $(LUAPRELOADFLAGS) \
+	                           -m \
 	                           -l "$(LUADIR)/?.lua" \
 	                           -d $(PRELOAD_DIR) \
 	                           -h $(LIBNAME).h \
