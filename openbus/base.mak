@@ -24,6 +24,8 @@ else
   else
     PRELOAD_DIR= ${OBJROOT}/${TEC_SYSNAME}
   endif
+  USE_MT=Yes  # due to the use of multithread in luaopenbus.lib to support a 
+              # cooperative multithreading interactive console.
 endif
 
 INCLUDES+= . $(PRELOAD_DIR)
