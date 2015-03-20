@@ -1,0 +1,38 @@
+# -*- coding: iso-8859-1-unix -*-
+
+import os ;
+
+rule init ( )
+{
+  local preloader-path = [ modules.binding $(__name__) ] ;
+  .loop-root-path = $(preloader-path:D) ;
+  .lua-install-path = [ os.environ LUA_INSTALL_PATH ] ;
+  if ! $(.lua-install-path)
+  {
+    .lua-install-path = "$(.loop-root-path)/../../install/lua" ;
+  }
+}
+
+rule pre-compile ( target : sources * : property-set * )
+{
+  root-path on $(target) = [ MATCH "<search>/(.+)" : $(property-set) ] ;
+}
+
+actions pre-compile
+{
+  $(.lua-install-path)/bin/lua52 -e "package.path=[[$(.loop-root-path:T)/lua/?.lua]]" $(.loop-root-path)/lua/preloader.lua -m -l "$(root-path)/lua/?.lua;$(root-path)/src/?.lua;$(<:DTR=$(root-path))/lua/?.lua" -d $(<:D) -h $(<:B).h -o $(<:B).c -def $(<:B).def $(>:TR=$(root-path))
+  copy $(<:D)\$(<:B).def "$(root-path:T)"
+  copy $(<:D)\$(<:B).h "$(root-path:T)"
+}
+
+rule pre-compile-c ( target : sources * : property-set * )
+{
+  root-path on $(target) = [ MATCH "<search>/(.+)" : $(property-set) ] ;
+}
+
+actions pre-compile-c
+{
+  $(.lua-install-path)/bin/lua52 -e "package.path=[[$(.loop-root-path:T)/lua/?.lua]]" $(.loop-root-path)/lua/preloader.lua -s -d $(<:D) -h $(<:B).h -o $(<:B).c -def $(<:B).def $(>:T)
+  copy $(<:D)\$(<:B).def "$(root-path:T)"
+  copy $(<:D)\$(<:B).h "$(root-path:T)"
+}

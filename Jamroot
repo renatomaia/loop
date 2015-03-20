@@ -1,0 +1,124 @@
+# -*- coding: iso-8859-1-unix -*-
+
+import preloader ;
+
+path-constant here : . ;
+
+using preloader ;
+
+project loop
+  : requirements
+    <target-os>windows:<pch>off
+    <target-os>windows,<link>shared:<runtime-link>shared
+    <target-os>windows,<link>static:<runtime-link>static
+    <target-os>windows:<debug-store>database
+    <target-os>windows:<define>_CRT_SECURE_NO_WARNINGS
+    <target-os>windows:<cxxflags>/FS
+    <debug-symbols>on
+  ;
+
+make loop.c
+  : lua/loop/base.lua
+    lua/loop/cached.lua
+    lua/loop/collection/ArrayedMap.lua
+    lua/loop/collection/ArrayedSet.lua
+    lua/loop/collection/BiCyclicSets.lua
+    lua/loop/collection/CyclicSets.lua
+    lua/loop/collection/LRUCache.lua
+    lua/loop/collection/OrderedSet.lua
+    lua/loop/collection/Queue.lua
+    lua/loop/collection/SortedMap.lua
+    lua/loop/collection/UnorderedArray.lua
+    lua/loop/compiler/Arguments.lua
+    lua/loop/component/base.lua
+    lua/loop/component/contained.lua
+    lua/loop/component/dynamic.lua
+    lua/loop/component/intercepted.lua
+    lua/loop/component/wrapped.lua
+    lua/loop/debug/Crawler.lua
+    lua/loop/debug/Matcher.lua
+    lua/loop/debug/Verbose.lua
+    lua/loop/debug/Viewer.lua
+    lua/loop/hierarchy.lua
+    lua/loop/multiple.lua
+    lua/loop/object/Dummy.lua
+    lua/loop/object/Exception.lua
+    lua/loop/object/Publisher.lua
+    lua/loop/object/Wrapper.lua
+    lua/loop/proto.lua
+    lua/loop/scoped/debug.lua
+    lua/loop/scoped.lua
+    lua/loop/serial/FileStream.lua
+    lua/loop/serial/Serializer.lua
+    lua/loop/serial/Stream.lua
+    lua/loop/serial/StringStream.lua
+    lua/loop/test/checks.lua
+    lua/loop/test/Fixture.lua
+    lua/loop/test/Reporter.lua
+    lua/loop/test/Results.lua
+    lua/loop/test/Suite.lua
+    lua/loop/simple.lua
+    lua/loop/table.lua
+    lua/loop.lua
+  : preloader.pre-compile
+  : <search>$(here)
+;
+
+make luatuple.c
+  : lua/tuple/weak.lua
+    lua/tuple.lua
+  : preloader.pre-compile
+  : <search>$(here)
+  ;
+
+make luacothread.c
+  : lua/cothread/EventPoll.lua
+    lua/cothread/Mutex.lua
+    lua/cothread/plugin/signal.lua
+    lua/cothread/plugin/sleep.lua
+    lua/cothread/plugin/socket.lua
+    lua/cothread/Queue.lua
+    lua/cothread/socket.lua
+    lua/cothread/socket/ssl.lua
+    lua/cothread/Timer.lua
+    lua/cothread.lua
+  : preloader.pre-compile
+  : <search>$(here)
+;
+  
+lib loop
+  : loop.c
+    /lua//lua
+  : <target-os>windows,<link>shared:<linkflags>"/def:$(here)/loop.def"
+  :
+  : <include>.
+  ;
+explicit loop ;
+
+lib luatuple
+  : luatuple.c
+    loop
+    /lua//lua
+  : <target-os>windows,<link>shared:<linkflags>"/def:$(here)/luatuple.def"
+  :
+  : <include>.
+  ;
+explicit luatuple ;
+
+lib luacothread
+  : luacothread.c
+    loop
+    /lua//lua
+  : <target-os>windows,<link>shared:<linkflags>"/def:$(here)/luacothread.def"
+  :
+  : <include>.
+  ;
+explicit luacothread ;
+
+install stage
+  : loop
+    luatuple
+    luacothread
+  : <location>install
+  ;
+  
