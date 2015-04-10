@@ -13,7 +13,7 @@ project loop
     <target-os>windows,<link>static:<runtime-link>static
     <target-os>windows:<debug-store>database
     <target-os>windows:<define>_CRT_SECURE_NO_WARNINGS
-    <target-os>windows:<cxxflags>/FS
+    <toolset>msvc-12.0:<cxxflags>/FS
     <debug-symbols>on
   ;
 
