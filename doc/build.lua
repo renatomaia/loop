@@ -4,7 +4,8 @@ local viewer = require("loop.debug.Viewer"){
   nolabels = true,
   metaonly = true,
 }
-local http = require "socket.http"
+local ok, http = pcall(require, "socket.http")
+if not ok then http = nil end
 
 local Class = {}
 function Class:__call(obj)
@@ -35,10 +36,12 @@ local function readcontents(path)
 	local contents = ContentsOf[path]
 	if contents == nil then
 		if path:match(LinkPat) then
-			local code
-			contents, code = http.request(path)
-			if code ~= 200 then
-				contents = nil
+			if http then
+				local code
+				contents, code = http.request(path)
+				if code ~= 200 then
+					contents = nil
+				end
 			end
 		else
 			local file = assert(io.open(path))
@@ -61,6 +64,14 @@ end
 
 local map = {}
 local AnchorPattern = '<%s*a%s+name%s*=%s*"([^"]+)"%s*>(.-)<%s*/%s*a%s*>'
+
+local function getid(scope, name, desc)
+	if not scope:match("^_") then
+		local sep = (desc.type == "method") and ":" or "."
+		return scope..sep..name
+	end
+	return name
+end
 
 local function addpage(item)
 	local index = item.index
@@ -91,8 +102,7 @@ local function addlinks(items)
 						title = ref.summary,
 					})
 					for field, desc in pairs(ref.fields) do
-						local sep = (desc.type == "method") and ":" or "."
-						local id = name..sep..field
+						local id = getid(name, field, desc)
 						addpage({
 							index = item.index.."."..id,
 							href = item.href.."#"..id,
@@ -176,103 +186,6 @@ local domenu do
 			output:insert(tab:rep(ident-1))
 		end
 		return output
-	end
-end
-
---------------------------------------------------------------------------------
-
-local dorefman do
-	function dorefman(currentpage, Reference)
-		local sorted do
-			local function iterator(next, last)
-				local key = next[last]
-				return key, next.map[key]
-			end
-			function sorted(map, comp)
-				local keys = {}
-				for key in pairs(map) do
-					if type(key) == "string" then
-						keys[#keys+1] = key
-					end
-				end
-				table.sort(keys, comp)
-				local next = {map=map}
-				local last = next
-				for _, key in ipairs(keys) do
-					next[last] = key
-					last = key
-				end
-				return iterator, next, next
-			end
-		end
-
-		local index = {level=0}
-		local contents = {level=0}
-
-		local function out(output, text, ...)
-			local ident = ""
-			local inc = ...
-			if select("#", ...) == 0 then inc = 0 end
-			if inc ~= nil then
-				if inc < 0 then output.level = output.level+inc end
-				ident = string.rep("\t", output.level)
-				if inc > 0 then output.level = output.level+inc end
-			end
-			output[#output+1] = ident
-			output[#output+1] = text:gsub("\n", "\n"..ident)
-			output[#output+1] = "\n"
-		end
-
-		for name, ref in sorted(Reference) do
-			local kind = ref[1] or "module"
-			local sep = (kind ~= "module") and ":" or "."
-			out(contents, '<h2>'..kind.." <code>"..name..'</code></h2>')
-			out(contents, '<dl>', 1)
-			out(index, '<table>', 1)
-			for field, desc in sorted(ref) do
-				local id = name..sep..field
-				addpage({
-					index = currentpage.index.."."..field,
-					href = currentpage.href.."#"..field,
-					title = "<code>"..id.."</code>",
-				})
-
-				out(index, '<tr>', 1)
-				out(index, '<td><a href="#'..id..'"><code>'..id..'</code></a></td>')
-				out(index, '<td>'..(desc.summary or "")..'</td>')
-				out(index, '</tr>', -1)
-
-				local parameters = desc.parameters or ""
-				local results = desc.results or ""
-				if results ~= "" then
-					results = "<code>"..results.." = </code>"
-				end
-				out(contents, '<dt>'..results..'<a name="'..id..'"><code>'..id..'</code></a><code>('..parameters..')</code></dt>')
-				out(contents, '<dd>', 1)
-				local description = desc.description
-				if description ~= nil then
-					description = description:gsub("\n\t+", "\n")
-					                         :gsub("^\t+", "")
-					                         :gsub("\n+$", "")
-					                         :gsub("\n\n", "</p>\n<p>")
-					out(contents, '<p>'..description..'</p>')
-				end
-				local examples = desc.examples
-				if examples ~= nil then
-					out(contents, '<p>Example:</p>')
-					out(contents, '')
-					for _, example in ipairs(examples) do
-						out(contents, '<pre>'..example..'</pre>', nil)
-					end
-					out(contents, '')
-				end
-				out(contents, '</dd>', -1)
-			end
-			out(contents, '</dl>', -1)
-			out(index, '</table><br>', -1)
-		end
-
-		return index, contents
 	end
 end
 
@@ -406,8 +319,7 @@ local dorefman do
 			writetext(currentpage, contents, ref.description)
 			out(contents, '<dl>', 1)
 			for field, desc in sorted(ref.fields) do
-				local sep = (desc.type == "method") and ":" or "."
-				local id = name..sep..field
+				local id = getid(name, field, desc)
 
 				out(index, '<tr>', 1)
 				out(index, '<td><a href="#'..id..'"><code>'..id..'</code></a></td>')
