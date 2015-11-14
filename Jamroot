@@ -1,10 +1,18 @@
 # -*- coding: iso-8859-1-unix -*-
 
+import os ;
 import preloader ;
 
 path-constant here : . ;
 
 using preloader ;
+
+local lua-jam-path = [ os.environ LUA_JAM_PATH ] ;
+if ! $(lua-jam-path)
+{
+  lua-jam-path = "$(here)/../lua.jam" ;
+}
+use-project lua : $(lua-jam-path) ; 
 
 project loop
   : requirements
