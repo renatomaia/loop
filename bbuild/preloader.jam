@@ -6,7 +6,7 @@ import common ;
 rule init ( )
 {
   local preloader-path = [ modules.binding $(__name__) ] ;
-  .loop-root-path = $(preloader-path:D) ;
+  .loop-root-path = $(preloader-path:D)/.. ;
   .lua-install-path = [ os.environ LUA_INSTALL_PATH ] ;
   .copy-cmd = [ common.copy-command ] ;
   if ! $(.lua-install-path)
@@ -31,9 +31,7 @@ rule pre-compile ( target : sources * : property-set * )
 
 actions pre-compile
 {
-  $(.lua-install-path)/bin/lua -e "package.path=[[$(.loop-root-path:T)/lua/?.lua]]" $(.loop-root-path)/lua/preloader.lua -s -m -l "$(root-path)/lua/?.lua;$(root-path)/src/?.lua;$(<:DTR=$(root-path))/lua/?.lua" -d $(<:D) -h $(<:B).h -o $(<:B).c -def $(<:B).def $(>:TR=$(root-path))
-  $(.copy-cmd) "$(<:D)$(slash)$(<:B).def" "$(root-path:T)"
-  $(.copy-cmd) "$(<:D)$(slash)$(<:B).h" "$(root-path:T)"
+  $(.lua-install-path)/bin/lua -e "package.path=[[$(.loop-root-path:T)/lua/?.lua]]" $(.loop-root-path)/lua/preloader.lua -s -m -l "$(root-path)/lua/?.lua;$(root-path)/src/?.lua" -d $(<:D) -h $(<:B).h -o $(<:B).c -def $(<:B).def $(>:TR=$(root-path))
 }
 
 rule pre-compile-c ( target : sources * : property-set * )
@@ -53,6 +51,4 @@ rule pre-compile-c ( target : sources * : property-set * )
 actions pre-compile-c
 {
   $(.lua-install-path)/bin/lua -e "package.path=[[$(.loop-root-path:T)/lua/?.lua]]" $(.loop-root-path)/lua/preloader.lua -s -d $(<:D) -h $(<:B).h -o $(<:B).c -def $(<:B).def $(>:T)
-  $(.copy-cmd) "$(<:D)$(slash)$(<:B).def" "$(root-path:T)"
-  $(.copy-cmd) "$(<:D)$(slash)$(<:B).h" "$(root-path:T)"
 }
