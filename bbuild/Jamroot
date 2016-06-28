@@ -7,14 +7,14 @@ path-constant here : . ;
 path-constant root : $(here)/.. ;
 path-constant deps : $(root)/.. ;
 
-using preloader ;
-
-local lua-jam-path = [ os.environ LUA_JAM_PATH ] ;
-if ! $(lua-jam-path)
+local lua = [ os.environ LUA ] ;
+if ! $(lua)
 {
-  lua-jam-path = "$(deps)/lua.jam" ;
+  lua = "$(deps)/lua" ;
 }
-use-project lua : $(lua-jam-path) ; 
+use-project lua : $(lua)/bbuild ; 
+
+using preloader : $(lua) ;
 
 project loop
   : requirements
@@ -71,7 +71,8 @@ make loop.c
     $(root)/lua/loop/table.lua
     $(root)/lua/loop.lua
   : preloader.pre-compile
-  : <search>$(root)
+  : <dependency>/lua//stage
+    <search>$(root)
     <location>$(here)
 ;
 
@@ -79,7 +80,8 @@ make luatuple.c
   : $(root)/lua/tuple/weak.lua
     $(root)/lua/tuple.lua
   : preloader.pre-compile
-  : <search>$(root)
+  : <dependency>/lua//stage
+    <search>$(root)
     <location>$(here)
   ;
 
@@ -95,14 +97,15 @@ make luacothread.c
     $(root)/lua/cothread/Timer.lua
     $(root)/lua/cothread.lua
   : preloader.pre-compile
-  : <search>$(root)
+  : <dependency>/lua//stage
+    <search>$(root)
     <location>$(here)
 ;
   
 lib loop
   : loop.c
-    /lua//lua
   : <target-os>windows,<link>shared:<linkflags>"/def:$(here)/loop.def"
+    <library>/lua//lua
   :
   : <include>.
   ;
@@ -111,8 +114,8 @@ explicit loop ;
 lib luatuple
   : luatuple.c
     loop
-    /lua//lua
   : <target-os>windows,<link>shared:<linkflags>"/def:$(here)/luatuple.def"
+    <library>/lua//lua
   :
   : <include>.
   ;
@@ -121,8 +124,8 @@ explicit luatuple ;
 lib luacothread
   : luacothread.c
     loop
-    /lua//lua
   : <target-os>windows,<link>shared:<linkflags>"/def:$(here)/luacothread.def"
+    <library>/lua//lua
   :
   : <include>.
   ;
