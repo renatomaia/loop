@@ -49,7 +49,7 @@ function Mutex:free()                                                           
 		local thread = self[false]
 		if thread then
 			self.inside = thread                                                      --[[VERBOSE]] verbose:mutex("resouce released for ",thread)
-			yield("next", thread, Token)
+			yield("last", thread, Token)
 		else
 			self.inside = nil                                                         --[[VERBOSE]] verbose:mutex("resouce released")
 		end
@@ -59,7 +59,7 @@ end
 
 function Mutex:deny(thread)                                                     --[[VERBOSE]] local curr_thread, main_thread = running(); local verbose = (curr_thread == nil or main_thread) and Dummy or yield("verbose")
 	if self[thread] ~= nil then                                                   --[[VERBOSE]] verbose:mutex("deny access for ",thread)
-		yield("next", thread, Token)
+		yield("last", thread, Token)
 		return true
 	end                                                                           --[[VERBOSE]] verbose:mutex("attempt to deny access for a thread not interested")
 end
@@ -69,7 +69,7 @@ function Mutex:grant(thread)                                                    
 	and self[thread] ~= nil
 	then
 		self.inside = thread                                                        --[[VERBOSE]] verbose:mutex("access resource granted for ",thread)
-		yield("next", thread, Token)
+		yield("last", thread, Token)
 		return true                                                                 --[[VERBOSE]] else verbose:mutex("attempt to grant resource access for ",thread," failed")
 	end
 end
