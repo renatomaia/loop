@@ -1,9 +1,3 @@
-local viewer = require("loop.debug.Viewer"){
-  linebreak = false,
-  noindices = true,
-  nolabels = true,
-  metaonly = true,
-}
 local ok, http = pcall(require, "socket.http")
 if not ok then http = nil end
 
@@ -296,7 +290,7 @@ local dorefman do
 		end
 		local default = desc.default
 		if default ~= nil then
-			description = description.."\nThe default value is <code>"..viewer:tostring(default).."</code>."
+			description = description.."\nThe default value is <code>"..tostring(default).."</code>."
 		end
 		local missingdesc = desc.eventual
 		if missingdesc ~= nil then
