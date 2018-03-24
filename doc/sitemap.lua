@@ -15,7 +15,7 @@ pages = {
 }
 
 refs = {
-	{ index="maia"              , href="http://www.inf.puc-rio.br/~maia"                    , title="Renato Maia"                 },
+	{ index="maia"              , href="https://github.com/renatomaia"                      , title="Renato Maia"                 },
 	{ index="Tecgraf"           , href="http://www.tecgraf.puc-rio.br"                      , },
 	{ index="PUC-Rio"           , href="http://www.puc-rio.br"                              , },
 	{ index="MitLicense"        , href="http://www.opensource.org/licenses/mit-license.html", title="MIT License" },
@@ -38,23 +38,27 @@ refs = {
 	{ index="LuaWiki"           , href="http://lua-users.org/wiki"                          , title="Lua Wiki"                    ,
 		{ index="LuaWiki.OOP"     , href="http://lua-users.org/wiki/ObjectOrientedProgramming", title="Object Oriented Programming" },
 	},
-	{ index="LuaRocks"          , href="http://www.luarocks.org/"                                           , title="LuaRocks" },
-	{ index="LuaPreloader"      , href="http://www.tecgraf.puc-rio.br/~maia/lua/preloader"                  , title="Lua Preloader" },
-	{ index="LuaCCM"            , href="http://www.tecgraf.puc-rio.br/~maia/lua/luaccm"                     , },
-	{ index="OiL"               , href="http://www.tecgraf.puc-rio.br/~maia/lua/oil"                        , },
-	{ index="LOOP"              , href="http://www.tecgraf.puc-rio.br/~maia/lua/loop"                       ,
-		{ index="LOOP.ClassLib"   , href="http://www.tecgraf.puc-rio.br/~maia/lua/loop/classlib"              , title="LOOP Class Library" },
-		{ index="LOOP.Component"  , href="http://www.tecgraf.puc-rio.br/~maia/lua/loop/component"             , title="LOOP Component Models" },
-		{ index="LOOP.v23"        , href="http://www.tecgraf.puc-rio.br/~maia/lua/loop/v23"                   , title="LOOP 2.3" },
-		{ index="LOOP.v22"        , href="http://www.tecgraf.puc-rio.br/~maia/lua/loop/v22"                   , title="LOOP 2.2" },
-		{ index="LOOP.v21"        , href="http://www.tecgraf.puc-rio.br/~maia/lua/loop/v21"                   , title="LOOP 2.1" },
-		{ index="LOOP.v3.tgz"     , href="http://www.tecgraf.puc-rio.br/~maia/lua/packs/loop-3.0.tar.gz"      , title="LOOP 3.0 (tar.gz)" },
-		{ index="LOOP.v3.zip"     , href="http://www.tecgraf.puc-rio.br/~maia/lua/packs/loop-3.0.zip"         , title="LOOP 3.0 (zip)" },
-		{ index="LOOP.v23.tgz"    , href="http://www.tecgraf.puc-rio.br/~maia/lua/packs/loop-2.3-alpha.tar.gz", title="LOOP 2.3 (tar.gz)" },
-		{ index="LOOP.v23.zip"    , href="http://www.tecgraf.puc-rio.br/~maia/lua/packs/loop-2.3-alpha.zip"   , title="LOOP 2.3 (zip)" },
-		{ index="LOOP.v22.tgz"    , href="http://www.tecgraf.puc-rio.br/~maia/lua/packs/loop-2.2-alpha.tar.gz", title="LOOP 2.2 (tar.gz)" },
-		{ index="LOOP.v22.zip"    , href="http://www.tecgraf.puc-rio.br/~maia/lua/packs/loop-2.2-alpha.zip"   , title="LOOP 2.2 (zip)" },
-		{ index="LOOP.v21.tgz"    , href="http://www.tecgraf.puc-rio.br/~maia/lua/packs/loop-2.1-alpha.tar.gz", title="LOOP 2.1 (tar.gz)" },
+	{ index="LuaRocks"          , href="http://www.luarocks.org/"                                        , title="LuaRocks" },
+	{ index="LuaPreloader"      , href="https://github.com/renatomaia/luapreloader"                      , title="Lua Preloader" },
+	{ index="OiL"               , href="https://github.com/renatomaia/oil"                               , },
+	{ index="LOOP"              , href="https://renatomaia.github.io/loop"                               ,
+		{ index="LOOP.Collections", href="https://github.com/renatomaia/loop-collections"                  , title="LOOP Collections" },
+		{ index="LOOP.Debugging"  , href="https://github.com/renatomaia/loop-debugging"                    , title="LOOP Debugging" },
+		{ index="LOOP.Objects"    , href="https://github.com/renatomaia/loop-objects"                      , title="LOOP Objects" },
+		{ index="LOOP.Parsing"    , href="https://github.com/renatomaia/loop-parsing"                      , title="LOOP Parsing" },
+		{ index="LOOP.Serializing", href="https://github.com/renatomaia/loop-serializing"                  , title="LOOP Serializing" },
+		{ index="LOOP.Component"  , href="https://github.com/renatomaia/loop-compdev"                      , title="LOOP Component Models" },
+		{ index="LOOP.v23"        , href="https://github.com/renatomaia/loop/releases/tag/LOOP_2_3_beta"   , title="LOOP 2.3" },
+		{ index="LOOP.v22"        , href="https://github.com/renatomaia/loop/releases/tag/loop-2.2-alpha"  , title="LOOP 2.2" },
+		{ index="LOOP.v21"        , href="https://github.com/renatomaia/loop/releases/tag/loop-2.1-alpha"  , title="LOOP 2.1" },
+		{ index="LOOP.v3.tgz"     , href="https://github.com/renatomaia/loop/archive/v3.0.tar.gz"          , title="LOOP 3.0 (tar.gz)" },
+		{ index="LOOP.v3.zip"     , href="https://github.com/renatomaia/loop/archive/v3.0.zip"             , title="LOOP 3.0 (zip)" },
+		{ index="LOOP.v23.tgz"    , href="https://github.com/renatomaia/loop/archive/LOOP_2_3_beta.tar.gz" , title="LOOP 2.3 (tar.gz)" },
+		{ index="LOOP.v23.zip"    , href="https://github.com/renatomaia/loop/archive/LOOP_2_3_beta.zip"    , title="LOOP 2.3 (zip)" },
+		{ index="LOOP.v22.tgz"    , href="https://github.com/renatomaia/loop/archive/loop-2.2-alpha.tar.gz", title="LOOP 2.2 (tar.gz)" },
+		{ index="LOOP.v22.zip"    , href="https://github.com/renatomaia/loop/archive/loop-2.2-alpha.zip"   , title="LOOP 2.2 (zip)" },
+		{ index="LOOP.v21.tgz"    , href="https://github.com/renatomaia/loop/archive/loop-2.1-alpha.tar.gz", title="LOOP 2.1 (tar.gz)" },
+		{ index="LOOP.v21.zip"    , href="https://github.com/renatomaia/loop/archive/loop-2.1-alpha.zip"   , title="LOOP 2.1 (zip)" },
 	},
 }
 
@@ -87,8 +91,8 @@ template = [===================================================================[
 </div>
 
 <div class="content">
-<p><small><strong>Copyright (C) 2004-2014 Tecgraf, PUC-Rio</strong></small></p>
-<small>This project is currently being maintained by <%=link("Tecgraf")%> at <%=link("PUC-Rio")%>.</small>
+<p><small><strong>Copyright (C) 2004-2018 <%=link("maia")%></strong></small></p>
+<small>This project was originally developed in <%=link("Tecgraf")%> at <%=link("PUC-Rio")%>.</small>
 </div>
 
 <%

@@ -1,7 +1,7 @@
 package = "LOOP"
-version = "3.0-1"
+version = "3.0-2"
 source = {
-	url = "http://www.tecgraf.puc-rio.br/~maia/lua/packs/loop-3.0.tar.gz",
+	url = "https://github.com/renatomaia/loop/archive/v3.0.tar.gz",
 }
 description = {
 	summary = "Class Models for Lua",
@@ -12,8 +12,8 @@ description = {
 		object models for Lua.
 	]],
 	license = "MIT",
-	homepage = "http://www.tecgraf.puc-rio.br/~maia/lua/loop",
-	maintainer = "Renato Maia <maia@tecgraf.puc-rio.br>",
+	homepage = "https://renatomaia.github.io/loop",
+	maintainer = "Renato Maia <maia.renato@gmail.com>",
 }
 dependencies = {
 	"lua >= 5.1",

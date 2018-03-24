@@ -13,8 +13,8 @@ description = {
 		object models for Lua.
 	]],
 	license = "MIT",
-	homepage = "http://www.tecgraf.puc-rio.br/~maia/lua/loop",
-	maintainer = "Renato Maia <maia@tecgraf.puc-rio.br>",
+	homepage = "https://renatomaia.github.io/loop",
+	maintainer = "Renato Maia <maia.renato@gmail.com>",
 }
 dependencies = {
 	"lua >= 5.1",
