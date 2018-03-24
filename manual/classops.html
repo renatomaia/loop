@@ -1,3 +1,41 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+	<title>LOOP: Class Features</title>
+	<style type="text/css" media="all"><!--
+		@import "../loop.css";
+		@import "../layout1.css";
+	--></style>
+</head>
+
+<body>
+
+<div id="Header">Object-Oriented Programming Support for Lua</div>
+<div id="Logo"><img alt="small (1K)" src="../small.gif" height="70"></div>
+
+<div id="Menu">
+<div class="outside"><div class="inside"><ul>
+	<li><a href="../index.html", title="Home">Home</a></li>
+	<li><a href="../release/index.html", title="Download">Download</a></li>
+	<li><a href="index.html", title="User Manual">Manual</a>
+		<div class="outside"><div class="inside"><ul>
+			<li><a href="intro.html", title="Introduction">Intro</a></li>
+			<li><a href="basics.html", title="Basic Concepts">Basics</a></li>
+			<li><strong>Classes</strong></li>
+			<li><a href="models.html", title="Module Reference">Modules</a></li>
+			<li><a href="changes.html", title="Release Notes">Changes</a></li>
+		</ul></div></div>
+	</li>
+	<li><a href="../contact.html", title="Contact People">Contact</a></li>
+</ul></div></div>
+
+</div>
+
+<div class="content">
+<h1>Class Features</h1>
 <p>For all LOOP modules, classes are fundamentally metatables.
 For this reason, you can use ordinary tables as classes in all LOOP modules.
 For example, you can create a class that inherits from a module:</p>
@@ -17,7 +55,7 @@ print(a:concat(" ")) --> base cached multiple proto scoped simple
 <p>Moreover, classes created with LOOP modules behave as ordinary metatables, so you can index them to get or set metamethods.
 However, each module implements classes differently to support additional features, like superclasses or access scopes.
 Each module introduces new functions to manipulate these additional class features, like iterating over the superclasses of a class.The downside of these functions is that they only manipulate classes created with that module.
-Therefore, if we use functions from module <%=link("Modules.simple")%> to inspect classes created with module <%=link("Modules.multiple")%> then things might not work as expected because the each module implements classes differently.</p>
+Therefore, if we use functions from module <a href="models.html#simple"><code>loop.simple</code></a> to inspect classes created with module <a href="models.html#multiple"><code>loop.multiple</code></a> then things might not work as expected because the each module implements classes differently.</p>
 
 <p>To minimize this problem when using different LOOP modules, all LOOP modules adopts a basic class model that allow us to manipulate them in a general way.
 This section describes such model, as well as some useful operations over classes and caveats of mixing classes from different models.</p>
@@ -37,7 +75,7 @@ if getsuper ~= nil then
 end
 </pre>
 
-<p>LOOP provides the special module <%=link("Modules.classops")%> to manipulate classes created with any of its modules using this general model.
+<p>LOOP provides the special module <a href="models.html#classops"><code>loop.classops</code></a> to manipulate classes created with any of its modules using this general model.
 So, instead of the code above, you can do:</p>
 
 <pre>
@@ -48,8 +86,8 @@ super = oo.getsuper(class)
 <h2><a name="inheritance">Inheritance Interoperability</a></h2>
 
 <p>There are some drawbacks when mixing classes from different LOOP modules in a single class hierarchy.
-In particular, classes from modules other than the <%=link("Modules.scoped")%> module only inherits public members from classes of module <%=link("Modules.scoped")%>.
-Other limitation is that fields of classes from <%=link("Modules.cached")%> and <%=link("Modules.scoped")%> modules always override the fields of classes from other modules, no matter their order in the list of super-classes. For example, consider the following code.</p>
+In particular, classes from modules other than the <a href="models.html#scoped"><code>loop.scoped</code></a> module only inherits public members from classes of module <a href="models.html#scoped"><code>loop.scoped</code></a>.
+Other limitation is that fields of classes from <a href="models.html#cached"><code>loop.cached</code></a> and <a href="models.html#scoped"><code>loop.scoped</code></a> modules always override the fields of classes from other modules, no matter their order in the list of super-classes. For example, consider the following code.</p>
 
 <pre>
 local BaseSuper   = loop.base.class  { attribute = "simple" }
@@ -65,7 +103,7 @@ print(cached.attribute)  --> cached
 </pre>
 
 <p>The <code>nocache</code> object does not use a cache of fields, so it looks up the class hierarchy to find the value of field <code>attribute</code> and finds it in the <code>BaseSuper</code> class.
-However, the <%=link("Modules.cached")%> uses a cache of inherited fields that only contains fields from cached classes (<i>i.e.</i> <%=link("Modules.cached")%> and <%=link("Modules.scoped")%> modules) therefore it finds the value of field <code>attribute</code> provided by class <code>CachedSuper</code> even though it is after the <code>BaseSuper</code> class in the list of super-classes of <code>CachedClass</code>.</p>
+However, the <a href="models.html#cached"><code>loop.cached</code></a> uses a cache of inherited fields that only contains fields from cached classes (<i>i.e.</i> <a href="models.html#cached"><code>loop.cached</code></a> and <a href="models.html#scoped"><code>loop.scoped</code></a> modules) therefore it finds the value of field <code>attribute</code> provided by class <code>CachedSuper</code> even though it is after the <code>BaseSuper</code> class in the list of super-classes of <code>CachedClass</code>.</p>
 
 <h2><a name="superclass">Super-Class Access</a></h2>
 
@@ -127,7 +165,7 @@ end
 print(Date{day=30, month=5, year=2013}) --> 30/05/2013
 </pre>
 
-<p>However, we can use the <%=link("Basics.__new", "<code>__new</code>")%> metamethod to implement other styles of constructors.
+<p>However, we can use the <a href="basics.html#__new"><code>__new</code></a> metamethod to implement other styles of constructors.
 For example, the class can create an instance from a sequence of argument values instead of the values from a table, like in the example below:</p>
 
 <pre>
@@ -147,18 +185,18 @@ end
 print(Date(30, 5, 2013)) --> 30/05/2013
 </pre>
 
-<p>The <%=link("Basics.__new", "<code>__new</code>")%> metamethod is a very basic mechanism and might not be easy to use in complex scenarios like the initialization of a class hierarchy.
-In such case, the class being instatiated might inherit from some classes that define define their own <%=link("Basics.__new", "<code>__new</code>")%> metamethod and also from others that do not.
-So the implementor of the subclass must know which <%=link("Basics.__new", "<code>__new</code>")%> must be called and which not, and in the proper order.</p>
+<p>The <a href="basics.html#__new"><code>__new</code></a> metamethod is a very basic mechanism and might not be easy to use in complex scenarios like the initialization of a class hierarchy.
+In such case, the class being instatiated might inherit from some classes that define define their own <a href="basics.html#__new"><code>__new</code></a> metamethod and also from others that do not.
+So the implementor of the subclass must know which <a href="basics.html#__new"><code>__new</code></a> must be called and which not, and in the proper order.</p>
 
-<p>To make this easy, LOOP provides module <%=link("Modules.hierarchy")%> with implementations of the <%=link("Basics.__new", "<code>__new</code>")%> designed to work with class hierarchies.
-Such implementations use the introspection mechanisms provided by LOOP (see <%=link("Classes.classops")%>) to inspect the class hierarchy and invoke a special initialization metamethod of each class of the hierarchy in order to initialize the instance properly.</p>
+<p>To make this easy, LOOP provides module <a href="models.html#hierarchy"><code>loop.hierarchy</code></a> with implementations of the <a href="basics.html#__new"><code>__new</code></a> designed to work with class hierarchies.
+Such implementations use the introspection mechanisms provided by LOOP (see <a href="classops.html#classops">General Manipulation</a>) to inspect the class hierarchy and invoke a special initialization metamethod of each class of the hierarchy in order to initialize the instance properly.</p>
 
 <p>Two implementations are provided.
-Function <%=link("Modules.hierarchy.mutator")%> is designed to work as Lua-like constructors.
+Function <a href="models.html#hierarchy.mutator"><code>mutator</code></a> is designed to work as Lua-like constructors.
 This function basically iterates through the class hierarchy from the superclasses down to the actual class, calling the method <code>__init</code> of each class that provides such method.
 This way, each class that requires the initialization of an attribute must provide the method <code>__init</code> that initializes the attribute correctly.
-For example, we could rewrite the example presented in <%=link("Modules.multiple", "here")%> using this feature as illustrated below:</p>
+For example, we could rewrite the example presented in <a href="models.html#multiple">here</a> using this feature as illustrated below:</p>
 
 <pre>
 oo = require "loop.multiple"
@@ -209,7 +247,7 @@ File = Contained{
 print(Root:search("my_folder/my_file.txt").data) --> Hello, I'm a file
 </pre>
 
-<p>The other implementation provided is function <%=link("Modules.hierarchy.creator")%>, which is designed to resemble class constructors of Java or C++.
+<p>The other implementation provided is function <a href="models.html#hierarchy.creator"><code>creator</code></a>, which is designed to resemble class constructors of Java or C++.
 This function basically creates an empty instance of the class and then calls the method <code>__init</code> of this instance if such method exists.
 The <code>__init</code> method receives all the parameters provided to the constructor.</p>
 
@@ -268,3 +306,16 @@ File.data = "Hello, I'm a file"
 
 print(Root:search("my_folder/my_file.txt").data) --> Hello, I'm a file
 </pre>
+
+</div>
+
+<div class="content">
+<p><small><strong>Copyright (C) 2004-2018 <a href="https://github.com/renatomaia">Renato Maia</a></strong></small></p>
+<small>This project was originally developed in <a href="http://www.tecgraf.puc-rio.br">Tecgraf</a> at <a href="http://www.puc-rio.br">PUC-Rio</a>.</small>
+</div>
+
+
+
+</body>
+
+</html>    

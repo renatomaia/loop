@@ -1,3 +1,41 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+	<title>LOOP: Module Reference</title>
+	<style type="text/css" media="all"><!--
+		@import "../loop.css";
+		@import "../layout1.css";
+	--></style>
+</head>
+
+<body>
+
+<div id="Header">Object-Oriented Programming Support for Lua</div>
+<div id="Logo"><img alt="small (1K)" src="../small.gif" height="70"></div>
+
+<div id="Menu">
+<div class="outside"><div class="inside"><ul>
+	<li><a href="../index.html", title="Home">Home</a></li>
+	<li><a href="../release/index.html", title="Download">Download</a></li>
+	<li><a href="index.html", title="User Manual">Manual</a>
+		<div class="outside"><div class="inside"><ul>
+			<li><a href="intro.html", title="Introduction">Intro</a></li>
+			<li><a href="basics.html", title="Basic Concepts">Basics</a></li>
+			<li><a href="classops.html", title="Class Features">Classes</a></li>
+			<li><strong>Modules</strong></li>
+			<li><a href="changes.html", title="Release Notes">Changes</a></li>
+		</ul></div></div>
+	</li>
+	<li><a href="../contact.html", title="Contact People">Contact</a></li>
+</ul></div></div>
+
+</div>
+
+<div class="content">
+<h1>Module Reference</h1>
 <h2><a name="proto"><code>loop.proto</code></a></h2>
 
 <p>This module is intended to support prototype-based programming.
@@ -63,7 +101,7 @@ The <code>base</code> module is ideal for definition of classes without super-cl
 	<dd>Returns a class.
 	The optional parameter <code>table</code> defines a table that shall become the class.
 	If this parameter is not provided a new table is created to represent the class.
-	For more information about LOOP classes see <%=link("Basics.classes", "this")%>.</dd>
+	For more information about LOOP classes see <a href="basics.html#classes">this</a>.</dd>
 	
 	<dt><a name="base.getclass"><code>getclass</code></a><code>(object)</code></dt>
 	<dd>Returns the class of <code>object</code>.
@@ -95,7 +133,7 @@ The <code>base</code> module is ideal for definition of classes without super-cl
 	<dd>Returns an instance of class constructed accordingly to the values of the extra arguments.</dd>
 	
 	<dt><a name="base.rawnew"><code>rawnew</code></a><code>(class [, object])</code></dt>
-	<dd>Makes <code>object</code> an instance of <code>class</code> without calling the <%=link("Basics.__new", "<code>__new</code>")%> metamethod of the class.
+	<dd>Makes <code>object</code> an instance of <code>class</code> without calling the <a href="basics.html#__new"><code>__new</code></a> metamethod of the class.
 	If no <code>object</code> is provided, a new table is created to represent the new instance.</dd>
 </dl>
 
@@ -144,7 +182,7 @@ Additionally, the <code>simple</code> module introduce the functions <code>getsu
 
 <h3>Functions</h3>
 
-<p>All from <%=link("Modules.base")%> module and (re)defines:</p>
+<p>All from <a href="models.html#base"><code>loop.base</code></a> module and (re)defines:</p>
 
 <dl>
 	<dt><a name="simple.class"><code>class</code></a><code>([table [, super]])</code></dt>
@@ -152,7 +190,7 @@ Additionally, the <code>simple</code> module introduce the functions <code>getsu
 	The optional parameter <code>table</code> defines a table that shall become the class.
 	If this parameter is not provided a new table is created to represent the class.
 	The optional parameter <code>super</code> defines the superclass of the returned class.
-	If this second parameter is not provided this function behaves as the <code>class</code> function from the <%=link("Modules.base")%> module.</dd>
+	If this second parameter is not provided this function behaves as the <code>class</code> function from the <a href="models.html#base"><code>loop.base</code></a> module.</dd>
 
 	<dt><a name="simple.getsuper"><code>getsuper</code></a><code>(class)</code></dt>
 	<dd>Returns the super-class of <code>class</code>.
@@ -212,7 +250,7 @@ Additionally, the <code>getsuper(class)</code> function is changed so it returns
 
 <h3>Functions</h3>
 
-<p>All from <%=link("Modules.simple")%> module and (re)defines:</p>
+<p>All from <a href="models.html#simple"><code>loop.simple</code></a> module and (re)defines:</p>
 
 <dl>
 	<dt><a name="multiple.class"><code>class</code></a><code>(table, ...)</code></dt>
@@ -220,7 +258,7 @@ Additionally, the <code>getsuper(class)</code> function is changed so it returns
 	The optional parameter <code>table</code> defines a table that shall become the class.
 	If this parameter is not provided a new table is created to represent the class.
 	The additional parameters <code>...</code> defines all the superclasses of the returned class.
-	If less than two superclasses are provided this function behaves as the <code>class</code> function from the <%=link("Modules.simple")%> module.</dd>
+	If less than two superclasses are provided this function behaves as the <code>class</code> function from the <a href="models.html#simple"><code>loop.simple</code></a> module.</dd>
 
 	<dt><a name="multiple.getsuper"><code>getsuper</code></a><code>(class)</code></dt>
 	<dd>Returns all the super-classes of <code>class</code>.
@@ -288,10 +326,10 @@ print(Root:search("my_folder/my_file.txt").data) --> Hello, I'm a file
 
 <h2><a name="cached"><code>loop.cached</code></a></h2>
 
-<p>Classes created with modules <%=link("Modules.simple")%> and <%=link("Modules.multiple")%> behave like clones of their superclasses in the sense they always consult the superclasses to retrieve fields they don't have.
+<p>Classes created with modules <a href="models.html#simple"><code>loop.simple</code></a> and <a href="models.html#multiple"><code>loop.multiple</code></a> behave like clones of their superclasses in the sense they always consult the superclasses to retrieve fields they don't have.
 In order to avoid the search through the complete hierarchy of classes every time a class field is indexed, LOOP provides the <code>cached</code> module.
 In this module, classes copy the fields defined by their super-classes to themselves (<i>i.e.</i> meta-table).
-This cache of inherited fields makes instances of classes with simple or multiple inheritance as efficient as classes of the <%=link("Modules.base")%> module.
+This cache of inherited fields makes instances of classes with simple or multiple inheritance as efficient as classes of the <a href="models.html#base"><code>loop.base</code></a> module.
 Other advantage of the cache module is that meta-methods like the <code>__index</code> can be shared across the hierarchy of classes because they are copied to each class (<i>i.e.</i> meta-table).
 Currently, Lua ignores the <code>__index</code> when accessging the fields of meta-tables (see the <a href="http://www.lua.org/manual/5.2/manual.html#2.4">Lua manual</a>).</p>
 
@@ -303,7 +341,7 @@ The <code>cached</code> module introduces the new function <code>allmembers</cod
 
 <h3>Functions</h3>
 
-<p>All from <%=link("Modules.multiple")%> module and (re)defines:</p>
+<p>All from <a href="models.html#multiple"><code>loop.multiple</code></a> module and (re)defines:</p>
 
 <dl>
 	<dt><a name="cached.allmembers"><code>allmembers</code></a><code>(class)</code></dt>
@@ -312,7 +350,7 @@ The <code>cached</code> module introduces the new function <code>allmembers</cod
 <!--
 	<dt><a name="cached.getcached"><code>getcached</code></a><code>(class)</code></dt>
 	<dd>Returns the actual internal object that represents the cached class represented by proxy <code>class</code>.
-	This method is used only by other class modules that extend this one, <i>e.g.</i> the <%=link("Modules.scoped")%> module.</dd>
+	This method is used only by other class modules that extend this one, <i>e.g.</i> the <a href="models.html#scoped"><code>loop.scoped</code></a> module.</dd>
 	
 	<dt><a name="cached.subs"><code>subs</code></a><code>(class)</code></dt>
 	<dd>Returns an iterator that may be used in a <code>for</code> statement to iterate through all the sub-classes of <code>class</code>.
@@ -368,7 +406,7 @@ Such alternatives include the use of function closures as objects with private s
 
 <h3>Functions</h3>
 
-<p>All from <%=link("Modules.cached")%> module and (re)defines:</p>
+<p>All from <a href="models.html#cached"><code>loop.cached</code></a> module and (re)defines:</p>
 
 <dl>
 	<dt><a name="scoped.priv"><code>priv</code></a><code>(object [, class])</code></dt>
@@ -412,14 +450,14 @@ print(People["John Doe"].Age)
 
 <h2><a name="classops"><code>loop.classops</code></a></h2>
 
-<p>This module provides generic functions for manipulation of classes that follow a basic model adopted by all LOOP modules as described <%=link("Classes.classops", "here")%>.
+<p>This module provides generic functions for manipulation of classes that follow a basic model adopted by all LOOP modules as described <a href="classops.html#classops">here</a>.
 This module is only required when you manipulate classes created wiht different LOOP modules in a single application.
 This module does not provide a <code>class</code> function to create classes.
 Use other modules to create classes.</p>
 
 <h3>Functions</h3>
 
-<p>All from <%=link("Modules.multiple")%> module, except function <%=link("Modules.base.class")%>.</p>
+<p>All from <a href="models.html#multiple"><code>loop.multiple</code></a> module, except function <a href="models.html#base.class"><code>class</code></a>.</p>
 
 <h3>Example</h3>
 
@@ -444,8 +482,8 @@ print(oo.isclass(D)) --> true
 
 <h2><a name="hierarchy"><code>loop.hierarchy</code></a></h2>
 
-<p>This module provides functions to implement initialization mechanisms of instances of complex class hierarchies (like Java or C++ constructors) using the infrastructure provided by the <%=link("Basics.__new", "<code>__new</code>")%> metamethod.
-For more information on different initialization approaches see section <%=link("Classes.__init")%>.</p>
+<p>This module provides functions to implement initialization mechanisms of instances of complex class hierarchies (like Java or C++ constructors) using the infrastructure provided by the <a href="basics.html#__new"><code>__new</code></a> metamethod.
+For more information on different initialization approaches see section <a href="classops.html#__init">Hierarchical Initialization</a>.</p>
 
 <h3>Functions</h3>
 
@@ -468,8 +506,8 @@ For more information on different initialization approaches see section <%=link(
 
 <h2><a name="scoped.debug"><code>loop.scoped.debug</code></a></h2>
 
-<p>This module provides functions to inspect methods of classes created with the <%=link("Modules.scoped")%> module.
-The methods of such classes has references to the class they are defined that can be inspected using the <%=link("LuaManual.DebugLib")%>.</p>
+<p>This module provides functions to inspect methods of classes created with the <a href="models.html#scoped"><code>loop.scoped</code></a> module.
+The methods of such classes has references to the class they are defined that can be inspected using the <a href="http://www.lua.org/manual/5.2/manual.html#6.10">The Debug Library</a>.</p>
 
 <h3>Functions</h3>
 
@@ -514,10 +552,10 @@ assert(ood.methodclass(a.insert) == Array)
 	<dd>Removes all pairs stored in table <code>table</code> and returns this table.</dd>
 	
 	<dt><a name="table.memoize"><code>memoize</code></a><code>(func [, weak])</code></dt>
-	<dd>Returns a <%=link("PiL1stEd.Memoize", "memoize")%> table for function <code>func</code>.
+	<dd>Returns a <a href="http://www.lua.org/pil/17.1.html">memoize</a> table for function <code>func</code>.
 	Every time a new value is used to index the memoize table the function <code>func</code> is invoked with the indexed value as parameter.
 	If the result of the invocation produces a value different from <code>nil</code> this value is stored in the memoize table, so the next time the same value is indexed the stored value is produced without calling function <code>func</code> again.
-	Parameter <code>mode</code> indicates the weakness of the memoize table, as defined for field <%=link("LuaManual.WeakTables", "<code>__mode</code>")%> of metatables.</dd>
+	Parameter <code>mode</code> indicates the weakness of the memoize table, as defined for field <a href="http://www.lua.org/manual/5.2/manual.html#2.5.2"><code>__mode</code></a> of metatables.</dd>
 	<!--
 	<dd>Returns a table that whenever indexed returns the first result of invocation of function <code>func</code> passing the indexed key as parameter.</dd>
 	-->
@@ -533,3 +571,16 @@ chunkOf = table.memoize(loadstring, "v")
 f = chunkOf[ 'print "Hello, World!"' ]
 f() --> Hello, World!
 </pre>
+
+</div>
+
+<div class="content">
+<p><small><strong>Copyright (C) 2004-2018 <a href="https://github.com/renatomaia">Renato Maia</a></strong></small></p>
+<small>This project was originally developed in <a href="http://www.tecgraf.puc-rio.br">Tecgraf</a> at <a href="http://www.puc-rio.br">PUC-Rio</a>.</small>
+</div>
+
+
+
+</body>
+
+</html>    

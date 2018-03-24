@@ -1,3 +1,41 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+	<title>LOOP: Basic Concepts</title>
+	<style type="text/css" media="all"><!--
+		@import "../loop.css";
+		@import "../layout1.css";
+	--></style>
+</head>
+
+<body>
+
+<div id="Header">Object-Oriented Programming Support for Lua</div>
+<div id="Logo"><img alt="small (1K)" src="../small.gif" height="70"></div>
+
+<div id="Menu">
+<div class="outside"><div class="inside"><ul>
+	<li><a href="../index.html", title="Home">Home</a></li>
+	<li><a href="../release/index.html", title="Download">Download</a></li>
+	<li><a href="index.html", title="User Manual">Manual</a>
+		<div class="outside"><div class="inside"><ul>
+			<li><a href="intro.html", title="Introduction">Intro</a></li>
+			<li><strong>Basics</strong></li>
+			<li><a href="classops.html", title="Class Features">Classes</a></li>
+			<li><a href="models.html", title="Module Reference">Modules</a></li>
+			<li><a href="changes.html", title="Release Notes">Changes</a></li>
+		</ul></div></div>
+	</li>
+	<li><a href="../contact.html", title="Contact People">Contact</a></li>
+</ul></div></div>
+
+</div>
+
+<div class="content">
+<h1>Basic Concepts</h1>
 <p>
 Creating objects in Lua is very simple and clean.
 Take for example the code bellow that creates an object implementing a stack:
@@ -34,10 +72,10 @@ LOOP modules are designed to aid the later approach.</p>
 
 <h2><a name="prototyping">Cloning Objects</a></h2>
 
-<p>LOOP provides a module for cloning objects called <%=link("Modules.proto")%>.
-This module basically provides the <%=link("Modules.proto.clone")%> function.
+<p>LOOP provides a module for cloning objects called <a href="models.html#proto"><code>loop.proto</code></a>.
+This module basically provides the <a href="models.html#proto.clone"><code>clone</code></a> function.
 This function receives the object that will provide the members (methods and attributes) and an optional table that will become the cloned object.
-The <%=link("Modules.proto.clone")%> function is equivalent to:</p>
+The <a href="models.html#proto.clone"><code>clone</code></a> function is equivalent to:</p>
 
 <pre>
 function clone(proto, clone)
@@ -45,7 +83,7 @@ function clone(proto, clone)
 end
 </pre>
 
-<p>Cloning an object with <%=link("Modules.proto.clone")%> is different from copying it (see <%=link("Modules.table.copy")%>) because the cloned object does not have a copy the members of the original object.
+<p>Cloning an object with <a href="models.html#proto.clone"><code>clone</code></a> is different from copying it (see <a href="models.html#table.copy"><code>copy</code></a>) because the cloned object does not have a copy the members of the original object.
 Instead, the cloned object references the original object and consults it to get its members whenever necessary.
 So, if the original object changes, this change will reflect on its clones.
 As an example we could make our stack object a prototype and clone it to create more stacks, like in the example below:</p>
@@ -77,12 +115,12 @@ A LOOP class is basicaly a metatable.
 Moreover the instances of a class are tables that have the class as their metatable.</p>
 
 <p>LOOP classes have three minor extensions in relation to ordinary metatables.
-First, the default value of metamethod <%=link("LuaManual.Metatables", "<code>__index</code>")%> is the class itself.
+First, the default value of metamethod <a href="http://www.lua.org/manual/5.2/manual.html#2.4"><code>__index</code></a> is the class itself.
 So all fields of the class are shared with all its instances.
 In fact the class works as a prototype for all its instances.
 Secondly, a class can be used as a function to create instances of that class thus working as a factory.
 Finally, a class can optionally define a special metamethod called <code><a href="#__new">__new</a></code> to redefine how instances of that class are created.
-Class-based moduels provides function <%=link("Modules.base.class")%> to create classes, which is equivalent to:</p>
+Class-based moduels provides function <a href="models.html#base.class"><code>class</code></a> to create classes, which is equivalent to:</p>
 
 <pre>
 function new(class, ...)
@@ -181,7 +219,7 @@ print(myStack:pop()) --> Middle
 print(myStack:pop()) --> Bottom
 </pre>
 
-<p>The function <%=link("Modules.base.rawnew")%> used in the code above turns a table into an instance of a class without calling the <code>__new</code> metamethod.
+<p>The function <a href="models.html#base.rawnew"><code>rawnew</code></a> used in the code above turns a table into an instance of a class without calling the <code>__new</code> metamethod.
 One common use for the <code>__new</code> metamethod is to initialize a table so it can be turned into an instance of a class.
 For example, suppose we want to store the elements of our stack in a separate table stored in a field called <code>elements</code>.
 This way, we would have to create a new storage table for each instance of the stack class.
@@ -225,8 +263,8 @@ We can separate LOOP modules in tree categories, described below:</p>
 <h3>Basic Modules</h3>
 
 <p>The first group of modules are designed to provide support for different styles of OOP in Lua.
-To use <%=link("Basics.prototyping", "prototyping")%>, you might requilre only the <%=link("Modules.proto")%> module.
-However, to use <%=link("Classes", "classes")%> you might requilre one of the class-based modules listed below.
+To use <a href="basics.html#prototyping">prototyping</a>, you might requilre only the <a href="models.html#proto"><code>loop.proto</code></a> module.
+However, to use <a href="classops.html">classes</a> you might requilre one of the class-based modules listed below.
 These class-based modules are organized as incremental modules that provides the same functionality of the previous one but introducing some new funcionality.
 This way, your application can load only the module that provides the funcionality it requires.</p>
 
@@ -237,23 +275,23 @@ This way, your application can load only the module that provides the funcionali
       <th>Introduced feature</th>
     </tr>
     <tr>
-      <td><%=link("Modules.base")%></td>
-      <td>The <%=link("Basics.__new", "<code>__new</code>")%> metamethod.</td>
+      <td><a href="models.html#base"><code>loop.base</code></a></td>
+      <td>The <a href="basics.html#__new"><code>__new</code></a> metamethod.</td>
     </tr>
     <tr>
-      <td><%=link("Modules.simple")%></td>
+      <td><a href="models.html#simple"><code>loop.simple</code></a></td>
       <td>Simple inheritance.</td>
     </tr>
     <tr>
-      <td><%=link("Modules.multiple")%></td>
+      <td><a href="models.html#multiple"><code>loop.multiple</code></a></td>
       <td>Multiple inheritance.</td>
     </tr>
     <tr>
-      <td><%=link("Modules.cached")%></td>
+      <td><a href="models.html#cached"><code>loop.cached</code></a></td>
       <td>Metamethod inheritance.</td>
     </tr>
     <tr>
-      <td><%=link("Modules.scoped")%></td>
+      <td><a href="models.html#scoped"><code>loop.scoped</code></a></td>
       <td>Member access control.</td>
     </tr>
   </table>
@@ -264,11 +302,24 @@ This way, your application can load only the module that provides the funcionali
 <p>The second group contains modules with auxiliary functions that complement the functionality of the basic modules but are not necessary in most applications.</p>
 
 <ul>
-  <li><%=link("Modules.classops")%></li>
-  <li><%=link("Modules.hierarchy")%></li>
-  <li><%=link("Modules.scoped.debug")%></li>
+  <li><a href="models.html#classops"><code>loop.classops</code></a></li>
+  <li><a href="models.html#hierarchy"><code>loop.hierarchy</code></a></li>
+  <li><a href="models.html#scoped.debug"><code>loop.scoped.debug</code></a></li>
 </ul>
 
 <h3>Utility Modules</h3>
 
-<p>Finally, LOOP provides the <%=link("Modules.table")%> module with some basic operations on tables.</p>
+<p>Finally, LOOP provides the <a href="models.html#table"><code>loop.table</code></a> module with some basic operations on tables.</p>
+
+</div>
+
+<div class="content">
+<p><small><strong>Copyright (C) 2004-2018 <a href="https://github.com/renatomaia">Renato Maia</a></strong></small></p>
+<small>This project was originally developed in <a href="http://www.tecgraf.puc-rio.br">Tecgraf</a> at <a href="http://www.puc-rio.br">PUC-Rio</a>.</small>
+</div>
+
+
+
+</body>
+
+</html>    

@@ -1,0 +1,113 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=iso-8859-1" />
+	<title>LOOP: Release Notes</title>
+	<style type="text/css" media="all"><!--
+		@import "../loop.css";
+		@import "../layout1.css";
+	--></style>
+</head>
+
+<body>
+
+<div id="Header">Object-Oriented Programming Support for Lua</div>
+<div id="Logo"><img alt="small (1K)" src="../small.gif" height="70"></div>
+
+<div id="Menu">
+<div class="outside"><div class="inside"><ul>
+	<li><a href="../index.html", title="Home">Home</a></li>
+	<li><a href="../release/index.html", title="Download">Download</a></li>
+	<li><a href="index.html", title="User Manual">Manual</a>
+		<div class="outside"><div class="inside"><ul>
+			<li><a href="intro.html", title="Introduction">Intro</a></li>
+			<li><a href="basics.html", title="Basic Concepts">Basics</a></li>
+			<li><a href="classops.html", title="Class Features">Classes</a></li>
+			<li><a href="models.html", title="Module Reference">Modules</a></li>
+			<li><strong>Changes</strong></li>
+		</ul></div></div>
+	</li>
+	<li><a href="../contact.html", title="Contact People">Contact</a></li>
+</ul></div></div>
+
+</div>
+
+<div class="content">
+<h1>Release Notes</h1>
+<h2>Version 3.0</h2>
+
+
+<h3>What's New?</h3>
+
+<ul>
+	<li>Adapted to also work in Lua 5.2.</li>
+	<li>New module <a href="models.html#proto"><code>loop.proto</code></a> to support <a href="basics.html#prototyping">prototyping</a>.</li>
+	<li>Classes adopt a basic model that allow the program to manipulate any LOOP class in a uniform way, see <a href="classops.html#classops">General Manipulation</a>.</li>
+	<li>New module with implementations of the <a href="basics.html#__new">__new</a> metamethod.</li>
+	<li>New utilitary function <a href="models.html#table.memoize"><code>memoize</code></a> to create memoize tables.</li>
+</ul>
+
+<h3>What's Changed?</h3>
+
+<ul>
+	<li>Preloader is distributed as a separate <a href="https://github.com/renatomaia/luapreloader">package</a>.</li>
+	<li>LOOP Class Library is distributed as a different packages:
+		<ul>
+			<li><a href="https://github.com/renatomaia/loop-collections">LOOP Collections</a></li>
+			<li><a href="https://github.com/renatomaia/loop-debugging">LOOP Debugging</a></li>
+			<li><a href="https://github.com/renatomaia/loop-objects">LOOP Objects</a></li>
+			<li><a href="https://github.com/renatomaia/loop-parsing">LOOP Parsing</a></li>
+			<li><a href="https://github.com/renatomaia/loop-serializing">LOOP Serializing</a></li>
+		</ul>
+	</li>
+	<li>LOOP modules for component-based development are distributed as a separate <a href="https://github.com/renatomaia/loop-compdev">package</a>.</li>
+	<li>The following module functions were renamed for clarity:
+		<table>
+			<tr>
+				<th>LOOP 2.x</th>
+				<th>&nbsp</th>
+				<th>LOOP 3.0</th>
+			</tr>
+			<tr>
+				<td><code>classof</code></td>
+				<td>&nbsp</td>
+				<td><a href="models.html#base.getclass"><code>getclass</code></a></td>
+			</tr>
+			<tr>
+				<td><code>instanceof</code></td>
+				<td>&nbsp</td>
+				<td><a href="models.html#base.isinstanceof"><code>isinstanceof</code></a></td>
+			</tr>
+			<tr>
+				<td><code>memberof</code></td>
+				<td>&nbsp</td>
+				<td><a href="models.html#base.getmember"><code>getmember</code></a></td>
+			</tr>
+			<tr>
+				<td><code>subclassof</code></td>
+				<td>&nbsp</td>
+				<td><a href="models.html#simple.issubclassof"><code>issubclassof</code></a></td>
+			</tr>
+			<tr>
+				<td><code>superclass</code></td>
+				<td>&nbsp</td>
+				<td><a href="models.html#simple.getsuper"><code>getsuper</code></a></td>
+			</tr>
+		</table>
+	</li>
+</ul>
+
+</div>
+
+<div class="content">
+<p><small><strong>Copyright (C) 2004-2018 <a href="https://github.com/renatomaia">Renato Maia</a></strong></small></p>
+<small>This project was originally developed in <a href="http://www.tecgraf.puc-rio.br">Tecgraf</a> at <a href="http://www.puc-rio.br">PUC-Rio</a>.</small>
+</div>
+
+
+
+</body>
+
+</html>    
