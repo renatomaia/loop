@@ -1,3 +1,5 @@
+#!/bin/sh
+
 lua loop/tests/models/proto.lua
 lua loop/tests/models/base.lua
 lua loop/tests/models/simple.lua
